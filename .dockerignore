@@ -1,0 +1,17 @@
+# BACKEND
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.sqlite
+.env
+.git
+
+# FRONTEND
+node_modules/
+.next/
+dist/
+.env
+.git
+*.log
