@@ -7,6 +7,7 @@
   --foreground: #171717; */
   --background: #1e1c25;
   --foreground: #ededed;
+  --accent: #fff200;
 }
 
 /* @media (prefers-color-scheme: dark) {
@@ -22,3 +23,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+input, textarea {
+  color: #000;
+}
+
+select {
+  color: #000;
+}
+
+/* button {
+  color: #000;
+} */
