@@ -54,13 +54,13 @@ const SortableAthleteTable = () => {
         <thead>
           <tr>
             <th className="text-left cursor-pointer p-2 border-b" onClick={() => requestSort("first_name")}>
-              Name
+              Имя
             </th>
             <th className="text-left cursor-pointer p-2 border-b" onClick={() => requestSort("gender")}>
-              Gender
+              Пол
             </th>
             <th className="text-left cursor-pointer p-2 border-b" onClick={() => requestSort("birth_date")}>
-              Birth Date
+              Дата Рождения
             </th>
           </tr>
         </thead>

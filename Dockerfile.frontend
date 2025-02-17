@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY frontend/package.json frontend/package-lock.json ./
 
-RUN npm install --frozen-lockfile
+RUN npm install
 
 COPY frontend .
 
@@ -16,4 +16,4 @@ WORKDIR /app
 
 COPY --from=builder /app ./
 
-CMD ["npm", "run", "start"]
+CMD ["npm", "start"]

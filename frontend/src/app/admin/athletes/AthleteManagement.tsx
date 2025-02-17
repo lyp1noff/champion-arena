@@ -1,4 +1,4 @@
-import SortableAthleteTable from "./SortableAthleteTable";
+import SortableAthleteTable from "./components/SortableAthleteTable";
 
 const AthleteManagement = () => {
   return (
