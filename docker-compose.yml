@@ -1,9 +1,12 @@
 services:
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile.backend
-    container_name: backend
+      context: ./backend
+      dockerfile: ./Dockerfile
+    pull_policy: build
+    container_name: champion-backend
+    image: champion-backend:latest
+    restart: always
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-8000}:8000"
     environment:
@@ -11,28 +14,27 @@ services:
       - DATABASE_URL=${DATABASE_URL}
     depends_on:
       - db
-    networks:
-      - mynetwork
 
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: ./Dockerfile
       args:
         NEXT_PUBLIC_BACKEND_URL: ${BACKEND_URL}
-    container_name: frontend
+    pull_policy: build
+    container_name: champion-frontend
+    image: champion-frontend:latest
+    restart: always
     ports:
       - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
     environment:
       - NEXT_PUBLIC_BACKEND_URL=${BACKEND_URL}
     depends_on:
       - backend
-    networks:
-      - mynetwork
 
   db:
     image: postgres:15
-    container_name: postgres_db
+    container_name: champion-postgres-db
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -42,12 +44,6 @@ services:
       - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
-    networks:
-      - mynetwork
-
-networks:
-  mynetwork:
-    driver: bridge
 
 volumes:
   pg_data:

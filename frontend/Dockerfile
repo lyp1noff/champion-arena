@@ -6,11 +6,11 @@ ARG NEXT_PUBLIC_BACKEND_URL
 
 ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
 
-COPY frontend/package.json frontend/package-lock.json ./
+COPY package.json package-lock.json ./
 
 RUN npm install --force
 
-COPY frontend .
+COPY . .
 
 RUN npm run build
 
