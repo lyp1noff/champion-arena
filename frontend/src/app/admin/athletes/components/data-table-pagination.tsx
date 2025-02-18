@@ -1,9 +1,10 @@
-"use client";
+// "use client";
 
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+// import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useUpdateParams } from "@/lib/use-search-params";
 
 interface DataTablePaginationProps {
   total: number;
@@ -14,18 +15,8 @@ interface DataTablePaginationProps {
 }
 
 export function DataTablePagination({ total, page, limit, orderBy, order }: DataTablePaginationProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const updateParams = useUpdateParams();
   const totalPages = Math.ceil(total / limit);
-
-  const updateParams = (newPage?: number, newLimit?: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (newPage !== undefined) params.set("page", newPage.toString());
-    if (newLimit !== undefined) params.set("limit", newLimit.toString());
-
-    router.replace(`?${params.toString()}`);
-  };
 
   return (
     <div className="flex items-center justify-between px-2">
@@ -39,7 +30,7 @@ export function DataTablePagination({ total, page, limit, orderBy, order }: Data
           <Select
             value={`${limit}`}
             onValueChange={(value) => {
-              updateParams(1, Number(value));
+              updateParams({ limit: Number(value) });
             }}
           >
             <SelectTrigger className="h-8 w-[70px]">
@@ -61,7 +52,7 @@ export function DataTablePagination({ total, page, limit, orderBy, order }: Data
           <Button
             variant="outline"
             className="hidden h-8 w-8 p-0 lg:flex"
-            onClick={() => updateParams(1)}
+            onClick={() => updateParams({ page: Number(1) })}
             disabled={page === 1}
           >
             <span className="sr-only">Go to first page</span>
@@ -70,7 +61,7 @@ export function DataTablePagination({ total, page, limit, orderBy, order }: Data
           <Button
             variant="outline"
             className="h-8 w-8 p-0"
-            onClick={() => updateParams(page - 1)}
+            onClick={() => updateParams({ page: Number(page - 1) })}
             disabled={page === 1}
           >
             <span className="sr-only">Go to previous page</span>
@@ -79,7 +70,7 @@ export function DataTablePagination({ total, page, limit, orderBy, order }: Data
           <Button
             variant="outline"
             className="h-8 w-8 p-0"
-            onClick={() => updateParams(page + 1)}
+            onClick={() => updateParams({ page: Number(page + 1) })}
             disabled={page === totalPages}
           >
             <span className="sr-only">Go to next page</span>
@@ -88,7 +79,7 @@ export function DataTablePagination({ total, page, limit, orderBy, order }: Data
           <Button
             variant="outline"
             className="hidden h-8 w-8 p-0 lg:flex"
-            onClick={() => updateParams(totalPages)}
+            onClick={() => updateParams({ page: Number(totalPages) })}
             disabled={page === totalPages}
           >
             <span className="sr-only">Go to last page</span>
