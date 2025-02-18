@@ -1,4 +1,4 @@
-const url = "http://localhost:8000"
+const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 export async function getAthletes(
     page: number = 1,
