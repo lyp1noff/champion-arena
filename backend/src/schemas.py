@@ -21,6 +21,13 @@ class AthleteResponse(AthleteBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PaginatedAthletesResponse(BaseModel):
+    data: List[AthleteBase]
+    total: int
+    page: int
+    limit: int
+
+
 class CoachBase(BaseModel):
     last_name: str
     first_name: str

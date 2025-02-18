@@ -1,20 +1,11 @@
-import Header from '@/app/components/Header';
-
-const Home = () => {
+export default function Home() {
   return (
-    <div className="text-white min-h-screen">
-      <Header />
-
-      <main className="p-8">
-        <h1 className="text-4xl font-bold text-center text-secondary">
-          Добро пожаловать в Champion!
-        </h1>
-        <p className="mt-4 text-xl text-center">
-          Здесь проходят турниры. Выберите один из пунктов меню для продолжения.
-        </p>
-      </main>
+    <div className="container mx-auto py-10">
+      <h1 className="text-black dark:text-white text-3xl font-bold mb-4">
+        <span className="dark:text-blue-500">Champion </span>Karate
+        <span className="dark:text-championYellow"> Club </span>tournament manager
+      </h1>
+      <p>Тут будут турниры...</p>
     </div>
   );
-};
-
-export default Home;
+}
