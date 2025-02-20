@@ -2,14 +2,7 @@ import { useState, useEffect } from "react";
 import { PaginationState, SortingState } from "@tanstack/react-table";
 import { getAthletes } from "@/lib/api/api";
 import { useSearchParams, useRouter } from "next/navigation";
-
-interface Athlete {
-  last_name: string;
-  first_name: string;
-  gender: string;
-  age: string;
-  coach_last_name: number;
-}
+import { Athlete } from "@/lib/interfaces";
 
 export default function useDataTable() {
   const searchParams = useSearchParams();
