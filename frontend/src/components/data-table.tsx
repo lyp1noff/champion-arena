@@ -1,26 +1,40 @@
-import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DataTablePagination } from "./data-table-pagination";
+import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from "@tanstack/react-table";
+import DataTablePagination from "@/components/data-table-pagination";
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
+interface DataTableProps<TData> {
+  columns: ColumnDef<TData>[];
   data: TData[];
-  total: number;
+  totalPages: number;
+  totalRecords: number;
+  pagination: any;
+  setPagination: any;
+  sorting: any;
+  setSorting: any;
 }
 
-export function DataTable<TData, TValue>(props: DataTableProps<TData, TValue>) {
-  const { columns, data, total } = props;
-
+export default function DataTable<TData>({
+  columns,
+  data,
+  totalPages,
+  totalRecords,
+  pagination,
+  setPagination,
+  sorting,
+  setSorting,
+}: DataTableProps<TData>) {
   const table = useReactTable({
     data,
     columns,
+    pageCount: totalPages,
+    state: { pagination, sorting },
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    // columnResizeMode: "onChange",
-    // manualPagination: true,
-    // manualSorting: true,
-    // onPaginationChange,
-    // onSortingChange,
-    // state: { pagination, sorting },
+    manualPagination: true,
+    manualSorting: true,
+    autoResetAll: false,
+    autoResetPageIndex: false,
   });
 
   return (
@@ -59,7 +73,7 @@ export function DataTable<TData, TValue>(props: DataTableProps<TData, TValue>) {
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination {...props} />
+      <DataTablePagination table={table} totalRecords={totalRecords} />
     </div>
   );
 }

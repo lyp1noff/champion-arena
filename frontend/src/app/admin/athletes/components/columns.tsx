@@ -1,8 +1,15 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Athlete } from "../data/schema";
-import { DataTableColumnHeader } from "./data-table-column-header";
-import { DataTableRowActions } from "./data-table-row-actions";
+import DataTableColumnHeader from "@/components/data-table-column-header";
+import { DataTableRowActions } from "@/components/data-table-row-actions";
+
+interface Athlete {
+  last_name: string;
+  first_name: string;
+  gender: string;
+  age: string;
+  coach_last_name: number;
+}
 
 export const columns: ColumnDef<Athlete>[] = [
   {
@@ -28,27 +35,27 @@ export const columns: ColumnDef<Athlete>[] = [
   },
   {
     accessorKey: "last_name",
-    header: () => <DataTableColumnHeader title="Last Name" sortingField="last_name" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Last Name" />,
     cell: ({ row }) => <div>{row.getValue("last_name")}</div>,
   },
   {
     accessorKey: "first_name",
-    header: () => <DataTableColumnHeader title="First Name" sortingField="first_name" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="First Name" />,
     cell: ({ row }) => <div>{row.getValue("first_name")}</div>,
   },
   {
     accessorKey: "gender",
-    header: () => <DataTableColumnHeader title="Gender" sortingField="gender" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Gender" />,
     cell: ({ row }) => <div>{row.getValue("gender")}</div>,
   },
   {
     accessorKey: "age",
-    header: () => <DataTableColumnHeader title="Age" sortingField="age" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Age" />,
     cell: ({ row }) => <div>{row.getValue("age")}</div>,
   },
   {
     accessorKey: "coach_last_name",
-    header: () => <DataTableColumnHeader title="Coach" sortingField="coach_last_name" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Coach" />,
     cell: ({ row }) => <div>{row.getValue("coach_last_name")}</div>,
   },
   {
