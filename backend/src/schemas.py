@@ -17,12 +17,14 @@ class AthleteCreate(AthleteBase):
 class AthleteResponse(AthleteBase):
     id: int
     coach_id: Optional[int] = None
+    coach_last_name: Optional[str] = None
+    age: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PaginatedAthletesResponse(BaseModel):
-    data: List[AthleteBase]
+    data: List[AthleteResponse]
     total: int
     page: int
     limit: int

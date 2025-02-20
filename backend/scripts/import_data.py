@@ -1,7 +1,7 @@
-import datetime
 import os
 import json
 import asyncio
+from datetime import date, timedelta
 from sqlalchemy import select
 
 # Импорт базы данных и моделей
@@ -11,7 +11,9 @@ from src.models import Tournament, Coach, Athlete, Category, Bracket, BracketPar
 # Путь к JSON-файлу
 DATA_FILE = os.path.join(os.path.dirname(__file__), "../data.cbr")
 
-temp_date=datetime.date.today()
+# Установленные даты
+tournament_date = date(2023, 4, 12)
+athlete_date = date(2013, 5, 6)
 
 async def import_data():
     """Импорт данных из JSON в базу данных"""
@@ -25,7 +27,14 @@ async def import_data():
         categories_cache = {}
 
         # Создаём турнир (можно параметризовать)
-        tournament = Tournament(name="Example Tournament", location="Somewhere", start_date=temp_date, end_date=temp_date, registration_start_date=temp_date, registration_end_date=temp_date)
+        tournament = Tournament(
+            name="Example Tournament",
+            location="Somewhere",
+            start_date=tournament_date,
+            end_date=tournament_date + timedelta(days=3),
+            registration_start_date=tournament_date - timedelta(days=10),
+            registration_end_date=tournament_date - timedelta(days=1)
+        )
         session.add(tournament)
         await session.commit()
 
@@ -66,8 +75,8 @@ async def import_data():
                 athlete = Athlete(
                     first_name=first_name,
                     last_name=last_name,
-                    gender="Unknown",
-                    birth_date=temp_date,
+                    gender="male-or-female",
+                    birth_date=athlete_date,
                     coach_id=coach.id
                 )
                 session.add(athlete)

@@ -1,30 +1,26 @@
 import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DataTablePagination } from "./data-table-pagination";
-// import { useRouter } from "next/navigation";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   total: number;
-  page: number;
-  limit: number;
-  orderBy: string;
-  order: string;
 }
 
 export function DataTable<TData, TValue>(props: DataTableProps<TData, TValue>) {
-  const { columns, data, total, page, limit, orderBy, order } = props;
-  // const router = useRouter();
-
-  // const handlePageChange = (newPage: number) => {
-  //   router.push(`?page=${newPage}&limit=${limit}&order_by=${orderBy}&order=${order}`);
-  // };
+  const { columns, data, total } = props;
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    // columnResizeMode: "onChange",
+    // manualPagination: true,
+    // manualSorting: true,
+    // onPaginationChange,
+    // onSortingChange,
+    // state: { pagination, sorting },
   });
 
   return (

@@ -1,3 +1,4 @@
+from datetime import date
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, Boolean, DateTime, func
 from sqlalchemy.orm import relationship, declared_attr
 from src.database import Base
@@ -29,6 +30,14 @@ class Athlete(Base, TimestampMixin):
     matches_as_athlete2 = relationship("BracketMatch", foreign_keys=lambda: [BracketMatch.athlete2_id], back_populates="athlete2")
     matches_won = relationship("BracketMatch", foreign_keys=lambda: [BracketMatch.winner_id], back_populates="winner")
 
+    @property
+    def age(self):
+        if self.birth_date:
+            today = date.today()
+            return today.year - self.birth_date.year - (
+                (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
+            )
+        return None
 
 
 class Coach(Base, TimestampMixin):

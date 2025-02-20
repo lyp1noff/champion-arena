@@ -1,21 +1,11 @@
-// "use client";
-
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
-// import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useUpdateParams } from "@/lib/use-search-params";
 
-interface DataTablePaginationProps {
-  total: number;
-  page: number;
-  limit: number;
-  orderBy: string;
-  order: string;
-}
+import { useTableState } from "./use-table-state";
 
-export function DataTablePagination({ total, page, limit, orderBy, order }: DataTablePaginationProps) {
-  const updateParams = useUpdateParams();
+export function DataTablePagination({ total }: { total: number }) {
+  const { page, limit, updateParams } = useTableState();
   const totalPages = Math.ceil(total / limit);
 
   return (
