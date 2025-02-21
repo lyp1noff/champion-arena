@@ -41,7 +41,7 @@ function AthletesTableWrapper() {
 
 export default function AthletesPage() {
   return (
-    <div className="container hidden h-full flex-1 flex-col space-y-8 p-8 md:flex">
+    <div className="container h-full flex-1 flex-col space-y-8 p-8 md:flex">
       <Suspense fallback={<ScreenLoader />}>
         <AthletesTableWrapper />
       </Suspense>
