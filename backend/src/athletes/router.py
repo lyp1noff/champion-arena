@@ -1,17 +1,17 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import asc, desc, distinct, func, select
+from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.models import Athlete, Coach
 from src.schemas import AthleteResponse, AthleteCreate, PaginatedAthletesResponse
 from src.database import get_db
-from src.athletes.crud import (
-    create_athlete as crud_create_athlete,
-    get_paginated_athletes as crud_get_paginated_athletes,
-    get_athlete_by_id as crud_get_athlete_by_id,
-)
 
-router = APIRouter()
+router = APIRouter(prefix="/athletes")
 
-@router.get("/athletes", response_model=PaginatedAthletesResponse)
+
+@router.get("", response_model=PaginatedAthletesResponse)
 async def get_athletes(
     page: int = Query(1, alias="page", ge=1),
     limit: int = Query(10, alias="limit", ge=1, le=100),
@@ -19,18 +19,90 @@ async def get_athletes(
     order: str = Query("asc", alias="order"),
     db: AsyncSession = Depends(get_db),
 ):
-    return await crud_get_paginated_athletes(page, limit, order_by, order, db)
+    valid_order_fields = {
+        "id",
+        "last_name",
+        "first_name",
+        "gender",
+        "birth_date",
+        "coach_last_name",
+        "age",
+    }
+
+    if order_by not in valid_order_fields:
+        order_by = "id"
+
+    if order_by == "age":
+        order_column = func.date_part("year", func.age(Athlete.birth_date))
+    elif order_by == "coach_last_name":
+        order_column = Coach.last_name
+    else:
+        order_column = getattr(Athlete, order_by)
+
+    order_column = desc(order_column) if order.lower() == "desc" else asc(order_column)
+
+    offset = (page - 1) * limit
+
+    total_query = await db.execute(
+        select(func.count(Athlete.id)).outerjoin(Coach, Athlete.coach_id == Coach.id)
+    )
+    total = total_query.scalar_one_or_none() or 0
+
+    result = await db.execute(
+        select(
+            Athlete,
+            Coach.last_name.label("coach_last_name"),
+            func.date_part("year", func.age(Athlete.birth_date)).label("age"),
+        )
+        .outerjoin(Coach, Athlete.coach_id == Coach.id)
+        .order_by(order_column)
+        .offset(offset)
+        .limit(limit)
+    )
+
+    athletes = [
+        AthleteResponse.model_validate(
+            {**vars(athlete), "coach_last_name": coach_last_name, "age": age}
+        )
+        for athlete, coach_last_name, age in result.all()
+    ]
+
+    return {
+        "data": athletes,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 
-# @router.get("/athletes", response_model=list[AthleteResponse])
-# async def get_athletes(db: AsyncSession = Depends(get_db)):
-#     return await crud_get_all_athletes(db=db)
-
-
-@router.get("/athletes/{id}", response_model=AthleteResponse)
+@router.get("{id}", response_model=AthleteResponse)
 async def get_athlete(id: int, db: AsyncSession = Depends(get_db)):
-    return await crud_get_athlete_by_id(db=db, id=id)
+    result = await db.execute(
+        select(Athlete).options(joinedload(Athlete.coach)).filter(Athlete.id == id)
+    )
+    athlete = result.scalars().first()
+    if not athlete:
+        raise HTTPException(status_code=404, detail="Athlete not found")
 
-@router.post("/athletes", response_model=AthleteResponse)
+    athlete.coach_last_name = athlete.coach.last_name if athlete.coach else None
+
+    return athlete
+
+
+@router.post("", response_model=AthleteResponse)
 async def create_athlete(athlete: AthleteCreate, db: AsyncSession = Depends(get_db)):
-    return await crud_create_athlete(db=db, athlete = athlete)
+    try:
+        new_athlete = Athlete(**athlete.model_dump())
+        db.add(new_athlete)
+        await db.commit()
+        await db.refresh(new_athlete)
+        return new_athlete
+
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=400, detail="Invalid coach_id: coach does not exist"
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

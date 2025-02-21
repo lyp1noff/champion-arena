@@ -33,8 +33,6 @@ export default function DataTable<TData>({
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     manualSorting: true,
-    autoResetAll: false,
-    autoResetPageIndex: false,
   });
 
   return (

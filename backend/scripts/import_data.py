@@ -1,7 +1,8 @@
 import os
 import json
 import asyncio
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+import random
 from sqlalchemy import select
 
 # Импорт базы данных и моделей
@@ -13,7 +14,12 @@ DATA_FILE = os.path.join(os.path.dirname(__file__), "../data.cbr")
 
 # Установленные даты
 tournament_date = date(2023, 4, 12)
-athlete_date = date(2013, 5, 6)
+
+def random_date(start_year=2005, end_year=2017):
+    start_date = datetime(start_year, 1, 1)
+    end_date = datetime(end_year, 12, 31)
+    random_days = random.randint(0, (end_date - start_date).days)
+    return (start_date + timedelta(days=random_days)).date()
 
 async def import_data():
     """Импорт данных из JSON в базу данных"""
@@ -72,11 +78,12 @@ async def import_data():
             result = await session.execute(select(Athlete).filter_by(first_name=first_name, last_name=last_name))
             athlete = result.scalars().first()
             if not athlete:
+                birth_date = random_date()
                 athlete = Athlete(
                     first_name=first_name,
                     last_name=last_name,
                     gender="male-or-female",
-                    birth_date=athlete_date,
+                    birth_date=birth_date,
                     coach_id=coach.id
                 )
                 session.add(athlete)

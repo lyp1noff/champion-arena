@@ -1,12 +1,23 @@
 import asyncio
+
+from sqlalchemy import func, select
 from src.database import SessionLocal
-from src.coaches.crud import get_all_coaches
-from src.athletes.crud import get_all_athletes
+from src.models import Athlete
+
 
 async def main():
     async with SessionLocal() as db:
-        data = await get_all_coaches(db)
-        for coach in data:
-            print(f"ID: {coach.id}, Имя: {coach.first_name}, Фамилия: {coach.last_name}")
+        search_term = "%Іванунік%"
+        query = (
+            select(func.count())
+            .select_from(Athlete)
+            .where(func.lower(Athlete.last_name).ilike(func.lower(search_term)))
+        )
+
+        result = await db.execute(query)
+        total = result.scalar_one_or_none() or 0
+
+        print(f"🔍 Найдено записей: {total}")
+
 
 asyncio.run(main())
