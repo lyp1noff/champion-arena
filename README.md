@@ -3,7 +3,7 @@
 ## 📌 Overview
 The **Karate Tournament Management Platform** is a web-based system designed to simplify the organization and execution of karate tournaments. It provides a structured workflow for tournament organizers, athletes, coaches, and referees, ensuring a seamless and efficient competition experience.
 
-🚨 **Note:** This project is currently in development and available for portfolio purposes. In the future, access to the source code may be restricted.
+🚨 **Note:** This project is currently in **early** development and available for portfolio purposes. In the future, access to the source code may be restricted.
 
 ## 🚀 Features
 
