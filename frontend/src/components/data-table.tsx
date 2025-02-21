@@ -1,6 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from "@tanstack/react-table";
 import DataTablePagination from "@/components/data-table-pagination";
+import { Input } from "./ui/input";
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData>[];
@@ -11,6 +12,10 @@ interface DataTableProps<TData> {
   setPagination: any;
   sorting: any;
   setSorting: any;
+  search: string;
+  setSearch: any;
+  coachSearch: string;
+  setCoachSearch: any;
 }
 
 export default function DataTable<TData>({
@@ -22,6 +27,10 @@ export default function DataTable<TData>({
   setPagination,
   sorting,
   setSorting,
+  search,
+  setSearch,
+  coachSearch,
+  setCoachSearch,
 }: DataTableProps<TData>) {
   const table = useReactTable({
     data,
@@ -37,6 +46,14 @@ export default function DataTable<TData>({
 
   return (
     <div className="space-y-4">
+      <div className="flex gap-4 mb-4">
+        <Input placeholder="Search athlete..." value={search} onChange={(e) => setSearch(e.target.value.trim())} />
+        <Input
+          placeholder="Search coach..."
+          value={coachSearch}
+          onChange={(e) => setCoachSearch(e.target.value.trim())}
+        />
+      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>

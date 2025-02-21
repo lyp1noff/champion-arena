@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import asc, desc, distinct, func, select
+from sqlalchemy import asc, desc, distinct, func, or_, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,8 @@ async def get_athletes(
     limit: int = Query(10, alias="limit", ge=1, le=100),
     order_by: str = Query("id", alias="order_by"),
     order: str = Query("asc", alias="order"),
+    search: str = Query(None, alias="search"),
+    coach_search: str = Query(None, alias="coach_search"),
     db: AsyncSession = Depends(get_db),
 ):
     valid_order_fields = {
@@ -43,8 +45,21 @@ async def get_athletes(
 
     offset = (page - 1) * limit
 
+    filters = []
+    if search:
+        filters.append(
+            or_(
+                Athlete.first_name.ilike(f"%{search}%"),
+                Athlete.last_name.ilike(f"%{search}%"),
+            )
+        )
+    if coach_search:
+        filters.append(Coach.last_name.ilike(f"%{coach_search}%"))
+
     total_query = await db.execute(
-        select(func.count(Athlete.id)).outerjoin(Coach, Athlete.coach_id == Coach.id)
+        select(func.count(Athlete.id))
+        .outerjoin(Coach, Athlete.coach_id == Coach.id)
+        .where(*filters)
     )
     total = total_query.scalar_one_or_none() or 0
 
@@ -55,6 +70,7 @@ async def get_athletes(
             func.date_part("year", func.age(Athlete.birth_date)).label("age"),
         )
         .outerjoin(Coach, Athlete.coach_id == Coach.id)
+        .where(*filters)
         .order_by(order_column)
         .offset(offset)
         .limit(limit)

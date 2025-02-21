@@ -7,7 +7,19 @@ import { columns } from "./components/columns";
 import useDataTable from "./hooks/use-data-table";
 
 function AthletesTableWrapper() {
-  const { data, totalPages, totalRecords, pagination, onPaginationChange, sorting, onSortingChange } = useDataTable();
+  const {
+    data,
+    totalPages,
+    totalRecords,
+    pagination,
+    onPaginationChange,
+    sorting,
+    onSortingChange,
+    search,
+    setSearch,
+    coachSearch,
+    setCoachSearch,
+  } = useDataTable();
 
   return (
     <DataTable
@@ -19,6 +31,10 @@ function AthletesTableWrapper() {
       setPagination={onPaginationChange}
       sorting={sorting}
       setSorting={onSortingChange}
+      search={search}
+      setSearch={setSearch}
+      coachSearch={coachSearch}
+      setCoachSearch={setCoachSearch}
     />
   );
 }
