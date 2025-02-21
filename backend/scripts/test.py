@@ -11,7 +11,7 @@ async def main():
         query = (
             select(func.count())
             .select_from(Athlete)
-            .where(func.lower(Athlete.last_name).ilike(func.lower(search_term)))
+            .where(Athlete.last_name.ilike(search_term))
         )
 
         result = await db.execute(query)

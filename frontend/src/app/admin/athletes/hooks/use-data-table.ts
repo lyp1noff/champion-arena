@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PaginationState, SortingState } from "@tanstack/react-table";
+import { PaginationState, SortingState, Updater } from "@tanstack/react-table";
 import { getAthletes } from "@/lib/api/api";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Athlete } from "@/lib/interfaces";
@@ -26,6 +26,21 @@ export default function useDataTable() {
     { id: sortFromUrl, desc: orderFromUrl === "desc" },
   ]);
 
+  const onPaginationChange: typeof setPagination = (updater) => {
+    setPagination((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      return next.pageSize !== prev.pageSize ? { ...next, pageIndex: 0 } : next;
+    });
+  };
+
+  const onSortingChange: typeof setSorting = (updater) => {
+    setSorting((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+      return next;
+    });
+  };
+
   useEffect(() => {
     const params = new URLSearchParams();
     params.set("page", String(pagination.pageIndex + 1));
@@ -50,5 +65,5 @@ export default function useDataTable() {
     });
   }, [pagination, sorting]);
 
-  return { data, totalPages, totalRecords, pagination, setPagination, sorting, setSorting };
+  return { data, totalPages, totalRecords, pagination, onPaginationChange, sorting, onSortingChange };
 }
