@@ -5,6 +5,7 @@ origins = [
     FRONTEND_URL,
 ]
 
+
 def add_cors_middleware(app):
     app.add_middleware(
         CORSMiddleware,

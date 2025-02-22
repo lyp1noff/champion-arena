@@ -1,10 +1,11 @@
 "use client";
 
 import { Suspense } from "react";
-import DataTable from "../../../components/data-table";
+import DataTable from "@/components/data-table";
 import ScreenLoader from "@/components/loader";
-import { columns } from "./components/columns";
 import useDataTable from "./hooks/use-data-table";
+import { columns } from "./components/columns";
+import DataTableSearch from "./components/data-table-search";
 
 function AthletesTableWrapper() {
   const {
@@ -22,29 +23,31 @@ function AthletesTableWrapper() {
   } = useDataTable();
 
   return (
-    <DataTable
-      columns={columns}
-      data={data}
-      totalPages={totalPages}
-      totalRecords={totalRecords}
-      pagination={pagination}
-      setPagination={onPaginationChange}
-      sorting={sorting}
-      setSorting={onSortingChange}
-      search={search}
-      setSearch={setSearch}
-      coachSearch={coachSearch}
-      setCoachSearch={setCoachSearch}
-    />
+    <div className="container h-full flex-1 flex-col p-8 md:flex">
+      <DataTableSearch
+        search={search}
+        setSearch={setSearch}
+        coachSearch={coachSearch}
+        setCoachSearch={setCoachSearch}
+      />
+      <DataTable
+        columns={columns}
+        data={data}
+        totalPages={totalPages}
+        totalRecords={totalRecords}
+        pagination={pagination}
+        setPagination={onPaginationChange}
+        sorting={sorting}
+        setSorting={onSortingChange}
+      />
+    </div>
   );
 }
 
 export default function AthletesPage() {
   return (
-    <div className="container h-full flex-1 flex-col space-y-8 p-8 md:flex">
-      <Suspense fallback={<ScreenLoader />}>
-        <AthletesTableWrapper />
-      </Suspense>
-    </div>
+    <Suspense fallback={<ScreenLoader />}>
+      <AthletesTableWrapper />
+    </Suspense>
   );
 }
