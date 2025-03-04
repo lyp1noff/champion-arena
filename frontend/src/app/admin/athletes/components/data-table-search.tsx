@@ -2,9 +2,9 @@ import { Input } from "@/components/ui/input";
 
 interface DataTablePaginationProps {
   search: string;
-  setSearch: any;
+  setSearch: React.Dispatch<React.SetStateAction<string>>;
   coachSearch: string;
-  setCoachSearch: any;
+  setCoachSearch: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export default function DataTablePagination({

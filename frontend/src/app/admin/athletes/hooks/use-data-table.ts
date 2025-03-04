@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PaginationState, SortingState, Updater } from "@tanstack/react-table";
+import { PaginationState, SortingState } from "@tanstack/react-table";
 import { getAthletes } from "@/lib/api/api";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Athlete } from "@/lib/interfaces";
