@@ -52,6 +52,9 @@ class Athlete(Base, TimestampMixin):
         foreign_keys=lambda: [BracketMatch.winner_id],
         back_populates="winner",
     )
+    tournaments = relationship(
+        "TournamentParticipant", back_populates="athlete", cascade="all, delete"
+    )
 
 
 class Coach(Base, TimestampMixin):
@@ -90,6 +93,24 @@ class Tournament(Base, TimestampMixin):
     brackets = relationship(
         "Bracket", back_populates="tournament", cascade="all, delete"
     )
+    participants = relationship(
+        "TournamentParticipant", back_populates="tournament", cascade="all, delete"
+    )
+
+
+class TournamentParticipant(Base):
+    __tablename__ = "tournament_participants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tournament_id = Column(
+        Integer, ForeignKey("tournaments.id", ondelete="CASCADE"), index=True
+    )
+    athlete_id = Column(
+        Integer, ForeignKey("athletes.id", ondelete="CASCADE"), index=True
+    )
+
+    tournament = relationship("Tournament", back_populates="participants")
+    athlete = relationship("Athlete", back_populates="tournaments")
 
 
 class Bracket(Base):

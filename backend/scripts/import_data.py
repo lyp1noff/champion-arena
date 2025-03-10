@@ -7,7 +7,15 @@ from sqlalchemy import select
 
 # Импорт базы данных и моделей
 from src.database import SessionLocal
-from src.models import Tournament, Coach, Athlete, Category, Bracket, BracketParticipant
+from src.models import (
+    Tournament,
+    Coach,
+    Athlete,
+    Category,
+    Bracket,
+    BracketParticipant,
+    TournamentParticipant,
+)
 
 # Путь к JSON-файлу
 DATA_FILE = os.path.join(os.path.dirname(__file__), "../data.cbr")
@@ -15,11 +23,13 @@ DATA_FILE = os.path.join(os.path.dirname(__file__), "../data.cbr")
 # Установленные даты
 tournament_date = date(2023, 4, 12)
 
+
 def random_date(start_year=2005, end_year=2017):
     start_date = datetime(start_year, 1, 1)
     end_date = datetime(end_year, 12, 31)
     random_days = random.randint(0, (end_date - start_date).days)
     return (start_date + timedelta(days=random_days)).date()
+
 
 async def import_data():
     """Импорт данных из JSON в базу данных"""
@@ -39,7 +49,7 @@ async def import_data():
             start_date=tournament_date,
             end_date=tournament_date + timedelta(days=3),
             registration_start_date=tournament_date - timedelta(days=10),
-            registration_end_date=tournament_date - timedelta(days=1)
+            registration_end_date=tournament_date - timedelta(days=1),
         )
         session.add(tournament)
         await session.commit()
@@ -52,7 +62,9 @@ async def import_data():
 
             # Получаем или создаём тренера
             if coach_name not in coaches_cache:
-                result = await session.execute(select(Coach).filter_by(last_name=coach_name))
+                result = await session.execute(
+                    select(Coach).filter_by(last_name=coach_name)
+                )
                 coach = result.scalars().first()
                 if not coach:
                     coach = Coach(last_name=coach_name, first_name="")
@@ -64,7 +76,9 @@ async def import_data():
 
             # Получаем или создаём категорию
             if category_name not in categories_cache:
-                result = await session.execute(select(Category).filter_by(name=category_name))
+                result = await session.execute(
+                    select(Category).filter_by(name=category_name)
+                )
                 category = result.scalars().first()
                 if not category:
                     category = Category(name=category_name, age=0, gender="Unknown")
@@ -75,7 +89,9 @@ async def import_data():
             category = categories_cache[category_name]
 
             # Создаём атлета
-            result = await session.execute(select(Athlete).filter_by(first_name=first_name, last_name=last_name))
+            result = await session.execute(
+                select(Athlete).filter_by(first_name=first_name, last_name=last_name)
+            )
             athlete = result.scalars().first()
             if not athlete:
                 birth_date = random_date()
@@ -84,13 +100,23 @@ async def import_data():
                     last_name=last_name,
                     gender="male-or-female",
                     birth_date=birth_date,
-                    coach_id=coach.id
+                    coach_id=coach.id,
                 )
                 session.add(athlete)
                 await session.commit()
 
+            tournament_participant = TournamentParticipant(
+                tournament_id=tournament.id, athlete_id=athlete.id
+            )
+            session.add(tournament_participant)
+            await session.commit()
+
             # Создаём сетку, если её нет
-            result = await session.execute(select(Bracket).filter_by(tournament_id=tournament.id, category_id=category.id))
+            result = await session.execute(
+                select(Bracket).filter_by(
+                    tournament_id=tournament.id, category_id=category.id
+                )
+            )
             bracket = result.scalars().first()
             if not bracket:
                 bracket = Bracket(tournament_id=tournament.id, category_id=category.id)
@@ -98,13 +124,16 @@ async def import_data():
                 await session.commit()
 
             # Добавляем участника в сетку
-            participant = BracketParticipant(bracket_id=bracket.id, athlete_id=athlete.id, seed=competitor["SortId"])
+            participant = BracketParticipant(
+                bracket_id=bracket.id, athlete_id=athlete.id, seed=competitor["SortId"]
+            )
             session.add(participant)
 
         # Финальный коммит
         await session.commit()
 
     print("✅ Импорт данных завершён!")
+
 
 # Запускаем импорт
 if __name__ == "__main__":

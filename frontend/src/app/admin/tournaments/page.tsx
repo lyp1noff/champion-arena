@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-function AthletesTableWrapper() {
+function TournamentTableWrapper() {
   const {
     data,
     totalPages,
@@ -20,22 +20,18 @@ function AthletesTableWrapper() {
     onSortingChange,
     search,
     setSearch,
-    coachSearch,
-    setCoachSearch,
   } = useDataTable();
 
   return (
     <div className="container h-full flex-1 flex-col p-8 md:flex">
       <div className="flex gap-4 mb-4">
-        <Input placeholder="Search athlete..." value={search} onChange={(e) => setSearch(e.target.value.trim())} />
         <Input
-          placeholder="Search coach..."
-          value={coachSearch}
-          onChange={(e) => setCoachSearch(e.target.value.trim())}
+          placeholder="Search tournament..."
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value.trim())}
         />
-
-        <Link href="/admin/athletes/create">
-          <Button variant="outline">Create New Athlete</Button>
+        <Link href="/admin/tournaments/create">
+          <Button variant="outline">Create New Tournament</Button>
         </Link>
       </div>
       <DataTable
@@ -52,10 +48,10 @@ function AthletesTableWrapper() {
   );
 }
 
-export default function AthletesPage() {
+export default function TournamentsPage() {
   return (
     <Suspense fallback={<ScreenLoader />}>
-      <AthletesTableWrapper />
+      <TournamentTableWrapper />
     </Suspense>
   );
 }

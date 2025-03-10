@@ -81,6 +81,13 @@ class TournamentResponse(TournamentBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PaginatedTournamentResponse(BaseModel):
+    data: List[TournamentResponse]
+    total: int
+    page: int
+    limit: int
+
+
 class BracketBase(BaseModel):
     tournament_id: int
     category_id: int
