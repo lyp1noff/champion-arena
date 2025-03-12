@@ -105,11 +105,19 @@ async def import_data():
                 session.add(athlete)
                 await session.commit()
 
-            tournament_participant = TournamentParticipant(
-                tournament_id=tournament.id, athlete_id=athlete.id
+            result = await session.execute(
+                select(TournamentParticipant).filter_by(
+                    tournament_id=tournament.id, athlete_id=athlete.id
+                )
             )
-            session.add(tournament_participant)
-            await session.commit()
+            existing_participant = result.scalars().first()
+
+            if not existing_participant:
+                tournament_participant = TournamentParticipant(
+                    tournament_id=tournament.id, athlete_id=athlete.id
+                )
+                session.add(tournament_participant)
+                await session.commit()
 
             # Создаём сетку, если её нет
             result = await session.execute(

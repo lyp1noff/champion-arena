@@ -89,6 +89,7 @@ class Tournament(Base, TimestampMixin):
     end_date = Column(Date)
     registration_start_date = Column(Date)
     registration_end_date = Column(Date)
+    image_url = Column(String, nullable=True)
 
     brackets = relationship(
         "Bracket", back_populates="tournament", cascade="all, delete"

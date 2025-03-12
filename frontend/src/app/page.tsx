@@ -1,54 +1,38 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { CalendarIcon, MapPinIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Tournament } from "@/lib/interfaces";
+import { getTournaments } from "@/lib/api/tournaments";
+import { toast } from "sonner";
+
+const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
 
 export default function TournamentsPage() {
-  // Sample tournament data - in a real app, this would come from an API or database
-  const tournaments = [
-    {
-      id: 1,
-      title: "Summer Championship",
-      place: "Kyiv, Ukraine",
-      date: "June 15-20, 2024",
-      image: "/photo.jpg?height=200&width=400",
-    },
-    {
-      id: 2,
-      title: "Winter Classic",
-      place: "Kyiv, Ukraine",
-      date: "January 10-15, 2025",
-      image: "/photo.jpg?height=200&width=400",
-    },
-    {
-      id: 3,
-      title: "Spring Tournament",
-      place: "Kyiv, Ukraine",
-      date: "April 5-10, 2024",
-      image: "/photo.jpg?height=200&width=400",
-    },
-    {
-      id: 4,
-      title: "Fall Invitational",
-      place: "Kyiv, Ukraine",
-      date: "October 12-17, 2024",
-      image: "/photo.jpg?height=200&width=400",
-    },
-    {
-      id: 5,
-      title: "Regional Qualifier",
-      place: "Kyiv, Ukraine",
-      date: "August 22-25, 2024",
-      image: "/photo.jpg?height=200&width=400",
-    },
-    {
-      id: 6,
-      title: "National Championship",
-      place: "Kyiv, Ukraine",
-      date: "December 1-6, 2024",
-      image: "/photo.jpg?height=200&width=400",
-    },
-  ];
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  // const [isLoadingTournaments, setIsLoadingTournaments] = useState(true);
+
+  useEffect(() => {
+    const fetchTournaments = async () => {
+      // setIsLoadingTournaments(true);
+      try {
+        const data = await getTournaments(1, 10, "start_date", "desc", "");
+        setTournaments(data.data);
+      } catch (error) {
+        console.error("Error fetching tournaments:", error);
+        toast.error("Failed to load tournaments", {
+          description: "Please try again or contact support.",
+        });
+      } finally {
+        // setIsLoadingTournaments(false);
+      }
+    };
+
+    fetchTournaments();
+  }, []);
 
   return (
     <div className="container py-10">
@@ -66,24 +50,24 @@ export default function TournamentsPage() {
             <Card className="h-full overflow-hidden">
               <div className="relative h-48 w-full">
                 <Image
-                  src={tournament.image || "/placeholder.svg"}
-                  alt={tournament.title}
+                  src={cdnUrl + tournament.image_url || "/tournament.svg"}
+                  alt={tournament.name}
                   fill
                   className="object-cover"
                   priority={tournament.id <= 3}
                 />
               </div>
               <CardHeader>
-                <h2 className="text-xl font-semibold">{tournament.title}</h2>
+                <h2 className="text-xl font-semibold">{tournament.name}</h2>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex items-center text-sm text-muted-foreground">
                   <MapPinIcon className="mr-2 h-4 w-4" />
-                  {tournament.place}
+                  {tournament.location}
                 </div>
                 <div className="flex items-center text-sm text-muted-foreground">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {tournament.date}
+                  {tournament.start_date.toLocaleString()}
                 </div>
               </CardContent>
               <CardFooter>

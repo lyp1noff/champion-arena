@@ -18,8 +18,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { getCoaches } from "@/lib/api/api";
+import { Coach } from "@/lib/interfaces";
 
-// Define the form schema with validation
 const formSchema = z.object({
   last_name: z.string().min(2, {
     message: "Last name must be at least 2 characters.",
@@ -27,8 +28,8 @@ const formSchema = z.object({
   first_name: z.string().min(2, {
     message: "First name must be at least 2 characters.",
   }),
-  gender: z.string({
-    required_error: "Please select a gender.",
+  gender: z.string().nonempty({
+    message: "Please select a gender.",
   }),
   birth_date: z.date({
     required_error: "Birth date is required.",
@@ -37,13 +38,6 @@ const formSchema = z.object({
     required_error: "Please select a coach.",
   }),
 });
-
-// Coach type definition
-type Coach = {
-  id: number;
-  name: string;
-  specialty?: string;
-};
 
 export default function CreateAthletePage() {
   const router = useRouter();
@@ -68,24 +62,8 @@ export default function CreateAthletePage() {
     const fetchCoaches = async () => {
       setIsLoadingCoaches(true);
       try {
-        // In a real app, replace this with your actual API endpoint
-        // const response = await fetch('/api/coaches')
-        // const data = await response.json()
-
-        // Simulating API response with mock data
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const mockCoaches: Coach[] = [
-          { id: 1, name: "John Smith", specialty: "Swimming" },
-          { id: 2, name: "Maria Garcia", specialty: "Track & Field" },
-          { id: 3, name: "David Johnson", specialty: "Basketball" },
-          { id: 4, name: "Sarah Williams", specialty: "Tennis" },
-          { id: 5, name: "Michael Brown", specialty: "Soccer" },
-          { id: 6, name: "Jennifer Davis", specialty: "Gymnastics" },
-          { id: 7, name: "Robert Miller", specialty: "Baseball" },
-          { id: 8, name: "Lisa Wilson", specialty: "Volleyball" },
-        ];
-
-        setCoaches(mockCoaches);
+        const data = await getCoaches();
+        setCoaches(data);
       } catch (error) {
         console.error("Error fetching coaches:", error);
         toast.error("Failed to load coaches", {
@@ -131,7 +109,7 @@ export default function CreateAthletePage() {
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle className="text-2xl">Add New Athlete</CardTitle>
-          <CardDescription>Enter the athlete's information to add them to the system.</CardDescription>
+          <CardDescription>{"Enter the athlete's information to add them to the system."}</CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -173,7 +151,7 @@ export default function CreateAthletePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Gender</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select gender" />
@@ -184,7 +162,7 @@ export default function CreateAthletePage() {
                           <SelectItem value="female">Female</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormDescription>The athlete's gender identity.</FormDescription>
+                      <FormDescription>{"The athlete's gender identity."}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -218,7 +196,7 @@ export default function CreateAthletePage() {
                           />
                         </PopoverContent>
                       </Popover>
-                      <FormDescription>The athlete's date of birth.</FormDescription>
+                      <FormDescription>{"The athlete's date of birth."}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -246,7 +224,7 @@ export default function CreateAthletePage() {
                                 Loading coaches...
                               </span>
                             ) : field.value ? (
-                              coaches.find((coach) => coach.id === field.value)?.name || "Select coach"
+                              coaches.find((coach) => coach.id === field.value)?.last_name || "Select coach"
                             ) : (
                               "Select coach"
                             )}
@@ -263,12 +241,12 @@ export default function CreateAthletePage() {
                               {coaches.map((coach) => (
                                 <CommandItem
                                   key={coach.id}
-                                  value={coach.name}
+                                  value={coach.last_name}
                                   onSelect={() => {
                                     form.setValue("coach_id", coach.id, { shouldValidate: true });
                                   }}
                                 >
-                                  {coach.name}
+                                  {coach.last_name}
                                 </CommandItem>
                               ))}
                             </CommandGroup>

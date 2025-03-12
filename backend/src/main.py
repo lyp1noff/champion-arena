@@ -7,6 +7,7 @@ from src.coaches import router as coach
 from src.athletes import router as athlete
 from src.tournaments import router as tournament
 from src.categories import router as category
+from src.upload import router as upload
 
 
 @asynccontextmanager
@@ -24,3 +25,4 @@ app.include_router(coach.router)
 app.include_router(athlete.router)
 app.include_router(tournament.router)
 app.include_router(category.router)
+app.include_router(upload.router)

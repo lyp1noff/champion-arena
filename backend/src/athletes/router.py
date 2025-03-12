@@ -91,7 +91,7 @@ async def get_athletes(
     }
 
 
-@router.get("{id}", response_model=AthleteResponse)
+@router.get("/{id}", response_model=AthleteResponse)
 async def get_athlete(id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Athlete).options(joinedload(Athlete.coach)).filter(Athlete.id == id)

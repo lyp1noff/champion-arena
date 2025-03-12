@@ -69,6 +69,7 @@ class TournamentBase(BaseModel):
     end_date: date
     registration_start_date: date
     registration_end_date: date
+    image_url: Optional[str] = None
 
 
 class TournamentCreate(TournamentBase):
@@ -88,52 +89,73 @@ class PaginatedTournamentResponse(BaseModel):
     limit: int
 
 
-class BracketBase(BaseModel):
-    tournament_id: int
-    category_id: int
+class TournamentUpdate(BaseModel):
+    name: Optional[str] = None
+    location: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    registration_start_date: Optional[date] = None
+    registration_end_date: Optional[date] = None
+    image_url: Optional[str] = None
 
 
-class BracketCreate(BracketBase):
-    pass
-
-
-class BracketResponse(BracketBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class BracketParticipantBase(BaseModel):
-    bracket_id: int
-    athlete_id: Optional[int] = None
+class BracketParticipant(BaseModel):
     seed: int
+    last_name: str
+    first_name: str
 
 
-class BracketParticipantCreate(BracketParticipantBase):
-    pass
+class TournamentBracket(BaseModel):
+    category: str
+    participants: List[BracketParticipant]
 
 
-class BracketParticipantResponse(BracketParticipantBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class BracketMatchBase(BaseModel):
-    bracket_id: int
-    round_number: int
-    position: int
-    athlete1_id: Optional[int] = None
-    athlete2_id: Optional[int] = None
-    winner_id: Optional[int] = None
-    is_finished: bool
+# class BracketBase(BaseModel):
+#     tournament_id: int
+#     category_id: int
 
 
-class BracketMatchCreate(BracketMatchBase):
-    pass
+# class BracketCreate(BracketBase):
+#     pass
 
 
-class BracketMatchResponse(BracketMatchBase):
-    id: int
+# class BracketResponse(BracketBase):
+#     id: int
 
-    model_config = ConfigDict(from_attributes=True)
+#     model_config = ConfigDict(from_attributes=True)
+
+
+# class BracketParticipantBase(BaseModel):
+#     bracket_id: int
+#     athlete_id: Optional[int] = None
+#     seed: int
+
+
+# class BracketParticipantCreate(BracketParticipantBase):
+#     pass
+
+
+# class BracketParticipantResponse(BracketParticipantBase):
+#     id: int
+
+#     model_config = ConfigDict(from_attributes=True)
+
+
+# class BracketMatchBase(BaseModel):
+#     bracket_id: int
+#     round_number: int
+#     position: int
+#     athlete1_id: Optional[int] = None
+#     athlete2_id: Optional[int] = None
+#     winner_id: Optional[int] = None
+#     is_finished: bool
+
+
+# class BracketMatchCreate(BracketMatchBase):
+#     pass
+
+
+# class BracketMatchResponse(BracketMatchBase):
+#     id: int
+
+#     model_config = ConfigDict(from_attributes=True)

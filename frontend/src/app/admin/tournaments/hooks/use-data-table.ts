@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { PaginationState, SortingState } from "@tanstack/react-table";
-import { getTournaments } from "@/lib/api/api";
+import { getTournaments } from "@/lib/api/tournaments";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Tournament } from "@/lib/interfaces";
 import { useDebounce } from "@/lib/hooks/use-debounce";
@@ -49,7 +49,7 @@ export default function useDataTable() {
     const params = new URLSearchParams();
     params.set("page", String(pagination.pageIndex + 1));
     params.set("size", String(pagination.pageSize));
-    params.set("sort", sorting[0]?.id || "last_name");
+    params.set("sort", sorting[0]?.id || "name");
     params.set("order", sorting[0]?.desc ? "desc" : "asc");
 
     if (debouncedSearch) params.set("search", debouncedSearch);
@@ -59,7 +59,7 @@ export default function useDataTable() {
   }, [pagination, sorting, debouncedSearch, router]);
 
   useEffect(() => {
-    const sortField = sorting.length > 0 ? sorting[0].id : "last_name";
+    const sortField = sorting.length > 0 ? sorting[0].id : "name";
     const sortOrder = sorting.length > 0 && sorting[0].desc ? "desc" : "asc";
 
     getTournaments(pagination.pageIndex + 1, pagination.pageSize, sortField, sortOrder, debouncedSearch).then(
