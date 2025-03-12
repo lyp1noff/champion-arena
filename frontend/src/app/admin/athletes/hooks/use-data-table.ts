@@ -3,7 +3,7 @@ import { PaginationState, SortingState } from "@tanstack/react-table";
 import { getAthletes } from "@/lib/api/api";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Athlete } from "@/lib/interfaces";
-import { useDebounce } from "./use-debounce";
+import { useDebounce } from "@/lib/hooks/use-debounce";
 
 export default function useDataTable() {
   const searchParams = useSearchParams();
