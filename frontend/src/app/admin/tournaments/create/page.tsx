@@ -282,7 +282,7 @@ export default function CreateTournamentPage() {
                 <FormField
                   control={form.control}
                   name="photo"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
                       <FormLabel>Upload Tournament Photo</FormLabel>
                       <FormControl>

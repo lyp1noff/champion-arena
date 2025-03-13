@@ -3,7 +3,7 @@ export interface Athlete {
   last_name: string;
   first_name: string;
   gender: string;
-  birth_date: Date;
+  birth_date: string;
   age: string;
   coach_id: number;
   coach_last_name: number;

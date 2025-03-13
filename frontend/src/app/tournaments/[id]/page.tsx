@@ -6,7 +6,7 @@ import { getTournamentBracketsById } from "@/lib/api/tournaments";
 import { Bracket } from "@/lib/interfaces";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { LoaderCircle } from "lucide-react";
+import ScreenLoader from "@/components/loader";
 
 export default function TournamentPage() {
   const { id } = useParams();
@@ -38,12 +38,7 @@ export default function TournamentPage() {
     <div className="container py-10 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Турнир #{id}</h1>
 
-      {loading && (
-        <div className="flex items-center gap-2 text-gray-600">
-          <LoaderCircle className="animate-spin" />
-          <span>Загрузка...</span>
-        </div>
-      )}
+      {loading && <ScreenLoader fullscreen={false} />}
 
       {error && <p className="text-red-500">{error}</p>}
 
