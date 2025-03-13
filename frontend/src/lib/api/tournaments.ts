@@ -15,7 +15,7 @@ export async function getTournaments(
   );
 
   if (!res.ok) {
-    throw new Error("Ошибка загрузки данных");
+    throw new Error("Failed to load tournaments");
   }
 
   return res.json();
@@ -25,7 +25,7 @@ export async function getTournamentById(id: number): Promise<Tournament> {
   const res = await fetch(`${url}/tournaments/${id}`, { cache: "no-store" });
 
   if (!res.ok) {
-    throw new Error("Ошибка загрузки турнира");
+    throw new Error("Failed to load tournament");
   }
 
   return res.json();
@@ -39,7 +39,7 @@ export async function createTournament(tournamentData: TournamentCreate): Promis
   });
 
   if (!res.ok) {
-    throw new Error("Ошибка при создании турнира");
+    throw new Error("Error creating tournament");
   }
 
   return res.json();
@@ -53,7 +53,7 @@ export async function updateTournament(id: number, updateData: TournamentUpdate)
   });
 
   if (!res.ok) {
-    throw new Error("Ошибка при обновлении турнира");
+    throw new Error("Error updating tournament");
   }
 
   return res.json();
@@ -63,7 +63,7 @@ export async function deleteTournament(id: number): Promise<{ success: boolean }
   const res = await fetch(`${url}/tournaments/${id}`, { method: "DELETE" });
 
   if (!res.ok) {
-    throw new Error("Ошибка при удалении турнира");
+    throw new Error("Error deleting tournament");
   }
 
   return { success: true };
@@ -73,7 +73,7 @@ export async function getTournamentBracketsById(id: number): Promise<Bracket[]> 
   const res = await fetch(`${url}/tournaments/${id}/brackets`, { cache: "no-store" });
 
   if (!res.ok) {
-    throw new Error("Ошибка загрузки турнира");
+    throw new Error("Failed to load tournament brackets");
   }
 
   return res.json();

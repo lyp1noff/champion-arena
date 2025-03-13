@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { PaginationState, SortingState } from "@tanstack/react-table";
-import { getAthletes } from "@/lib/api/api";
+import { getAthletes } from "@/lib/api/athletes";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Athlete } from "@/lib/interfaces";
 import { useDebounce } from "@/lib/hooks/use-debounce";

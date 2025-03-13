@@ -11,7 +11,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar } from "@/components/ui/calendar";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -20,6 +19,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import { getCoaches } from "@/lib/api/api";
 import { Coach } from "@/lib/interfaces";
+import { createAthletes } from "@/lib/api/athletes";
 
 const formSchema = z.object({
   last_name: z.string().min(2, {
@@ -45,7 +45,6 @@ export default function CreateAthletePage() {
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [isLoadingCoaches, setIsLoadingCoaches] = useState(true);
 
-  // Initialize the form with default values
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -57,7 +56,6 @@ export default function CreateAthletePage() {
     },
   });
 
-  // Fetch coaches from API
   useEffect(() => {
     const fetchCoaches = async () => {
       setIsLoadingCoaches(true);
@@ -77,22 +75,23 @@ export default function CreateAthletePage() {
     fetchCoaches();
   }, []);
 
-  // Handle form submission
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
 
     try {
-      // In a real app, you would send this data to your API
-      console.log(values);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const data = {
+        ...values,
+        birth_date:
+          values.birth_date instanceof Date
+            ? values.birth_date.toISOString().split("T")[0] // Конвертируем в `YYYY-MM-DD`
+            : values.birth_date,
+      };
+      await createAthletes(data);
 
       toast.success("Athlete created", {
         description: `${values.first_name} ${values.last_name} has been successfully added.`,
       });
 
-      // Redirect to athletes list
       router.push("/admin/athletes");
     } catch (error) {
       console.error("Error creating athlete:", error);
@@ -174,29 +173,20 @@ export default function CreateAthletePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Birth Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
-                            >
-                              {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => date > new Date()}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormDescription>{"The athlete's date of birth."}</FormDescription>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          className="block"
+                          value={field.value instanceof Date ? format(field.value, "yyyy-MM-dd") : ""}
+                          onChange={(e) => {
+                            const date = e.target.value ? new Date(e.target.value) : null;
+                            if (date) date.setUTCHours(12, 0, 0, 0); // Устанавливаем UTC-время
+                            field.onChange(date);
+                          }}
+                          max={format(new Date(), "yyyy-MM-dd")} // Запрещаем будущие даты
+                        />
+                      </FormControl>
+                      <FormDescription>The athlete's date of birth.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

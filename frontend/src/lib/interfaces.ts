@@ -3,11 +3,13 @@ export interface Athlete {
   last_name: string;
   first_name: string;
   gender: string;
-  birthdate: string;
+  birth_date: Date;
   age: string;
   coach_id: number;
   coach_last_name: number;
 }
+export type AthleteCreate = Omit<Athlete, "id" | "coach_last_name" | "age">;
+export type AthleteUpdate = Partial<AthleteCreate>;
 
 export interface Tournament {
   id: number;

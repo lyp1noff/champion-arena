@@ -50,7 +50,7 @@ export default function TournamentsPage() {
             <Card className="h-full overflow-hidden">
               <div className="relative h-48 w-full">
                 <Image
-                  src={cdnUrl + tournament.image_url || "/tournament.svg"}
+                  src={`${cdnUrl}/${tournament.image_url}` || "/tournament.svg"}
                   alt={tournament.name}
                   fill
                   className="object-cover"

@@ -15,6 +15,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { uploadPhoto } from "@/lib/api/api";
+import { createTournament } from "@/lib/api/tournaments";
 
 // Define the form schema with validation
 const formSchema = z
@@ -37,6 +39,7 @@ const formSchema = z
     registration_end_date: z.date({
       required_error: "Registration end date is required.",
     }),
+    photo: z.string().optional(),
   })
   .refine((data) => data.end_date >= data.start_date, {
     message: "End date must be after start date",
@@ -54,8 +57,8 @@ const formSchema = z
 export default function CreateTournamentPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // Initialize the form with default values
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -65,25 +68,28 @@ export default function CreateTournamentPage() {
       end_date: undefined,
       registration_start_date: undefined,
       registration_end_date: undefined,
+      photo: "",
     },
   });
 
-  // Handle form submission
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
 
     try {
-      // In a real app, you would send this data to your API
-      console.log(values);
+      let uploadedPhotoUrl = "";
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (selectedFile) {
+        uploadedPhotoUrl = (await uploadPhoto(selectedFile, "champion/tournaments")) || "";
+      }
+
+      const tournamentData = { ...values, image_url: uploadedPhotoUrl };
+      console.log(tournamentData);
+      await createTournament(tournamentData);
 
       toast.success("Tournament created", {
         description: `${values.name} has been successfully created.`,
       });
 
-      // Redirect to tournaments list
       router.push("/admin/tournaments");
     } catch (error) {
       console.error("Error creating tournament:", error);
@@ -269,6 +275,28 @@ export default function CreateTournamentPage() {
                         </PopoverContent>
                       </Popover>
                       <FormDescription>When registration closes.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="photo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Upload Tournament Photo</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files?.length) {
+                              setSelectedFile(e.target.files[0]);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription>Recommended size: 800x600px.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
