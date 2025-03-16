@@ -135,6 +135,7 @@ export default function AthleteForm({ defaultValues, onSubmit, isSubmitting }: A
                     <FormControl>
                       <Input
                         type="date"
+                        className="block w-full"
                         value={field.value}
                         onChange={(e) => field.onChange(e.target.value)}
                         max={format(new Date(), "yyyy-MM-dd")}

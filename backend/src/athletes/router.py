@@ -5,7 +5,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import Athlete, Coach
-from src.schemas import AthleteResponse, AthleteCreate, PaginatedAthletesResponse
+from src.schemas import (
+    AthleteResponse,
+    AthleteCreate,
+    AthleteUpdate,
+    PaginatedAthletesResponse,
+)
 from src.database import get_db
 
 router = APIRouter(prefix="/athletes")
@@ -94,15 +99,24 @@ async def get_athletes(
 @router.get("/{id}", response_model=AthleteResponse)
 async def get_athlete(id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Athlete).options(joinedload(Athlete.coach)).filter(Athlete.id == id)
+        select(
+            Athlete,
+            Coach.last_name.label("coach_last_name"),
+            func.date_part("year", func.age(Athlete.birth_date)).label("age"),
+        )
+        .outerjoin(Coach, Athlete.coach_id == Coach.id)
+        .filter(Athlete.id == id)
     )
-    athlete = result.scalars().first()
+    athlete = result.first()
+
     if not athlete:
         raise HTTPException(status_code=404, detail="Athlete not found")
 
-    athlete.coach_last_name = athlete.coach.last_name if athlete.coach else None
+    athlete_data = AthleteResponse.model_validate(
+        {**vars(athlete[0]), "coach_last_name": athlete[1], "age": athlete[2]}
+    )
 
-    return athlete
+    return athlete_data
 
 
 @router.post("", response_model=AthleteResponse)
@@ -122,3 +136,34 @@ async def create_athlete(athlete: AthleteCreate, db: AsyncSession = Depends(get_
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{id}", response_model=AthleteResponse)
+async def update_athlete(
+    id: int, athlete_update: AthleteUpdate, db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Athlete).filter(Athlete.id == id))
+    athlete = result.scalars().first()
+
+    if not athlete:
+        raise HTTPException(status_code=404, detail="Athlete not found")
+
+    for key, value in athlete_update.model_dump(exclude_unset=True).items():
+        setattr(athlete, key, value)
+
+    await db.commit()
+    await db.refresh(athlete)
+
+    return athlete
+
+
+@router.delete("/{id}", status_code=204)
+async def delete_athlete(id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Athlete).filter(Athlete.id == id))
+    athlete = result.scalars().first()
+
+    if not athlete:
+        raise HTTPException(status_code=404, detail="Athlete not found")
+
+    await db.delete(athlete)
+    await db.commit()

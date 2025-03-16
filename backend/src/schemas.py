@@ -8,19 +8,26 @@ class AthleteBase(BaseModel):
     first_name: str
     gender: str
     birth_date: date
+    coach_id: Optional[int] = None
 
 
 class AthleteCreate(AthleteBase):
-    coach_id: Optional[int] = None
+    pass
 
 
 class AthleteResponse(AthleteBase):
     id: int
-    coach_id: Optional[int] = None
     coach_last_name: Optional[str] = None
     age: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AthleteUpdate(AthleteBase):
+    last_name: Optional[str] = None
+    first_name: Optional[str] = None
+    gender: Optional[str] = None
+    birth_date: Optional[date] = None
 
 
 class PaginatedAthletesResponse(BaseModel):
@@ -89,14 +96,13 @@ class PaginatedTournamentResponse(BaseModel):
     limit: int
 
 
-class TournamentUpdate(BaseModel):
+class TournamentUpdate(TournamentBase):
     name: Optional[str] = None
     location: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     registration_start_date: Optional[date] = None
     registration_end_date: Optional[date] = None
-    image_url: Optional[str] = None
 
 
 class BracketParticipant(BaseModel):
