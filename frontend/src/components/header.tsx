@@ -2,8 +2,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 
 export function Header() {
+  const t = useTranslations("Header");
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-black">
       <div className="flex h-16 items-center justify-between px-4 md:px-6 lg:container lg:px-8">
@@ -16,7 +18,7 @@ export function Header() {
           <nav className="flex items-center space-x-4">
             <ModeToggle />
             <Link href="/admin">
-              <Button variant="outline">Login</Button>
+              <Button variant="outline">{t("login")}</Button>
             </Link>
           </nav>
         </div>

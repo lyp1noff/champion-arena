@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || "https://cdn.example.com";
 
@@ -22,4 +23,5 @@ const nextConfig: NextConfig = {
   output: "standalone",
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin();
+export default withNextIntl(nextConfig);

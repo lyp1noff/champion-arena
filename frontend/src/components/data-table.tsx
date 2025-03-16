@@ -8,6 +8,7 @@ import {
   SortingState,
 } from "@tanstack/react-table";
 import DataTablePagination from "@/components/data-table-pagination";
+import { useTranslations } from "next-intl";
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData>[];
@@ -30,6 +31,7 @@ export default function DataTable<TData>({
   sorting,
   setSorting,
 }: DataTableProps<TData>) {
+  const t = useTranslations("DataTable");
   const table = useReactTable({
     data,
     columns,
@@ -71,7 +73,7 @@ export default function DataTable<TData>({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Нет данных.
+                  {t("noData")}
                 </TableCell>
               </TableRow>
             )}

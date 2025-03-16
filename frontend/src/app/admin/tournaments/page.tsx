@@ -8,8 +8,11 @@ import { columns } from "./components/columns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 function TournamentTableWrapper() {
+  const t = useTranslations("AdminTournaments");
+
   const {
     data,
     totalPages,
@@ -26,12 +29,12 @@ function TournamentTableWrapper() {
     <div className="container h-full flex-1 flex-col p-8 md:flex">
       <div className="flex gap-4 mb-4">
         <Input
-          placeholder="Search tournament..."
+          placeholder={t("search")}
           value={search}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value.trim())}
         />
         <Link href="/admin/tournaments/create">
-          <Button variant="outline">Create New Tournament</Button>
+          <Button variant="outline">{t("create")}</Button>
         </Link>
       </div>
       <DataTable

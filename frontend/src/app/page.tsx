@@ -8,10 +8,12 @@ import { useEffect, useState } from "react";
 import { Tournament } from "@/lib/interfaces";
 import { getTournaments } from "@/lib/api/tournaments";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
 
 export default function TournamentsPage() {
+  const t = useTranslations("Home");
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   // const [isLoadingTournaments, setIsLoadingTournaments] = useState(true);
 
@@ -38,7 +40,8 @@ export default function TournamentsPage() {
     <div className="container py-10">
       <h1 className="text-black dark:text-white text-3xl font-bold mb-8">
         <span className="dark:text-blue-500">Champion </span>Karate
-        <span className="dark:text-championYellow"> Club </span>tournaments
+        <span className="dark:text-championYellow"> Club </span>
+        {t("tournaments")}
       </h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {tournaments.map((tournament) => (

@@ -1,0 +1,37 @@
+{
+    "Header": {
+        "login": "Login"
+    },
+    "Footer": {
+        "rights": "All rights reserved."
+    },
+    "ModeToggle": {
+        "dark": "Dark",
+        "light": "Light",
+        "system": "System"
+    },
+    "Home": {
+        "tournaments": "tournaments"
+    },
+    "Admin": {
+        "title": "Admin Page",
+        "tournaments": "Tournaments",
+        "athletes": "Athletes"
+    },
+    "AdminTournaments": {
+        "create": "Create New Tournament",
+        "search": "Search tournament..."
+    },
+    "DataTable": {
+        "totalRecords": "Total records",
+        "noData": "No data available",
+        "of": "of",
+        "rowsSelected": "rows selected",
+        "rowsPerPage": "Rows per page",
+        "page": "Page",
+        "firstPage": "Go to first page",
+        "prevPage": "Go to previous page",
+        "nextPage": "Go to next page",
+        "lastPage": "Go to last page"
+    }
+}
