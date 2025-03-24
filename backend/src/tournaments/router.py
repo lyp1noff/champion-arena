@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import asc, desc, func, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import Athlete, Bracket, BracketParticipant, Category, Tournament
+from src.models import Bracket, BracketParticipant, Tournament
 from src.schemas import (
     TournamentBracket,
     TournamentResponse,
@@ -116,52 +116,38 @@ async def delete_tournament(id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{tournament_id}/brackets", response_model=list[TournamentBracket])
-async def get_brackets(tournament_id: int, session: AsyncSession = Depends(get_db)):
-    result = await session.execute(
-        select(Bracket).filter_by(tournament_id=tournament_id).order_by(Bracket.id)
+async def get_brackets(tournament_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Bracket)
+        .filter_by(tournament_id=tournament_id)
+        .order_by(Bracket.id)
+        .options(
+            selectinload(Bracket.category),
+            selectinload(Bracket.participants).selectinload(BracketParticipant.athlete),
+        )
     )
     brackets = result.scalars().all()
-
-    if not brackets:
-        return []
 
     brackets_data = []
 
     for bracket in brackets:
-        category_result = await session.execute(
-            select(Category).filter_by(id=bracket.category_id)
-        )
-        category = category_result.scalars().first()
-
-        if not category:
+        if not bracket.category:
             continue
 
-        participants_result = await session.execute(
-            select(BracketParticipant)
-            .filter_by(bracket_id=bracket.id)
-            .order_by(BracketParticipant.seed)
-        )
-        participants = participants_result.scalars().all()
+        sorted_participants = sorted(bracket.participants, key=lambda x: x.seed)
 
-        participant_list = []
-
-        for participant in participants:
-            athlete_result = await session.execute(
-                select(Athlete).filter_by(id=participant.athlete_id)
-            )
-            athlete = athlete_result.scalars().first()
-
-            if athlete:
-                participant_list.append(
-                    {
-                        "seed": participant.seed,
-                        "last_name": athlete.last_name,
-                        "first_name": athlete.first_name,
-                    }
-                )
+        participant_list = [
+            {
+                "seed": p.seed,
+                "last_name": p.athlete.last_name,
+                "first_name": p.athlete.first_name,
+            }
+            for p in sorted_participants
+            if p.athlete
+        ]
 
         brackets_data.append(
-            {"category": category.name, "participants": participant_list}
+            {"category": bracket.category.name, "participants": participant_list}
         )
 
     return brackets_data
