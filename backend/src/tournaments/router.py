@@ -4,6 +4,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.dependencies.auth import get_current_user
 from src.models import Bracket, BracketParticipant, Tournament
 from src.schemas import (
     TournamentBracket,
@@ -14,7 +15,10 @@ from src.schemas import (
 )
 from src.database import get_db
 
-router = APIRouter(prefix="/tournaments")
+router = APIRouter(
+    prefix="/tournaments",
+    tags=["Tournaments"],
+)
 
 
 @router.get("", response_model=PaginatedTournamentResponse)
@@ -66,7 +70,9 @@ async def get_tournament(id: int, db: AsyncSession = Depends(get_db)):
     return tournament
 
 
-@router.post("", response_model=TournamentResponse)
+@router.post(
+    "", response_model=TournamentResponse, dependencies=[Depends(get_current_user)]
+)
 async def create_tournament(
     tournament: TournamentCreate, db: AsyncSession = Depends(get_db)
 ):
@@ -84,7 +90,9 @@ async def create_tournament(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/{id}", response_model=TournamentResponse)
+@router.put(
+    "/{id}", response_model=TournamentResponse, dependencies=[Depends(get_current_user)]
+)
 async def update_tournament(
     id: int, tournament_update: TournamentUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -103,7 +111,7 @@ async def update_tournament(
     return tournament
 
 
-@router.delete("/{id}", status_code=204)
+@router.delete("/{id}", dependencies=[Depends(get_current_user)], status_code=204)
 async def delete_tournament(id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Tournament).filter(Tournament.id == id))
     tournament = result.scalars().first()

@@ -34,7 +34,7 @@ export async function getTournamentById(id: number): Promise<Tournament> {
 export async function createTournament(tournamentData: TournamentCreate): Promise<Tournament> {
   const res = await fetch(`${url}/tournaments`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", credentials: "include" },
     body: JSON.stringify(tournamentData),
   });
 
@@ -48,7 +48,7 @@ export async function createTournament(tournamentData: TournamentCreate): Promis
 export async function updateTournament(id: number, updateData: TournamentUpdate): Promise<Tournament> {
   const res = await fetch(`${url}/tournaments/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", credentials: "include" },
     body: JSON.stringify(updateData),
   });
 
@@ -60,7 +60,7 @@ export async function updateTournament(id: number, updateData: TournamentUpdate)
 }
 
 export async function deleteTournament(id: number): Promise<{ success: boolean }> {
-  const res = await fetch(`${url}/tournaments/${id}`, { method: "DELETE" });
+  const res = await fetch(`${url}/tournaments/${id}`, { method: "DELETE", credentials: "include" });
 
   if (!res.ok) {
     throw new Error("Error deleting tournament");

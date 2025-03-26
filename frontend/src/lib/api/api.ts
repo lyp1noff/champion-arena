@@ -1,7 +1,7 @@
 const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
 
 export async function getCoaches() {
-  const res = await fetch(`${url}/coaches`, { cache: "no-store" });
+  const res = await fetch(`${url}/coaches`, { cache: "no-store", credentials: "include" });
 
   if (!res.ok) {
     throw new Error("Ошибка загрузки данных");
@@ -19,6 +19,7 @@ export async function uploadPhoto(file: File, path: string): Promise<string | nu
     const response = await fetch(`${url}/upload/photo`, {
       method: "POST",
       body: formData,
+      credentials: "include",
     });
 
     if (!response.ok) throw new Error("Failed to upload");

@@ -12,7 +12,7 @@ export async function getAthletes(
 ) {
   const res = await fetch(
     `${url}/athletes?page=${page}&limit=${limit}&order_by=${orderBy}&order=${order}&search=${search}&coach_search=${coach_search}`,
-    { cache: "no-store" }
+    { cache: "no-store", credentials: "include" }
   );
 
   if (!res.ok) {
@@ -28,6 +28,7 @@ export async function createAthletes(data: AthleteCreate): Promise<Athlete> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
+    credentials: "include",
   });
 
   if (!res.ok) {

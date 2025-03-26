@@ -2,11 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.dependencies.auth import get_current_user
 from src.models import Coach
 from src.schemas import CoachResponse, CoachCreate
 from src.database import get_db
 
-router = APIRouter(prefix="/coaches")
+router = APIRouter(
+    prefix="/coaches", tags=["Coaches"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get("", response_model=list[CoachResponse])

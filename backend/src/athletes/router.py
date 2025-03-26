@@ -4,6 +4,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.dependencies.auth import get_current_user
 from src.models import Athlete, Coach
 from src.schemas import (
     AthleteResponse,
@@ -13,7 +14,9 @@ from src.schemas import (
 )
 from src.database import get_db
 
-router = APIRouter(prefix="/athletes")
+router = APIRouter(
+    prefix="/athletes", tags=["Athletes"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get("", response_model=PaginatedAthletesResponse)

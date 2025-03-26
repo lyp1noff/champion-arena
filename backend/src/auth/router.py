@@ -3,7 +3,7 @@ from jose import jwt
 from datetime import datetime, timedelta, timezone
 from src.config import JWT_SECRET, DEV_MODE
 
-router = APIRouter(prefix="/auth")
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @router.post("/login")
@@ -35,7 +35,10 @@ async def login(request: Request):
         path="/",
     )
 
-    return response
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+    }  # TODO: Make sepparate response model
 
 
 @router.post("/logout")

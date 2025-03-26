@@ -1,6 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-router = APIRouter(prefix="/brackets")
+from src.dependencies.auth import get_current_user
+
+router = APIRouter(
+    prefix="/brackets", tags=["Brackets"], dependencies=[Depends(get_current_user)]
+)
 
 mock_bracket = {
     "rounds": [

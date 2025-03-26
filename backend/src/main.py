@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from src.middleware import add_cors_middleware
 
+from src.config import DEV_MODE
+from src.middleware import add_cors_middleware
 from src.database import engine, Base
 from src.coaches import router as coach
 from src.athletes import router as athlete
@@ -19,7 +20,13 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(root_path="/api", lifespan=lifespan)
+app = FastAPI(
+    root_path="/api",
+    docs_url="/docs" if DEV_MODE else None,
+    redoc_url="/redoc" if DEV_MODE else None,
+    openapi_url="/openapi.json" if DEV_MODE else None,
+    lifespan=lifespan,
+)
 
 add_cors_middleware(app)
 
