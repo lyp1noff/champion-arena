@@ -9,6 +9,7 @@ from src.tournaments import router as tournament
 from src.categories import router as category
 from src.brackets import router as bracket
 from src.upload import router as upload
+from src.auth import router as auth
 
 
 @asynccontextmanager
@@ -28,3 +29,4 @@ app.include_router(tournament.router)
 app.include_router(category.router)
 app.include_router(bracket.router)
 app.include_router(upload.router)
+app.include_router(auth.router)

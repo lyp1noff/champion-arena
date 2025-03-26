@@ -1,9 +1,25 @@
+"use client";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
+import { logout } from "@/lib/api/auth";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function Admin() {
   const t = useTranslations("Admin");
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Logged out");
+      router.push("/");
+    } catch {
+      toast.error("Logout failed");
+    }
+  };
 
   return (
     <div className="container mx-auto py-10">
@@ -15,6 +31,9 @@ export default function Admin() {
         <Link href="/admin/athletes">
           <Button>{t("athletes")}</Button>
         </Link>
+        <Button variant="outline" onClick={handleLogout}>
+          Logout
+        </Button>
       </div>
     </div>
   );

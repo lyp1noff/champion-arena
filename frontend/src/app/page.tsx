@@ -48,16 +48,17 @@ export default function TournamentsPage() {
           <Link
             href={`/tournaments/${tournament.id}`}
             key={tournament.id}
-            className="block transition-transform hover:scale-[1.02]"
+            className="block transition-transform hover:scale-[1.01]"
           >
             <Card className="h-full overflow-hidden">
               <div className="relative h-48 w-full">
                 <Image
                   src={tournament.image_url ? `${cdnUrl}/${tournament.image_url}` : "/tournament.svg"}
                   alt={tournament.name}
-                  fill
                   className="object-cover"
-                  priority={tournament.id <= 3}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // TODO: check values
+                  priority={true} // TODO: check if this is needed
                 />
               </div>
               <CardHeader>
