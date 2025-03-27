@@ -4,7 +4,14 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 
-export function Header() {
+interface HeaderProps {
+  user?: {
+    sub: string;
+    role?: string;
+  } | null;
+}
+
+export function Header({ user }: HeaderProps) {
   const t = useTranslations("Header");
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-black">
@@ -17,9 +24,15 @@ export function Header() {
         <div className="flex items-center space-x-4">
           <nav className="flex items-center space-x-4">
             <ModeToggle />
-            <Link href="/admin">
-              <Button variant="outline">{t("login")}</Button>
-            </Link>
+            {user ? (
+              <Link href="/admin">
+                <Button variant="outline">{t(user.role || "admin")}</Button> {/* User role needs to be in i18n */}
+              </Link>
+            ) : (
+              <Link href="/login">
+                <Button variant="outline">{t("login")}</Button>
+              </Link>
+            )}
           </nav>
         </div>
       </div>

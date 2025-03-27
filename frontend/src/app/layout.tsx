@@ -6,6 +6,7 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Toaster } from "@/components/ui/sonner";
 import "@/styles/globals.css";
+import { verifyTokenFromCookie } from "@/lib/auth";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -14,18 +15,20 @@ export const metadata: Metadata = {
   description: "Champion Tournament Management Platform",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const payload = await verifyTokenFromCookie();
+
   return (
     <html lang="ua" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextIntlClientProvider>
             <div className="flex flex-col min-h-screen">
-              <Header />
+              <Header user={payload} />
               <main className="flex-1">{children}</main>
               <Footer />
               <Toaster />

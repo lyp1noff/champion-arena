@@ -1,6 +1,7 @@
 {
     "Header": {
-        "login": "Login"
+        "login": "Login",
+        "admin": "Admin"
     },
     "Footer": {
         "rights": "All rights reserved."
