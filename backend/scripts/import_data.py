@@ -8,6 +8,7 @@ from sqlalchemy import select
 # Импорт базы данных и моделей
 from src.database import SessionLocal
 from src.models import (
+    BracketMatch,
     Tournament,
     Coach,
     Athlete,
@@ -138,6 +139,34 @@ async def import_data():
             session.add(participant)
 
         # Финальный коммит
+        await session.commit()
+
+        result = await session.execute(select(Bracket))
+        brackets = result.scalars().all()
+
+        for bracket in brackets:
+            result = await session.execute(
+                select(BracketParticipant)
+                .filter_by(bracket_id=bracket.id)
+                .order_by(BracketParticipant.seed)
+            )
+            participants = result.scalars().all()
+            athletes = [p.athlete_id for p in participants if p.athlete_id is not None]
+
+            # Добавим "TBD" если нечетное количество
+            if len(athletes) % 2 != 0:
+                athletes.append(None)
+
+            for i in range(0, len(athletes), 2):
+                match = BracketMatch(
+                    bracket_id=bracket.id,
+                    round_number=1,
+                    position=(i // 2) + 1,
+                    athlete1_id=athletes[i],
+                    athlete2_id=athletes[i + 1] if i + 1 < len(athletes) else None,
+                )
+                session.add(match)
+
         await session.commit()
 
     print("✅ Импорт данных завершён!")

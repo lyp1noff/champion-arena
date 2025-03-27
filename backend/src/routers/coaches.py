@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,7 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=list[CoachResponse])
+@router.get("", response_model=List[CoachResponse])
 async def get_coaches(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Coach))
     return result.scalars().all()

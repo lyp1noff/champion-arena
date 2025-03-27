@@ -174,6 +174,8 @@ class BracketMatch(Base):
         nullable=True,
         index=True,
     )
+    score_athlete1 = Column(Integer, nullable=True)
+    score_athlete2 = Column(Integer, nullable=True)
 
     is_finished = Column(Boolean, default=False)
 

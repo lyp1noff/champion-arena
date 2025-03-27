@@ -32,6 +32,8 @@ export type Participant = {
 };
 
 export type Bracket = {
+  id: number;
+  tournament_id: number;
   category: string;
   participants: Participant[];
 };
@@ -41,3 +43,23 @@ export interface Coach {
   name: string;
   last_name: string;
 }
+
+export type BracketMatchAthlete = {
+  id: number;
+  first_name: string;
+  last_name: string;
+};
+
+export type BracketMatch = {
+  id: number;
+  round_number: number;
+  position: number;
+  athlete1: BracketMatchAthlete | null;
+  athlete2: BracketMatchAthlete | null;
+  winner: BracketMatchAthlete | null;
+  score_athlete1: number | null;
+  score_athlete2: number | null;
+  is_finished: boolean;
+};
+
+export type BracketMatches = BracketMatch[];

@@ -11,7 +11,7 @@ export default function useDataTable() {
 
   const pageFromUrl = Number(searchParams.get("page")) || 1;
   const pageSizeFromUrl = Number(searchParams.get("size")) || 10;
-  const sortFromUrl = searchParams.get("sort") || "last_name";
+  const sortFromUrl = searchParams.get("sort") || "start_date";
   const orderFromUrl = searchParams.get("order") === "desc" ? "desc" : "asc";
   const searchFromUrl = searchParams.get("search") || "";
 
