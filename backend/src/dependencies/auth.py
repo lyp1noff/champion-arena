@@ -1,10 +1,7 @@
 from fastapi import Request, HTTPException
 from jose import jwt, JWTError
 from datetime import datetime, timezone
-import os
-
-SECRET_KEY = os.getenv("JWT_SECRET", "dev-secret")
-ALGORITHM = "HS256"
+from src.config import JWT_SECRET
 
 
 def get_current_user(request: Request):
@@ -19,7 +16,7 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         exp = payload.get("exp")
         if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(
             timezone.utc

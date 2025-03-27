@@ -35,10 +35,13 @@ async def login(request: Request):
         path="/",
     )
 
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-    }  # TODO: Make sepparate response model
+    # TODO: Make sepparate response model
+    # return {
+    #     "access_token": token,
+    #     "token_type": "bearer",
+    # }
+
+    return response
 
 
 @router.post("/logout")
