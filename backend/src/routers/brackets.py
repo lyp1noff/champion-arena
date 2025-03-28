@@ -5,8 +5,10 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from src.database import get_db
+from src.dependencies.auth import get_current_user
 from src.models import Bracket, BracketMatch, BracketParticipant
 from src.schemas import BracketMatchResponse, BracketResponse, BracketParticipantSchema
+from src.services.brackets import regenerate_bracket_matches
 
 router = APIRouter(prefix="/brackets", tags=["Brackets"])
 
@@ -100,3 +102,15 @@ async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db
             )
         )
     return response
+
+
+@router.post("/{bracket_id}/regenerate", dependencies=[Depends(get_current_user)])
+async def regenerate_matches_endpoint(
+    bracket_id: int,
+    session: AsyncSession = Depends(get_db),
+):
+    try:
+        await regenerate_bracket_matches(session, bracket_id)
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to regenerate: {str(e)}")

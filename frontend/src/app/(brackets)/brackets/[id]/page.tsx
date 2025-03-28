@@ -1,66 +1,74 @@
 "use client";
 
-import ScreenLoader from "@/components/loader";
-// import MatchCard from "@/components/match-card";
-import { getBracketMatchesById } from "@/lib/api/brackets";
-import { BracketMatches } from "@/lib/interfaces";
-import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import ScreenLoader from "@/components/loader";
+import MatchCard from "@/components/match-card";
+import { BracketMatch } from "@/lib/interfaces";
+import { getBracketMatchesById } from "@/lib/api/brackets";
 
-export default function BracketsPage() {
+export default function BracketPage() {
   const { id } = useParams();
-  const [matches, setMatches] = useState<BracketMatches>();
+  const [matches, setMatches] = useState<BracketMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!id) return;
 
-    const fetchData = async () => {
-      setLoading(true);
-      setError("");
-
+    const fetchMatches = async () => {
       try {
+        setLoading(true);
         const data = await getBracketMatchesById(Number(id));
         setMatches(data);
-      } catch (error) {
-        console.error("Error fetching tournament matches:", error);
+      } catch (err) {
+        console.error(err);
+        setError("Error fetching tournament matches");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchMatches();
   }, [id]);
 
+  if (loading) return <ScreenLoader />;
+  if (error) return <p className="text-red-500">{error}</p>;
+  if (!matches.length) return <p className="text-gray-500">Нет данных</p>;
+
+  const groupedRounds = matches.reduce((acc, match) => {
+    if (!acc[match.round_number]) acc[match.round_number] = [];
+    acc[match.round_number].push(match);
+    return acc;
+  }, {} as Record<number, BracketMatch[]>);
+
+  const sortedRounds = Object.entries(groupedRounds)
+    .map(([roundStr, matches]) => ({
+      round: Number(roundStr),
+      matches: matches.sort((a, b) => a.position - b.position),
+    }))
+    .sort((a, b) => a.round - b.round);
+
   return (
-    <div className="p-4">
-      {loading && <ScreenLoader fullscreen={false} />}
-      {error && <p className="text-red-500">{error}</p>}
-      <h1 className="text-3xl font-bold py-4">👋 Чистый холст для Brackets {id}</h1>
-      {matches && (
-        <p>{matches[0].id}</p>
-        // <div className="py-4">
-        //   {matches.map((match) => (
-        //     <h3 className="text-lg font-medium border-b pb-1 group-hover:text-primary transition-colors select-none">
-        //       {match.id}
-        //     </h3>
-        //   ))}
-        // </div>
-        // <div className="flex items-start gap-10">
-        //   <div className="flex flex-col gap-10">
-        //     <MatchCard match={matches[0]} />
-        //     <MatchCard match={matches[1]} />
-        //   </div>
+    <div className="p-10 overflow-x-auto">
+      <h1 className="text-3xl font-bold mb-6">🏆 Сетка турнира #{id}</h1>
 
-        //   <div className="flex flex-col">
-        //     <div className="h-[50%]"></div> {/* чтобы матч встал между двумя */}
-        //     <MatchCard match={matches[2]} />
-        //   </div>
-        // </div>
-      )}
-
-      {!loading && !matches && <p className="text-gray-500">Нет данных</p>}
+      <div className="flex gap-8 items-start">
+        {sortedRounds.map(({ round, matches }) => (
+          <ul key={round} className="flex flex-col items-center gap-8 min-w-[220px]">
+            <h2 className="text-lg font-semibold mb-2">Раунд {round}</h2>
+            {matches.map((match, matchIdx) => (
+              <li key={match.id || `empty-${round}-${matchIdx}`} className="w-[220px]">
+                {match.athlete1 || match.athlete2 ? (
+                  <MatchCard match={match} />
+                ) : (
+                  <div className="w-full h-20 border border-dashed border-gray-300 rounded-md opacity-30" />
+                )}
+              </li>
+            ))}
+          </ul>
+        ))}
+      </div>
     </div>
   );
 }

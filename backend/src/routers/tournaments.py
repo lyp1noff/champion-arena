@@ -18,6 +18,7 @@ from src.schemas import (
     TournamentUpdate,
 )
 from src.database import get_db
+from src.services.brackets import regenerate_tournament_brackets
 
 router = APIRouter(
     prefix="/tournaments",
@@ -240,3 +241,14 @@ async def get_all_matches_for_tournament(
         )
 
     return response
+
+
+@router.post("/{tournament_id}/regenerate", dependencies=[Depends(get_current_user)])
+async def regenerate_tournament(
+    tournament_id: int, session: AsyncSession = Depends(get_db)
+):
+    try:
+        await regenerate_tournament_brackets(session, tournament_id)
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

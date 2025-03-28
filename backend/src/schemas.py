@@ -141,7 +141,7 @@ class BracketMatchResponse(BaseModel):
     bracket_id: int
     round_number: int
     position: int
-    athlete1_id: int
+    athlete1_id: Optional[int] = None
     athlete2_id: Optional[int] = None
     winner_id: Optional[int] = None
     is_finished: bool
