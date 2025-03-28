@@ -50,13 +50,21 @@ export type BracketMatchAthlete = {
   last_name: string;
 };
 
+export type RoundType = "final" | "semifinal" | "quarterfinal" | "";
+
+export type Match = {
+  id: number;
+  round_type: RoundType;
+  athlete1: BracketMatchAthlete | null;
+  athlete2: BracketMatchAthlete | null;
+  winner: BracketMatchAthlete | null;
+};
+
 export type BracketMatch = {
   id: number;
   round_number: number;
   position: number;
-  athlete1: BracketMatchAthlete | null;
-  athlete2: BracketMatchAthlete | null;
-  winner: BracketMatchAthlete | null;
+  match: Match;
   score_athlete1: number | null;
   score_athlete2: number | null;
   is_finished: boolean;

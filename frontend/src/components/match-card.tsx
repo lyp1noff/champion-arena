@@ -1,25 +1,25 @@
 import type { BracketMatch } from "@/lib/interfaces";
 
 interface MatchCardProps {
-  match: BracketMatch;
+  bracketMatch: BracketMatch;
 }
 
-export default function MatchCard({ match }: MatchCardProps) {
+export default function MatchCard({ bracketMatch }: MatchCardProps) {
   return (
     <div className="w-full h-20 overflow-hidden rounded-md border border-gray-200">
       <PlayerSlot
-        player={match.athlete1}
-        isWinner={match.winner?.id === match.athlete1?.id}
-        score={match.score_athlete1}
-        isFirstRound={match.round_number === 1}
+        player={bracketMatch.match.athlete1}
+        isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete1?.id}
+        score={bracketMatch.score_athlete1}
+        isFirstRound={bracketMatch.round_number === 1}
         isTop={true}
       />
       <div className="h-px bg-gray-200"></div>
       <PlayerSlot
-        player={match.athlete2}
-        isWinner={match.winner?.id === match.athlete2?.id}
-        score={match.score_athlete2}
-        isFirstRound={match.round_number === 1}
+        player={bracketMatch.match.athlete2}
+        isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete2?.id}
+        score={bracketMatch.score_athlete2}
+        isFirstRound={bracketMatch.round_number === 1}
         isTop={false}
       />
     </div>

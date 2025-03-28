@@ -2,20 +2,18 @@ import math
 from typing import Optional
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.models import Bracket, BracketParticipant, BracketMatch
+from src.models import Bracket, BracketParticipant, BracketMatch, Match
 
 
-async def regenerate_tournament_brackets(session: AsyncSession, tournament_id: int):
-    result = await session.execute(
-        select(Bracket.id).where(Bracket.tournament_id == tournament_id)
-    )
-    bracket_ids = result.scalars().all()
-
-    for bracket_id in bracket_ids:
-        await regenerate_bracket_matches(session, bracket_id, commit=False)
-
-    await session.flush()
-    await session.commit()
+def get_round_type(round_index: int, total_rounds: int) -> str:
+    if round_index == total_rounds - 1:
+        return "final"
+    elif round_index == total_rounds - 2:
+        return "semifinal"
+    elif round_index == total_rounds - 3:
+        return "quarterfinal"
+    else:
+        return ""
 
 
 def distribute_byes_safely(
@@ -75,34 +73,42 @@ async def regenerate_bracket_matches(
 
     # 1-й раунд
     for position, (a1, a2) in enumerate(pairs, start=1):
-        match = BracketMatch(
+        match = Match(
+            athlete1_id=a1, athlete2_id=a2, round_type=get_round_type(0, total_rounds)
+        )
+        if (a1 is None) != (a2 is None):
+            match.winner_id = a1 or a2
+            match.is_finished = True
+        session.add(match)
+        await session.flush()
+
+        bracket_match = BracketMatch(
             bracket_id=bracket_id,
             round_number=1,
             position=position,
-            athlete1_id=a1,
-            athlete2_id=a2,
+            match_id=match.id,
         )
-
-        # Автоматическая победа, если один из участников отсутствует
-        if (a1 is None) != (a2 is None):
-            winner_id = a1 if a1 is not None else a2
-            match.winner_id = winner_id
-            match.is_finished = True
-
-        session.add(match)
-        match_matrix[0].append(match)
+        session.add(bracket_match)
+        match_matrix[0].append(bracket_match)
 
     # Следующие раунды
     for round_num in range(2, total_rounds + 1):
         num_matches = 2 ** (total_rounds - round_num)
         for pos in range(1, num_matches + 1):
-            match = BracketMatch(
+            match = Match(
+                round_type=get_round_type(round_num - 1, total_rounds),
+            )
+            session.add(match)
+            await session.flush()
+
+            bracket_match = BracketMatch(
                 bracket_id=bracket_id,
                 round_number=round_num,
                 position=pos,
+                match_id=match.id,
             )
-            session.add(match)
-            match_matrix[round_num - 1].append(match)
+            session.add(bracket_match)
+            match_matrix[round_num - 1].append(bracket_match)
 
     await session.flush()
 
@@ -118,23 +124,25 @@ async def regenerate_bracket_matches(
 
     # Продвижение автопобедителей
     for round_index in range(len(match_matrix) - 1):
-        for match in match_matrix[round_index]:
+        for bm in match_matrix[round_index]:
+            match = await session.get(Match, bm.match_id)
             if (
                 match.is_finished
                 and match.winner_id
-                and match.next_match_id
-                and match.next_slot
+                and bm.next_match_id
+                and bm.next_slot
             ):
-                next_match = next(
+                next_bm = next(
                     (
                         m
                         for m in match_matrix[round_index + 1]
-                        if m.id == match.next_match_id
+                        if m.id == bm.next_match_id
                     ),
                     None,
                 )
-                if next_match:
-                    if match.next_slot == 1:
+                if next_bm:
+                    next_match = await session.get(Match, next_bm.match_id)
+                    if bm.next_slot == 1:
                         next_match.athlete1_id = match.winner_id
                     else:
                         next_match.athlete2_id = match.winner_id
@@ -143,3 +151,16 @@ async def regenerate_bracket_matches(
         await session.commit()
     else:
         return match_matrix
+
+
+async def regenerate_tournament_brackets(session: AsyncSession, tournament_id: int):
+    result = await session.execute(
+        select(Bracket.id).where(Bracket.tournament_id == tournament_id)
+    )
+    bracket_ids = result.scalars().all()
+
+    for bracket_id in bracket_ids:
+        await regenerate_bracket_matches(session, bracket_id, commit=False)
+
+    await session.flush()
+    await session.commit()

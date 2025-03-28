@@ -9,7 +9,7 @@ import { getBracketMatchesById } from "@/lib/api/brackets";
 
 export default function BracketPage() {
   const { id } = useParams();
-  const [matches, setMatches] = useState<BracketMatch[]>([]);
+  const [bracketMatches, setMatches] = useState<BracketMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -23,7 +23,7 @@ export default function BracketPage() {
         setMatches(data);
       } catch (err) {
         console.error(err);
-        setError("Error fetching tournament matches");
+        setError("Ошибка загрузки матчей");
       } finally {
         setLoading(false);
       }
@@ -34,18 +34,18 @@ export default function BracketPage() {
 
   if (loading) return <ScreenLoader />;
   if (error) return <p className="text-red-500">{error}</p>;
-  if (!matches.length) return <p className="text-gray-500">Нет данных</p>;
+  if (!bracketMatches.length) return <p className="text-gray-500">Нет данных</p>;
 
-  const groupedRounds = matches.reduce((acc, match) => {
-    if (!acc[match.round_number]) acc[match.round_number] = [];
-    acc[match.round_number].push(match);
+  const groupedRounds = bracketMatches.reduce((acc, bracketMatch) => {
+    if (!acc[bracketMatch.round_number]) acc[bracketMatch.round_number] = [];
+    acc[bracketMatch.round_number].push(bracketMatch);
     return acc;
   }, {} as Record<number, BracketMatch[]>);
 
   const sortedRounds = Object.entries(groupedRounds)
-    .map(([roundStr, matches]) => ({
+    .map(([roundStr, bracketMatches]) => ({
       round: Number(roundStr),
-      matches: matches.sort((a, b) => a.position - b.position),
+      bracketMatches: bracketMatches.sort((a, b) => a.position - b.position),
     }))
     .sort((a, b) => a.round - b.round);
 
@@ -54,20 +54,25 @@ export default function BracketPage() {
       <h1 className="text-3xl font-bold mb-6">🏆 Сетка турнира #{id}</h1>
 
       <div className="flex gap-8 items-start">
-        {sortedRounds.map(({ round, matches }) => (
-          <ul key={round} className="flex flex-col items-center gap-8 min-w-[220px]">
-            <h2 className="text-lg font-semibold mb-2">Раунд {round}</h2>
-            {matches.map((match, matchIdx) => (
-              <li key={match.id || `empty-${round}-${matchIdx}`} className="w-[220px]">
-                {match.athlete1 || match.athlete2 ? (
-                  <MatchCard match={match} />
-                ) : (
-                  <div className="w-full h-20 border border-dashed border-gray-300 rounded-md opacity-30" />
-                )}
-              </li>
-            ))}
-          </ul>
-        ))}
+        {sortedRounds.map(({ round, bracketMatches }) => {
+          const firstWithLabel = bracketMatches.find((bm) => bm.match?.round_type);
+          const title = firstWithLabel?.match.round_type ? firstWithLabel.match.round_type : `Раунд ${round}`;
+
+          return (
+            <ul key={round} className="flex flex-col items-center gap-8 min-w-[220px]">
+              <h2 className="text-lg font-semibold mb-2">{title}</h2>
+              {bracketMatches.map((bracketMatch, bracketMatchIdx) => (
+                <li key={bracketMatch.id || `empty-${round}-${bracketMatchIdx}`} className="w-[220px]">
+                  {bracketMatch.match.athlete1 || bracketMatch.match.athlete2 ? (
+                    <MatchCard bracketMatch={bracketMatch} />
+                  ) : (
+                    <div className="w-full h-20 border border-dashed border-gray-300 rounded-md opacity-30" />
+                  )}
+                </li>
+              ))}
+            </ul>
+          );
+        })}
       </div>
     </div>
   );

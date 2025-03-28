@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from src.database import get_db
 from src.dependencies.auth import get_current_user
-from src.models import Bracket, BracketMatch, BracketParticipant
+from src.models import Bracket, BracketMatch, BracketParticipant, Match
 from src.schemas import BracketMatchResponse, BracketResponse, BracketParticipantSchema
 from src.services.brackets import regenerate_bracket_matches
 
@@ -78,30 +78,25 @@ async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db
         select(BracketMatch)
         .where(BracketMatch.bracket_id == bracket_id)
         .options(
-            selectinload(BracketMatch.athlete1),
-            selectinload(BracketMatch.athlete2),
-            selectinload(BracketMatch.winner),
+            selectinload(BracketMatch.match).selectinload(Match.athlete1),
+            selectinload(BracketMatch.match).selectinload(Match.athlete2),
+            selectinload(BracketMatch.match).selectinload(Match.winner),
         )
         .order_by(BracketMatch.round_number, BracketMatch.position)
     )
     matches = result.scalars().all()
 
-    response = []
-    for match in matches:
-        response.append(
-            BracketMatchResponse(
-                id=match.id,
-                round_number=match.round_number,
-                position=match.position,
-                athlete1=match.athlete1,
-                athlete2=match.athlete2,
-                winner=match.winner,
-                score_athlete1=match.score_athlete1,
-                score_athlete2=match.score_athlete2,
-                is_finished=match.is_finished,
-            )
+    return [
+        BracketMatchResponse(
+            id=m.id,
+            round_number=m.round_number,
+            position=m.position,
+            match=m.match,
+            next_match_id=m.next_match_id,
+            next_slot=m.next_slot,
         )
-    return response
+        for m in matches
+    ]
 
 
 @router.post("/{bracket_id}/regenerate", dependencies=[Depends(get_current_user)])

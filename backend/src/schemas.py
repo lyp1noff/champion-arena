@@ -157,16 +157,26 @@ class BracketMatchAthlete(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class BracketMatchResponse(BaseModel):
+class MatchSchema(BaseModel):
     id: int
-    round_number: int
-    position: int
+    round_type: Optional[str] = None
     athlete1: Optional[BracketMatchAthlete]
     athlete2: Optional[BracketMatchAthlete]
     winner: Optional[BracketMatchAthlete]
     score_athlete1: Optional[int] = None
     score_athlete2: Optional[int] = None
     is_finished: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BracketMatchResponse(BaseModel):
+    id: int
+    round_number: int
+    position: int
+    match: Optional[MatchSchema]
+    next_match_id: Optional[int] = None
+    next_slot: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
