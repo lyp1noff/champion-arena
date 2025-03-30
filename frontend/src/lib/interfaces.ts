@@ -16,10 +16,10 @@ export interface Tournament {
   name: string;
   location: string;
   // status: string;
-  start_date: Date;
-  end_date: Date;
-  registration_start_date: Date;
-  registration_end_date: Date;
+  start_date: string;
+  end_date: string;
+  registration_start_date: string;
+  registration_end_date: string;
   image_url: string;
 }
 export type TournamentCreate = Omit<Tournament, "id" | "status">;

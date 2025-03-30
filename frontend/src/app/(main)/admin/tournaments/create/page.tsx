@@ -17,6 +17,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { uploadPhoto } from "@/lib/api/api";
 import { createTournament } from "@/lib/api/tournaments";
+import { formatDateToISO } from "@/lib/utils";
 
 // Define the form schema with validation
 const formSchema = z
@@ -82,8 +83,15 @@ export default function CreateTournamentPage() {
         uploadedPhotoUrl = (await uploadPhoto(selectedFile, "champion/tournaments")) || "";
       }
 
-      const tournamentData = { ...values, image_url: uploadedPhotoUrl };
-      console.log(tournamentData);
+      const { photo, ...rest } = values;
+      const tournamentData = {
+        ...rest,
+        start_date: formatDateToISO(rest.start_date),
+        end_date: formatDateToISO(rest.end_date),
+        registration_start_date: formatDateToISO(rest.registration_start_date),
+        registration_end_date: formatDateToISO(rest.registration_end_date),
+        image_url: uploadedPhotoUrl,
+      };
       await createTournament(tournamentData);
 
       toast.success("Tournament created", {

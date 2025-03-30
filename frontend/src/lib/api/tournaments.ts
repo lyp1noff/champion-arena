@@ -34,8 +34,9 @@ export async function getTournamentById(id: number): Promise<Tournament> {
 export async function createTournament(tournamentData: TournamentCreate): Promise<Tournament> {
   const res = await fetch(`${url}/tournaments`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", credentials: "include" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(tournamentData),
+    credentials: "include",
   });
 
   if (!res.ok) {
@@ -48,8 +49,9 @@ export async function createTournament(tournamentData: TournamentCreate): Promis
 export async function updateTournament(id: number, updateData: TournamentUpdate): Promise<Tournament> {
   const res = await fetch(`${url}/tournaments/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", credentials: "include" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updateData),
+    credentials: "include",
   });
 
   if (!res.ok) {
