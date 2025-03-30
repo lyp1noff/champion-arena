@@ -175,7 +175,7 @@ class BracketMatchResponse(BaseModel):
     round_number: int
     position: int
     match: Optional[MatchSchema]
-    next_match_id: Optional[int] = None
+    # next_match_id: Optional[int] = None
     next_slot: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)

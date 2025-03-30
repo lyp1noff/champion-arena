@@ -40,7 +40,6 @@ const formSchema = z
     registration_end_date: z.date({
       required_error: "Registration end date is required.",
     }),
-    photo: z.string().optional(),
   })
   .refine((data) => data.end_date >= data.start_date, {
     message: "End date must be after start date",
@@ -69,7 +68,6 @@ export default function CreateTournamentPage() {
       end_date: undefined,
       registration_start_date: undefined,
       registration_end_date: undefined,
-      photo: "",
     },
   });
 
@@ -83,13 +81,12 @@ export default function CreateTournamentPage() {
         uploadedPhotoUrl = (await uploadPhoto(selectedFile, "champion/tournaments")) || "";
       }
 
-      const { photo, ...rest } = values;
       const tournamentData = {
-        ...rest,
-        start_date: formatDateToISO(rest.start_date),
-        end_date: formatDateToISO(rest.end_date),
-        registration_start_date: formatDateToISO(rest.registration_start_date),
-        registration_end_date: formatDateToISO(rest.registration_end_date),
+        ...values,
+        start_date: formatDateToISO(values.start_date),
+        end_date: formatDateToISO(values.end_date),
+        registration_start_date: formatDateToISO(values.registration_start_date),
+        registration_end_date: formatDateToISO(values.registration_end_date),
         image_url: uploadedPhotoUrl,
       };
       await createTournament(tournamentData);
@@ -287,28 +284,22 @@ export default function CreateTournamentPage() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="photo"
-                  render={() => (
-                    <FormItem>
-                      <FormLabel>Upload Tournament Photo</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            if (e.target.files?.length) {
-                              setSelectedFile(e.target.files[0]);
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormDescription>Recommended size: 800x600px.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormItem>
+                  <FormLabel>Upload Tournament Photo</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files?.length) {
+                          setSelectedFile(e.target.files[0]);
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>Recommended size: 800x600px.</FormDescription>
+                  <FormMessage />
+                </FormItem>
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">

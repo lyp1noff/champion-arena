@@ -47,11 +47,101 @@ def distribute_byes_safely(
     return pairs
 
 
+async def generate_first_round(
+    session: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
+):
+    pairs = distribute_byes_safely(athlete_ids)
+    matches = []
+
+    for position, (a1, a2) in enumerate(pairs, start=1):
+        match = Match(
+            athlete1_id=a1,
+            athlete2_id=a2,
+            round_type=get_round_type(0, total_rounds),
+        )
+        if (a1 is None) != (a2 is None):
+            match.winner_id = a1 or a2
+            match.is_finished = True
+
+        session.add(match)
+        await session.flush()
+
+        bracket_match = BracketMatch(
+            bracket_id=bracket_id,
+            round_number=1,
+            position=position,
+            match_id=match.id,
+        )
+        session.add(bracket_match)
+        matches.append(bracket_match)
+
+    return matches
+
+
+async def generate_following_rounds(
+    session: AsyncSession, bracket_id: int, total_rounds: int
+):
+    match_matrix = [[] for _ in range(total_rounds)]
+
+    for round_num in range(2, total_rounds + 1):
+        num_matches = 2 ** (total_rounds - round_num)
+        for pos in range(1, num_matches + 1):
+            match = Match(round_type=get_round_type(round_num - 1, total_rounds))
+            session.add(match)
+            await session.flush()
+
+            bracket_match = BracketMatch(
+                bracket_id=bracket_id,
+                round_number=round_num,
+                position=pos,
+                match_id=match.id,
+            )
+            session.add(bracket_match)
+            match_matrix[round_num - 1].append(bracket_match)
+
+    return match_matrix
+
+
+async def advance_auto_winners(
+    session: AsyncSession, match_matrix: list[list[BracketMatch]]
+):
+    for round_index in range(len(match_matrix) - 1):
+        current_round = match_matrix[round_index]
+        next_round = match_matrix[round_index + 1]
+
+        for bm in current_round:
+            match = await session.get(Match, bm.match_id)
+            if not (match and match.is_finished and match.winner_id):
+                continue
+
+            next_position = (bm.position + 1) // 2
+            next_bm = next((m for m in next_round if m.position == next_position), None)
+            if not next_bm:
+                continue
+
+            next_match = await session.get(Match, next_bm.match_id)
+            if bm.position % 2 == 1:
+                next_match.athlete1_id = match.winner_id
+            else:
+                next_match.athlete2_id = match.winner_id
+
+
 async def regenerate_bracket_matches(
     session: AsyncSession,
     bracket_id: int,
     commit: bool = True,
+    skip_first_round: bool = False,
 ):
+    # Удалим все BracketMatch + Match
+    await session.execute(
+        delete(Match).where(
+            Match.id.in_(
+                select(BracketMatch.match_id).where(
+                    BracketMatch.bracket_id == bracket_id
+                )
+            )
+        )
+    )
     await session.execute(
         delete(BracketMatch).where(BracketMatch.bracket_id == bracket_id)
     )
@@ -69,83 +159,26 @@ async def regenerate_bracket_matches(
     total_rounds = int(math.log2(next_power_of_two))
 
     match_matrix = [[] for _ in range(total_rounds)]
-    pairs = distribute_byes_safely(athlete_ids)
 
-    # 1-й раунд
-    for position, (a1, a2) in enumerate(pairs, start=1):
-        match = Match(
-            athlete1_id=a1, athlete2_id=a2, round_type=get_round_type(0, total_rounds)
+    if not skip_first_round:
+        match_matrix[0] = await generate_first_round(
+            session, bracket_id, athlete_ids, total_rounds
         )
-        if (a1 is None) != (a2 is None):
-            match.winner_id = a1 or a2
-            match.is_finished = True
-        session.add(match)
-        await session.flush()
 
-        bracket_match = BracketMatch(
-            bracket_id=bracket_id,
-            round_number=1,
-            position=position,
-            match_id=match.id,
-        )
-        session.add(bracket_match)
-        match_matrix[0].append(bracket_match)
-
-    # Следующие раунды
-    for round_num in range(2, total_rounds + 1):
-        num_matches = 2 ** (total_rounds - round_num)
-        for pos in range(1, num_matches + 1):
-            match = Match(
-                round_type=get_round_type(round_num - 1, total_rounds),
-            )
-            session.add(match)
-            await session.flush()
-
-            bracket_match = BracketMatch(
-                bracket_id=bracket_id,
-                round_number=round_num,
-                position=pos,
-                match_id=match.id,
-            )
-            session.add(bracket_match)
-            match_matrix[round_num - 1].append(bracket_match)
-
-    await session.flush()
+    later_rounds = await generate_following_rounds(session, bracket_id, total_rounds)
+    for i in range(1, total_rounds):
+        match_matrix[i] = later_rounds[i] if i < len(later_rounds) else []
 
     # Связи next_match
     for round_index in range(len(match_matrix) - 1):
         current_round = match_matrix[round_index]
         next_round = match_matrix[round_index + 1]
-
         for i, match in enumerate(current_round):
             next_match = next_round[i // 2]
             match.next_match_id = next_match.id
             match.next_slot = 1 if i % 2 == 0 else 2
 
-    # Продвижение автопобедителей
-    for round_index in range(len(match_matrix) - 1):
-        for bm in match_matrix[round_index]:
-            match = await session.get(Match, bm.match_id)
-            if (
-                match.is_finished
-                and match.winner_id
-                and bm.next_match_id
-                and bm.next_slot
-            ):
-                next_bm = next(
-                    (
-                        m
-                        for m in match_matrix[round_index + 1]
-                        if m.id == bm.next_match_id
-                    ),
-                    None,
-                )
-                if next_bm:
-                    next_match = await session.get(Match, next_bm.match_id)
-                    if bm.next_slot == 1:
-                        next_match.athlete1_id = match.winner_id
-                    else:
-                        next_match.athlete2_id = match.winner_id
+    await advance_auto_winners(session, match_matrix)
 
     if commit:
         await session.commit()

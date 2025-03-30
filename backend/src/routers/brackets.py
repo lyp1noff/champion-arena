@@ -92,7 +92,6 @@ async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db
             round_number=m.round_number,
             position=m.position,
             match=m.match,
-            next_match_id=m.next_match_id,
             next_slot=m.next_slot,
         )
         for m in matches
