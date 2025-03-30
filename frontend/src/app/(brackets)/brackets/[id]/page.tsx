@@ -58,11 +58,11 @@ export default function BracketPage() {
   const maxMatchesInRound = Math.max(...sortedRounds.map((r) => r.bracketMatches.length));
 
   return (
-    <div className="container mx-auto h-screen flex flex-col gap-4">
-      <h1 className="text-3xl font-bold text-center pt-6 pb-2">🏆 Сетка турнира #{id}</h1>
-
+    <div className="container mx-auto flex flex-col gap-4 py-6">
+      {/* Add h-screen if needed */}
+      <h1 className="text-3xl font-bold text-center pb-2">🏆 Сетка турнира #{id}</h1>
       <div className="w-full flex justify-center overflow-auto">
-        <Card className="flex flex-col w-max max-w-full max-h-[75vh] min-h-[200px] p-6" id="bracket-fullscreen">
+        <Card className="flex flex-col w-max max-w-full p-6" id="bracket-fullscreen">
           <ScrollArea className="flex-1 overflow-auto">
             <div className="flex gap-8 items-start justify-center">
               {sortedRounds.map(({ round, bracketMatches }) => {
