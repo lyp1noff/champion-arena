@@ -11,6 +11,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { getBracketMatchesById } from "@/lib/api/brackets";
 import BracketContent from "@/components/bracket-content";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getBracketDimensions, getInitialMatchCount } from "@/lib/utils";
+import { useScreenHeight } from "@/hooks/use-screen-height";
 
 export default function TournamentPage() {
   const { id } = useParams();
@@ -21,6 +23,9 @@ export default function TournamentPage() {
   const [loadedBracketMatches, setLoadedBracketMatches] = useState<
     Record<number, { loading: boolean; matches: BracketMatches }>
   >({});
+
+  const screenHeight = useScreenHeight();
+  const maxHeight = screenHeight * 0.7;
 
   const loadBracketData = async (bracketId: number) => {
     if (loadedBracketMatches[bracketId]) return;
@@ -66,7 +71,7 @@ export default function TournamentPage() {
   }, [id]);
 
   return (
-    <div className="container py-10 max-w-3xl mx-auto">
+    <div className="container py-10 mx-auto">
       <h1 className="text-2xl font-bold mb-10">Турнир #{id}</h1>
 
       <Tabs defaultValue="brackets" onValueChange={setTab}>
@@ -81,53 +86,66 @@ export default function TournamentPage() {
 
       {brackets.length > 0 && (
         <Accordion type="multiple" className="w-full">
-          {brackets.map((bracket) => (
-            <AccordionItem key={bracket.id} value={String(bracket.id)}>
-              <AccordionTrigger
-                className="text-lg font-medium group flex items-center justify-between"
-                onClick={() => {
-                  if (!loadedBracketMatches[bracket.id]) {
-                    loadBracketData(bracket.id);
-                  }
-                }}
-              >
-                {bracket.category}
-              </AccordionTrigger>
+          {brackets.map((bracket) => {
+            const matchCardHeight = 60;
+            const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
+            const estimatedHeight =
+              getInitialMatchCount(bracket.participants.length) * (cardHeight + columnGap) + roundTitleHeight;
+            const containerHeight = estimatedHeight > maxHeight ? maxHeight : undefined;
 
-              <AccordionContent>
-                {tab === "brackets" ? (
-                  loadedBracketMatches[bracket.id]?.loading ? (
-                    <div className="flex items-center justify-center" style={{ height: 400 }}>
-                      <ScreenLoader />
-                    </div>
+            return (
+              <AccordionItem key={bracket.id} value={String(bracket.id)}>
+                <AccordionTrigger
+                  className="text-lg font-medium group flex items-center justify-between"
+                  onClick={() => {
+                    if (!loadedBracketMatches[bracket.id]) {
+                      loadBracketData(bracket.id);
+                    }
+                  }}
+                >
+                  {bracket.category}
+                </AccordionTrigger>
+
+                <AccordionContent>
+                  {tab === "brackets" ? (
+                    loadedBracketMatches[bracket.id]?.loading ? (
+                      <div
+                        className="flex items-center justify-center"
+                        style={{
+                          height: Math.min(estimatedHeight, maxHeight),
+                        }}
+                      >
+                        <ScreenLoader />
+                      </div>
+                    ) : (
+                      <BracketContent
+                        bracketMatches={loadedBracketMatches[bracket.id]?.matches ?? []}
+                        matchCardHeight={matchCardHeight}
+                        containerHeight={containerHeight}
+                      />
+                    )
                   ) : (
-                    <BracketContent
-                      bracketMatches={loadedBracketMatches[bracket.id]?.matches ?? []}
-                      matchCardHeight={60}
-                      containerHeight={400}
-                    />
-                  )
-                ) : (
-                  <>
-                    <Link
-                      href={`/brackets/${bracket.id}`}
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <LinkIcon className="w-4 h-4" />
-                    </Link>
-                    <ul className="list-decimal list-inside mt-2">
-                      {bracket.participants.map((p) => (
-                        <li key={p.seed} className="py-1">
-                          {p.last_name} {p.first_name}
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
+                    <>
+                      <Link
+                        href={`/brackets/${bracket.id}`}
+                        // rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <LinkIcon className="w-4 h-4" />
+                      </Link>
+                      <ul className="list-decimal list-inside mt-2">
+                        {bracket.participants.map((p) => (
+                          <li key={p.seed} className="py-1">
+                            {p.last_name} {p.first_name}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
         </Accordion>
       )}
 
