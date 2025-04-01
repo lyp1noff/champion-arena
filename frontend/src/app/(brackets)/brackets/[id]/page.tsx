@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ScreenLoader from "@/components/loader";
-import MatchCard from "@/components/match-card";
 import { BracketMatch } from "@/lib/interfaces";
 import { getBracketMatchesById } from "@/lib/api/brackets";
+import BracketContent from "@/components/bracket-content";
 import { Card } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 // import { Button } from "@/components/ui/button";
 
 export default function BracketPage() {
@@ -42,59 +41,13 @@ export default function BracketPage() {
   if (error) return <p className="text-red-500">{error}</p>;
   if (!bracketMatches.length) return <p className="text-gray-500">Нет данных</p>;
 
-  const groupedRounds = bracketMatches.reduce((acc, bracketMatch) => {
-    if (!acc[bracketMatch.round_number]) acc[bracketMatch.round_number] = [];
-    acc[bracketMatch.round_number].push(bracketMatch);
-    return acc;
-  }, {} as Record<number, BracketMatch[]>);
-
-  const sortedRounds = Object.entries(groupedRounds)
-    .map(([roundStr, bracketMatches]) => ({
-      round: Number(roundStr),
-      bracketMatches: bracketMatches.sort((a, b) => a.position - b.position),
-    }))
-    .sort((a, b) => a.round - b.round);
-
-  const maxMatchesInRound = Math.max(...sortedRounds.map((r) => r.bracketMatches.length));
-
   return (
     <div className="container mx-auto flex flex-col gap-4 py-6">
       {/* Add h-screen if needed */}
       <h1 className="text-3xl font-bold text-center pb-2">🏆 Сетка турнира #{id}</h1>
       <div className="w-full flex justify-center overflow-auto">
         <Card className="flex flex-col w-max max-w-full p-6" id="bracket-fullscreen">
-          <ScrollArea className="flex-1 overflow-auto">
-            <div className="flex gap-8 items-start justify-center">
-              {sortedRounds.map(({ round, bracketMatches }) => {
-                const firstWithLabel = bracketMatches.find((bm) => bm.match?.round_type);
-                const title = firstWithLabel?.match.round_type ? firstWithLabel.match.round_type : `Раунд ${round}`;
-
-                return (
-                  <ul
-                    key={round}
-                    className="flex flex-col items-stretch min-w-[220px]"
-                    style={{ height: `${maxMatchesInRound * 100 + 28}px` }} // TO-DI: instead of 28px calculate h2 height
-                  >
-                    <h2 className="text-lg font-semibold text-center">{title}</h2>
-                    {bracketMatches.map((bracketMatch, bracketMatchIdx) => (
-                      <li
-                        key={bracketMatch.id || `empty-${round}-${bracketMatchIdx}`}
-                        className="flex-1 flex items-center justify-center"
-                      >
-                        {bracketMatch.round_number === 1 &&
-                        (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2) ? (
-                          <div className="w-full h-20 border border-dashed border-gray-300 rounded-md opacity-30" />
-                        ) : (
-                          <MatchCard bracketMatch={bracketMatch} />
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                );
-              })}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          <BracketContent bracketMatches={bracketMatches} />
         </Card>
       </div>
     </div>
