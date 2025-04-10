@@ -77,11 +77,60 @@ export default function BracketContent({
                 </h2>
               </li>
 
-              {matches.map((match, idx) => (
-                <li key={match.id || `empty-${round}-${idx}`} className="flex-1 flex items-center justify-center">
-                  <MatchCard bracketMatch={match} height={cardHeight} width={cardWidth} />
-                </li>
-              ))}
+              {matches.map((match, idx) => {
+                const lineWidth = 1;
+                const isFirstRound = match.round_number === 1;
+                const isLastRound = match.match.round_type === "final";
+
+                return (
+                  <li
+                    key={match.id || `empty-${round}-${idx}`}
+                    className="relative flex-1 flex items-center justify-center"
+                  >
+                    {!isFirstRound && (
+                      <>
+                        {/* Vertical line */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: -columnGap / 2 - lineWidth / 2,
+                            width: lineWidth,
+                            height: (maxMatchesInRound / matches.length / 2) * (cardHeight + columnGap),
+                            backgroundColor: "hsl(var(--foreground))",
+                          }}
+                        />
+
+                        {/* Horizontal line */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: -columnGap / 2 - lineWidth / 2,
+                            width: columnGap / 2 + lineWidth / 2,
+                            height: lineWidth,
+                            top: "50%",
+                            transform: `translateY(-${lineWidth / 2}px)`,
+                            backgroundColor: "hsl(var(--foreground))",
+                          }}
+                        />
+                      </>
+                    )}
+
+                    <MatchCard bracketMatch={match} height={cardHeight} width={cardWidth} />
+
+                    {!isLastRound && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          right: -columnGap / 2 - lineWidth / 2,
+                          width: columnGap / 2 + lineWidth / 2,
+                          height: lineWidth,
+                          backgroundColor: "hsl(var(--foreground))",
+                        }}
+                      />
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           );
         })}

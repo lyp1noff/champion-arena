@@ -11,25 +11,25 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
   const calculatedFontSize = height / 5;
 
   if (bracketMatch.round_number === 1 && (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2))
-    return <div className="border border-dashed border-gray-300 rounded-md opacity-30" style={{ width, height }} />;
+    return <div className="border border-dashed border-gray-500 rounded-md opacity-30" style={{ width, height }} />;
 
   return (
-    <div className="overflow-hidden rounded-md border border-gray-200" style={{ width, height }}>
+    <div className="overflow-hidden rounded-md border" style={{ width, height }}>
       <PlayerSlot
         player={bracketMatch.match.athlete1}
         isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete1?.id}
-        score={bracketMatch.score_athlete1}
+        score={bracketMatch.match.score_athlete1}
         isFirstRound={bracketMatch.round_number === 1}
         isTop={true}
         height={calculatedHeight}
         width={width}
         fontSize={calculatedFontSize}
       />
-      <div className="h-px bg-gray-200" />
+      <div className="h-px" />
       <PlayerSlot
         player={bracketMatch.match.athlete2}
         isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete2?.id}
-        score={bracketMatch.score_athlete2}
+        score={bracketMatch.match.score_athlete2}
         isFirstRound={bracketMatch.round_number === 1}
         isTop={false}
         height={calculatedHeight}
@@ -68,8 +68,9 @@ function PlayerSlot({ player, score, isFirstRound, isTop, height = 40, width = 2
         className={`flex items-center justify-between text-white ${bgColor}`}
         style={{ height, fontSize, paddingLeft: paddingX, paddingRight: paddingX }}
       >
-        <span className="italic">{isFirstRound ? "Bye" : "TBD"}</span>
-        <span>-</span>
+        <span className="italic"></span>
+        {/* <span className="italic">{isFirstRound ? "Bye" : "TBD"}</span>
+        <span>-</span> */}
       </div>
     );
   }

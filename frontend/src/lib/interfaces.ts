@@ -58,6 +58,9 @@ export type Match = {
   athlete1: BracketMatchAthlete | null;
   athlete2: BracketMatchAthlete | null;
   winner: BracketMatchAthlete | null;
+  score_athlete1: number | null;
+  score_athlete2: number | null;
+  is_finished: boolean;
 };
 
 export type BracketMatch = {
@@ -65,9 +68,6 @@ export type BracketMatch = {
   round_number: number;
   position: number;
   match: Match;
-  score_athlete1: number | null;
-  score_athlete2: number | null;
-  is_finished: boolean;
 };
 
 export type BracketMatches = BracketMatch[];
