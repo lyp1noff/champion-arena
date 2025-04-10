@@ -20,20 +20,20 @@ export default function BracketContent({
   const roundTitleHeight = cardHeight / 3;
   const columnGap = (cardHeight / 8) * 2;
 
-  const groupedRounds = bracketMatches.reduce((acc, match) => {
-    if (!acc[match.round_number]) acc[match.round_number] = [];
-    acc[match.round_number].push(match);
+  const groupedRounds = bracketMatches.reduce((acc, bracketMatch) => {
+    if (!acc[bracketMatch.round_number]) acc[bracketMatch.round_number] = [];
+    acc[bracketMatch.round_number].push(bracketMatch);
     return acc;
   }, {} as Record<number, BracketMatches>);
 
   const sortedRounds = Object.entries(groupedRounds)
-    .map(([roundStr, matches]) => ({
+    .map(([roundStr, bracketMatches]) => ({
       round: Number(roundStr),
-      matches: matches.sort((a, b) => a.position - b.position),
+      bracketMatches: bracketMatches.sort((a, b) => a.position - b.position),
     }))
     .sort((a, b) => a.round - b.round);
 
-  const maxMatchesInRound = Math.max(...sortedRounds.map((r) => r.matches.length));
+  const maxMatchesInRound = Math.max(...sortedRounds.map((r) => r.bracketMatches.length));
 
   const content = (
     <ScrollArea className="flex-1 overflow-auto">
@@ -49,8 +49,8 @@ export default function BracketContent({
 
       {/* Bracket */}
       <div className="flex items-start justify-center" style={{ columnGap }}>
-        {sortedRounds.map(({ round, matches }) => {
-          const label = matches.find((m) => m.match?.round_type)?.match.round_type ?? `Round ${round}`;
+        {sortedRounds.map(({ round, bracketMatches }) => {
+          const label = bracketMatches.find((m) => m.match?.round_type)?.match.round_type ?? `round ${round}`;
 
           return (
             <ul
@@ -77,57 +77,64 @@ export default function BracketContent({
                 </h2>
               </li>
 
-              {matches.map((match, idx) => {
+              {bracketMatches.map((bracketMatch, idx) => {
                 const lineWidth = 1;
-                const isFirstRound = match.round_number === 1;
-                const isLastRound = match.match.round_type === "final";
+                const isLastRound = bracketMatch.match.round_type === "final";
+                const isFirstMatchEmpty =
+                  bracketMatch.round_number === 1 && (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2);
+                const isMatchOdd = bracketMatch.position % 2 === 1;
+
+                const connectorX = -columnGap / 2 - lineWidth / 2;
+                const connectorY = (maxMatchesInRound / bracketMatches.length / 2) * (cardHeight + columnGap);
+                const horizontalYOffset = cardHeight / 4;
+                const totalYOffset =
+                  (maxMatchesInRound / bracketMatches.length) * (cardHeight + columnGap) - horizontalYOffset - 0.5;
 
                 return (
                   <li
-                    key={match.id || `empty-${round}-${idx}`}
+                    key={bracketMatch.id || `empty-${bracketMatch.round_number}-${idx}`}
                     className="relative flex-1 flex items-center justify-center"
                   >
-                    {!isFirstRound && (
+                    {!isLastRound && !isFirstMatchEmpty && (
                       <>
-                        {/* Vertical line */}
+                        {/* Horizontal line from the center of this card to the right */}
                         <div
                           style={{
                             position: "absolute",
-                            left: -columnGap / 2 - lineWidth / 2,
-                            width: lineWidth,
-                            height: (maxMatchesInRound / matches.length / 2) * (cardHeight + columnGap),
+                            right: connectorX,
+                            width: columnGap / 2 + lineWidth / 2,
+                            height: lineWidth,
                             backgroundColor: "hsl(var(--foreground))",
                           }}
                         />
 
-                        {/* Horizontal line */}
+                        {/* Vertical line from this card toward the connecting line */}
                         <div
                           style={{
                             position: "absolute",
-                            left: -columnGap / 2 - lineWidth / 2,
+                            right: connectorX,
+                            width: lineWidth,
+                            height: connectorY - horizontalYOffset,
+                            [isMatchOdd ? "bottom" : "top"]: horizontalYOffset,
+                            backgroundColor: "hsl(var(--foreground))",
+                          }}
+                        />
+
+                        {/* Horizontal line to the next round's card */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            right: -columnGap,
                             width: columnGap / 2 + lineWidth / 2,
                             height: lineWidth,
-                            top: "50%",
-                            transform: `translateY(-${lineWidth / 2}px)`,
+                            [!isMatchOdd ? "bottom" : "top"]: totalYOffset,
                             backgroundColor: "hsl(var(--foreground))",
                           }}
                         />
                       </>
                     )}
 
-                    <MatchCard bracketMatch={match} height={cardHeight} width={cardWidth} />
-
-                    {!isLastRound && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          right: -columnGap / 2 - lineWidth / 2,
-                          width: columnGap / 2 + lineWidth / 2,
-                          height: lineWidth,
-                          backgroundColor: "hsl(var(--foreground))",
-                        }}
-                      />
-                    )}
+                    <MatchCard bracketMatch={bracketMatch} height={cardHeight} width={cardWidth} />
                   </li>
                 );
               })}

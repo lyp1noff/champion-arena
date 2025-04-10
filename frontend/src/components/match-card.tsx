@@ -10,8 +10,8 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
   const calculatedHeight = (height - 3) / 2;
   const calculatedFontSize = height / 5;
 
-  if (bracketMatch.round_number === 1 && (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2))
-    return <div className="border border-dashed border-gray-500 rounded-md opacity-30" style={{ width, height }} />;
+  if (bracketMatch.round_number === 1 && (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2)) return;
+  // return <div className="border border-dashed border-gray-500 rounded-md opacity-30" style={{ width, height }} />;
 
   return (
     <div className="overflow-hidden rounded-md border" style={{ width, height }}>
