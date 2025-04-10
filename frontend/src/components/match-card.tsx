@@ -58,7 +58,7 @@ interface PlayerSlotProps {
   fontSize?: number;
 }
 
-function PlayerSlot({ player, score, isFirstRound, isTop, height = 40, width = 220, fontSize = 14 }: PlayerSlotProps) {
+function PlayerSlot({ player, score, isTop, height = 40, width = 220, fontSize = 14 }: PlayerSlotProps) {
   const bgColor = isTop ? "bg-red-800" : "bg-blue-800";
   const paddingX = Math.max(4, Math.floor(width / 25));
 
