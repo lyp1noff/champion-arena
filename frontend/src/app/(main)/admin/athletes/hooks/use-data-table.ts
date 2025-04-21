@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PaginationState, SortingState } from "@tanstack/react-table";
 import { getAthletes } from "@/lib/api/athletes";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Athlete } from "@/lib/interfaces";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import { columns } from "../components/columns";
 
 export default function useDataTable() {
   const searchParams = useSearchParams();
@@ -64,10 +65,10 @@ export default function useDataTable() {
     router.replace(`?${params.toString()}`);
   }, [pagination, sorting, debouncedSearch, debouncedCoachSearch, router]);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     const sortField = sorting.length > 0 ? sorting[0].id : "last_name";
     const sortOrder = sorting.length > 0 && sorting[0].desc ? "desc" : "asc";
-
+  
     getAthletes(
       pagination.pageIndex + 1,
       pagination.pageSize,
@@ -81,6 +82,11 @@ export default function useDataTable() {
       setTotalPages(Math.ceil(total / limit));
     });
   }, [pagination, sorting, debouncedSearch, debouncedCoachSearch]);
+  
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+  
 
   return {
     data,
@@ -94,5 +100,6 @@ export default function useDataTable() {
     setSearch,
     coachSearch,
     setCoachSearch,
+    columns: columns(fetchData)
   };
 }

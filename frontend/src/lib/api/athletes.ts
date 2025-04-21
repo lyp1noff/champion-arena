@@ -37,3 +37,13 @@ export async function createAthletes(data: AthleteCreate): Promise<Athlete> {
 
   return res.json();
 }
+
+export async function deleteAthlete(id: number): Promise<{ success: boolean }> {
+  const res = await fetch(`${url}/athletes/${id}`, { method: "DELETE", credentials: "include" });
+
+  if (!res.ok) {
+    throw new Error("Error deleting athlete");
+  }
+
+  return { success: true };
+}

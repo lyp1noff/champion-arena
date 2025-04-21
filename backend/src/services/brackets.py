@@ -155,6 +155,11 @@ async def regenerate_bracket_matches(
     athlete_ids = [p.athlete_id for p in participants if p.athlete_id is not None]
 
     num_players = len(athlete_ids)
+
+    # TO-DO: Return list of errors, skip category
+    if num_players < 2:
+        print(f"Warning! Category: {bracket_id} Player number: {num_players}")
+
     next_power_of_two = 2 ** math.ceil(math.log2(max(num_players, 2)))
     total_rounds = int(math.log2(next_power_of_two))
 

@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PaginationState, SortingState } from "@tanstack/react-table";
 import { getTournaments } from "@/lib/api/tournaments";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Tournament } from "@/lib/interfaces";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import { columns } from "../components/columns";
 
 export default function useDataTable() {
   const searchParams = useSearchParams();
@@ -58,10 +59,10 @@ export default function useDataTable() {
     router.replace(`?${params.toString()}`);
   }, [pagination, sorting, debouncedSearch, router]);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     const sortField = sorting.length > 0 ? sorting[0].id : "name";
     const sortOrder = sorting.length > 0 && sorting[0].desc ? "desc" : "asc";
-
+  
     getTournaments(pagination.pageIndex + 1, pagination.pageSize, sortField, sortOrder, debouncedSearch).then(
       ({ data, total, limit }) => {
         setData(data);
@@ -70,6 +71,10 @@ export default function useDataTable() {
       }
     );
   }, [pagination, sorting, debouncedSearch]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   return {
     data,
@@ -81,5 +86,6 @@ export default function useDataTable() {
     onSortingChange,
     search,
     setSearch,
+    columns: columns(fetchData)
   };
 }

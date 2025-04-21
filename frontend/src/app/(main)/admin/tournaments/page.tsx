@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import DataTable from "@/components/data-table";
 import ScreenLoader from "@/components/loader";
 import useDataTable from "./hooks/use-data-table";
-import { columns } from "./components/columns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -23,6 +22,7 @@ function TournamentTableWrapper() {
     onSortingChange,
     search,
     setSearch,
+    columns,
   } = useDataTable();
 
   return (
@@ -31,7 +31,9 @@ function TournamentTableWrapper() {
         <Input
           placeholder={t("search")}
           value={search}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value.trim())}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setSearch(e.target.value.trim())
+          }
         />
         <Link href="/admin/tournaments/create">
           <Button variant="outline">{t("create")}</Button>
