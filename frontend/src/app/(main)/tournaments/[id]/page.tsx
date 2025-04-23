@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { getTournamentBracketsById } from "@/lib/api/tournaments";
-import { Bracket, BracketMatches } from "@/lib/interfaces";
+import { getTournamentBracketsById, getTournamentById } from "@/lib/api/tournaments";
+import { Bracket, BracketMatches, Tournament } from "@/lib/interfaces";
 import ScreenLoader from "@/components/loader";
 import Link from "next/link";
 import { LinkIcon } from "lucide-react";
@@ -13,11 +13,15 @@ import BracketContent from "@/components/bracket-content";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getBracketDimensions, getInitialMatchCount } from "@/lib/utils";
 import { useScreenHeight } from "@/hooks/use-screen-height";
+import { useTranslations } from "next-intl";
 
 export default function TournamentPage() {
+  const t = useTranslations("TournamentPage");
+
   const { id } = useParams();
   const [tab, setTab] = useState("brackets");
   const [brackets, setBrackets] = useState<Bracket[]>([]);
+  const [tournament, setTournament] = useState<Tournament>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [loadedBracketMatches, setLoadedBracketMatches] = useState<
@@ -58,8 +62,11 @@ export default function TournamentPage() {
       setError("");
 
       try {
-        const data = await getTournamentBracketsById(Number(id));
-        setBrackets(data);
+        const bracketsData = await getTournamentBracketsById(Number(id));
+        setBrackets(bracketsData);
+
+        const tournamentData = await getTournamentById(Number(id));
+        setTournament(tournamentData); // separate two api calls
       } catch (error) {
         console.error("Error fetching tournament brackets:", error);
       } finally {
@@ -72,12 +79,12 @@ export default function TournamentPage() {
 
   return (
     <div className="container py-10 mx-auto">
-      <h1 className="text-2xl font-bold mb-10">Турнир #{id}</h1>
+      <h1 className="text-2xl font-bold mb-10">{tournament ? tournament.name : "Tournament"}</h1>
 
       <Tabs defaultValue="brackets" onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="brackets">Сетка</TabsTrigger>
-          <TabsTrigger value="participants">Участники</TabsTrigger>
+          <TabsTrigger value="brackets">{t("brackets")}</TabsTrigger>
+          <TabsTrigger value="participants">{t("participants")}</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -103,7 +110,14 @@ export default function TournamentPage() {
                     }
                   }}
                 >
-                  {bracket.category}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                    <span className="text-base font-semibold">{bracket.category}</span>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {/* i18n needed*/}
+                      <span>👥 {bracket.participants.length} participants</span>
+                      <span>🕒 {"12:00"}</span>
+                    </div>
+                  </div>
                 </AccordionTrigger>
 
                 <AccordionContent>

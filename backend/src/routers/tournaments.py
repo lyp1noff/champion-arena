@@ -1,12 +1,13 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies.auth import get_current_user
-from src.models import Bracket, BracketMatch, BracketParticipant, Tournament
+from src.models import Bracket, BracketMatch, BracketParticipant, Match, Tournament
 from src.schemas import (
     BracketMatchGroup,
     BracketMatchResponse,
@@ -19,6 +20,7 @@ from src.schemas import (
 )
 from src.database import get_db
 from src.services.brackets import regenerate_tournament_brackets
+from src.services.docx import generate_docx_stream
 
 router = APIRouter(
     prefix="/tournaments",
@@ -128,44 +130,6 @@ async def delete_tournament(id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
 
-# @router.get("/{tournament_id}/brackets", response_model=List[BracketBase])
-# async def get_brackets(tournament_id: int, db: AsyncSession = Depends(get_db)):
-#     result = await db.execute(
-#         select(Bracket)
-#         .filter_by(tournament_id=tournament_id)
-#         .order_by(Bracket.id)
-#         .options(
-#             selectinload(Bracket.category),
-#             selectinload(Bracket.participants).selectinload(BracketParticipant.athlete),
-#         )
-#     )
-#     brackets = result.scalars().all()
-
-#     brackets_data = []
-
-#     for bracket in brackets:
-#         if not bracket.category:
-#             continue
-
-#         sorted_participants = sorted(bracket.participants, key=lambda x: x.seed)
-
-#         participant_list = [
-#             {
-#                 "seed": p.seed,
-#                 "last_name": p.athlete.last_name,
-#                 "first_name": p.athlete.first_name,
-#             }
-#             for p in sorted_participants
-#             if p.athlete
-#         ]
-
-#         brackets_data.append(
-#             {"category": bracket.category.name, "participants": participant_list}
-#         )
-
-#     return brackets_data
-
-
 @router.get("/{tournament_id}/brackets", response_model=List[BracketResponse])
 async def get_all_brackets(tournament_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -206,9 +170,15 @@ async def get_all_matches_for_tournament(
         .filter(Bracket.tournament_id == tournament_id)
         .options(
             selectinload(Bracket.category),
-            selectinload(Bracket.matches).selectinload(BracketMatch.athlete1),
-            selectinload(Bracket.matches).selectinload(BracketMatch.athlete2),
-            selectinload(Bracket.matches).selectinload(BracketMatch.winner),
+            selectinload(Bracket.matches)
+            .joinedload(BracketMatch.match)
+            .joinedload(Match.athlete1),
+            selectinload(Bracket.matches)
+            .joinedload(BracketMatch.match)
+            .joinedload(Match.athlete2),
+            selectinload(Bracket.matches)
+            .joinedload(BracketMatch.match)
+            .joinedload(Match.winner),
         )
     )
     brackets = result.scalars().all()
@@ -216,20 +186,14 @@ async def get_all_matches_for_tournament(
     response = []
     for bracket in brackets:
         matches = []
-        for match in sorted(
-            bracket.matches, key=lambda m: (m.round_number, m.position)
-        ):
+        for bm in sorted(bracket.matches, key=lambda m: (m.round_number, m.position)):
             matches.append(
                 BracketMatchResponse(
-                    id=match.id,
-                    round_number=match.round_number,
-                    position=match.position,
-                    athlete1=match.athlete1,
-                    athlete2=match.athlete2,
-                    winner=match.winner,
-                    score_athlete1=match.score_athlete1,
-                    score_athlete2=match.score_athlete2,
-                    is_finished=match.is_finished,
+                    id=bm.id,
+                    round_number=bm.round_number,
+                    position=bm.position,
+                    match=bm.match,
+                    next_slot=bm.next_slot,
                 )
             )
         response.append(
@@ -252,3 +216,11 @@ async def regenerate_tournament(
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{tournament_id}/docx", dependencies=[Depends(get_current_user)])
+async def generate_brackets_docx(
+    tournament_id: int, session: AsyncSession = Depends(get_db)
+):
+    data = await get_all_matches_for_tournament(tournament_id, session)
+    return await run_in_threadpool(generate_docx_stream, data)

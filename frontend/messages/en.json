@@ -14,6 +14,10 @@
     "Home": {
         "tournaments": "tournaments"
     },
+    "TournamentPage": {
+        "brackets": "Brackets",
+        "participants": "Participants"
+    },
     "Admin": {
         "title": "Admin Page",
         "tournaments": "Tournaments",
