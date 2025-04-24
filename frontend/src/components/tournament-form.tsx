@@ -154,7 +154,7 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
                 <FormItem>
                   <FormLabel>Tournament Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter tournament name" {...field} />
+                    <Input placeholder="Karate Junior Tournament" {...field} />
                   </FormControl>
                   <FormDescription>The official name of your tournament.</FormDescription>
                   <FormMessage />
@@ -169,7 +169,7 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
                 <FormItem>
                   <FormLabel>Location</FormLabel>
                   <FormControl>
-                    <Input placeholder="City, State/Province, Country" {...field} />
+                    <Input placeholder="Kyiv" {...field} />
                   </FormControl>
                   <FormDescription>Where the tournament will take place.</FormDescription>
                   <FormMessage />
@@ -234,7 +234,7 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
             </FormItem>
 
             <FormItem>
-              <FormLabel>Optional Bracket Structure File (.json or .cbr)</FormLabel>
+              <FormLabel>Bracket Structure File (*.cbr)</FormLabel>
               <FormControl>
                 <Input
                   type="file"
@@ -246,7 +246,6 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
                   }}
                 />
               </FormControl>
-              <FormDescription>Optional file to predefine the bracket structure.</FormDescription>
               <FormMessage />
             </FormItem>
           </CardContent>

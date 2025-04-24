@@ -20,7 +20,7 @@ from src.schemas import (
 )
 from src.database import get_db
 from src.services.brackets import regenerate_tournament_brackets
-from src.services.docx import generate_docx_stream
+from src.services.export_file import generate_pdf
 from src.services.import_competitors import import_competitors_from_cbr
 
 router = APIRouter(
@@ -219,12 +219,12 @@ async def regenerate_tournament(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{tournament_id}/docx", dependencies=[Depends(get_current_user)])
-async def generate_brackets_docx(
+@router.get("/{tournament_id}/export_file", dependencies=[Depends(get_current_user)])
+async def generate_brackets_export_file(
     tournament_id: int, session: AsyncSession = Depends(get_db)
 ):
     data = await get_all_matches_for_tournament(tournament_id, session)
-    return await run_in_threadpool(generate_docx_stream, data)
+    return await run_in_threadpool(generate_pdf, data)
 
 
 @router.post("/{tournament_id}/import", dependencies=[Depends(get_current_user)])

@@ -82,13 +82,13 @@ export async function getTournamentBracketsById(id: number): Promise<Bracket[]> 
 }
 
 export async function downloadTournamentDocx(tournamentId: number): Promise<Blob> {
-  const res = await fetch(`${url}/tournaments/${tournamentId}/docx`, {
+  const res = await fetch(`${url}/tournaments/${tournamentId}/export_file`, {
     cache: "no-store",
     credentials: "include",
   });
 
   if (!res.ok) {
-    throw new Error("Failed to download tournament docx");
+    throw new Error("Failed to export tournament file");
   }
 
   const blob = await res.blob();

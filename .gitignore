@@ -1,6 +1,7 @@
 # BACKEND
 backend/venv/
 __pycache__/
+backend/pdf_storage/*
 
 # FRONTEND
 frontend/.next/

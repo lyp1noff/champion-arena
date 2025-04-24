@@ -33,6 +33,10 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
     }
   };
 
+  const handleOpen = () => {
+    router.push(`/tournaments/${row.original.id}`);
+  };
+
   const handleEdit = () => {
     router.push(`/admin/tournaments/edit/${row.original.id}`);
   };
@@ -47,7 +51,7 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
 
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${filename}.docx`;
+        a.download = `${filename}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -55,7 +59,7 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
         window.URL.revokeObjectURL(url);
       })(),
       {
-        loading: "Generating .docx, please wait...",
+        loading: "Generating file, please wait...",
         success: "File downloaded successfully",
         error: (err) => `Error exporting file: ${err}`,
       }
@@ -71,18 +75,11 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[160px]">
+        <DropdownMenuItem onClick={handleOpen}>Open</DropdownMenuItem>
         <DropdownMenuItem onClick={handleEdit}>Edit</DropdownMenuItem>
-        <DropdownMenuItem onClick={exportFile}>Export DOCX</DropdownMenuItem>
+        <DropdownMenuItem onClick={exportFile}>Export to File</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleDelete}>Delete</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => {
-            console.log(row);
-          }}
-        >
-          DEV_CONSOLE_INFO
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

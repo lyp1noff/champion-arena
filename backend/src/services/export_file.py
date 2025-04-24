@@ -1,13 +1,13 @@
-from io import BytesIO
-from docxtpl import DocxTemplate
-from docxcompose.composer import Composer
-from docx import Document
+from fastapi.responses import FileResponse
+from tempfile import NamedTemporaryFile
+from pathlib import Path
+import cairosvg
+import re
+from PyPDF2 import PdfMerger
 import os
-from uuid import uuid4
+import uuid
 
-from fastapi.responses import StreamingResponse
-
-TEMPLATE_PATH = "pdf_storage/tmp.docx"
+SVG_TEMPLATE_PATH = "assets/template.svg"
 
 HIDE_FINISHED_MATCHES = True
 
@@ -77,37 +77,37 @@ def build_entries(data):
     return all_entries
 
 
-def generate_docx_stream(data):
+def generate_pdf(data):
     entries = build_entries(data)
-    docs = []
-
-    for entry in entries:
-        tpl = DocxTemplate(TEMPLATE_PATH)
-        tpl.render(entry)
-
-        stream = BytesIO()
-        tpl.save(stream)
-        stream.seek(0)
-        docs.append(stream)
-
-    if not docs:
+    if not entries:
         return {"detail": "Нет данных для генерации."}
 
-    final_stream = BytesIO()
-    first_doc = Document(docs[0])
-    composer = Composer(first_doc)
+    merger = PdfMerger()
+    temp_paths = []
 
-    for stream in docs[1:]:
-        composer.append(Document(stream))
+    original_template = Path(SVG_TEMPLATE_PATH).read_text(encoding="utf-8")
 
-    composer.save(final_stream)
-    final_stream.seek(0)
+    for entry in entries:
+        svg_template = original_template
 
-    for doc in docs:
-        doc.close()
+        placeholders = set(re.findall(r"{{\s*(\w+)\s*}}", svg_template))
+        for key in placeholders:
+            value = entry.get(key, "")
+            svg_template = svg_template.replace(f"{{{{ {key} }}}}", value)
 
-    return StreamingResponse(
-        final_stream,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": "attachment; filename=final_result.docx"},
+        with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            cairosvg.svg2pdf(bytestring=svg_template.encode("utf-8"), write_to=tmp.name)
+            temp_paths.append(tmp.name)
+            merger.append(tmp.name)
+
+    final_path = f"pdf_storage/{uuid.uuid4()}.pdf"
+    with open(final_path, "wb") as final_file:
+        merger.write(final_file)
+    merger.close()
+
+    for path in temp_paths:
+        os.remove(path)
+
+    return FileResponse(
+        final_path, media_type="application/pdf", filename="brackets.pdf"
     )
