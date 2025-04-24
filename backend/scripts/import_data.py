@@ -13,7 +13,7 @@ from src.models import (
     Athlete,
     Category,
     Tournament,
-    TournamentParticipant,
+    # TournamentParticipant,
 )
 from src.services.brackets import regenerate_tournament_brackets
 
@@ -96,18 +96,18 @@ async def import_data():
                 session.add(athlete)
                 await session.commit()
 
-            result = await session.execute(
-                select(TournamentParticipant).filter_by(
-                    tournament_id=tournament.id, athlete_id=athlete.id
-                )
-            )
-            existing_participant = result.scalars().first()
-            if not existing_participant:
-                tournament_participant = TournamentParticipant(
-                    tournament_id=tournament.id, athlete_id=athlete.id
-                )
-                session.add(tournament_participant)
-                await session.commit()
+            # result = await session.execute(
+            #     select(TournamentParticipant).filter_by(
+            #         tournament_id=tournament.id, athlete_id=athlete.id
+            #     )
+            # )
+            # existing_participant = result.scalars().first()
+            # if not existing_participant:
+            #     tournament_participant = TournamentParticipant(
+            #         tournament_id=tournament.id, athlete_id=athlete.id
+            #     )
+            #     session.add(tournament_participant)
+            #     await session.commit()
 
             result = await session.execute(
                 select(Bracket).filter_by(

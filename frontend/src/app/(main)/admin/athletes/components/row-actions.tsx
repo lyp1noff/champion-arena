@@ -18,27 +18,21 @@ interface DataTableRowActionsProps {
   onDataChanged?: () => void;
 }
 
-export function DataTableRowActions({
-  row,
-  onDataChanged,
-}: DataTableRowActionsProps) {
+export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsProps) {
   const handleDelete = async () => {
     try {
       await deleteAthlete(row.original.id);
-      toast.success("Атлет удалён");
+      toast.success("Athlete deleted");
       onDataChanged?.();
     } catch (err) {
-      toast.error(`Ошибка при удалении: ${err}`);
+      toast.error(`Error deleting athlete: ${err}`);
     }
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
-        >
+        <Button variant="ghost" className="flex h-8 w-8 p-0 data-[state=open]:bg-muted">
           <MoreHorizontal />
           <span className="sr-only">Open menu</span>
         </Button>

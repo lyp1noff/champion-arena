@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import selectinload
@@ -21,6 +21,7 @@ from src.schemas import (
 from src.database import get_db
 from src.services.brackets import regenerate_tournament_brackets
 from src.services.docx import generate_docx_stream
+from src.services.import_competitors import import_competitors_from_cbr
 
 router = APIRouter(
     prefix="/tournaments",
@@ -224,3 +225,13 @@ async def generate_brackets_docx(
 ):
     data = await get_all_matches_for_tournament(tournament_id, session)
     return await run_in_threadpool(generate_docx_stream, data)
+
+
+@router.post("/{tournament_id}/import", dependencies=[Depends(get_current_user)])
+async def import_competitors(
+    tournament_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    content = await file.read()
+    return await import_competitors_from_cbr(db, tournament_id, content)

@@ -3,14 +3,16 @@ from datetime import date
 from typing import List, Optional
 
 
-class AthleteBase(BaseModel):
+class CustomBaseModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AthleteBase(CustomBaseModel):
     last_name: str
     first_name: str
     gender: str
-    birth_date: date
+    birth_date: Optional[date] = None
     coach_id: Optional[int] = None
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class AthleteCreate(AthleteBase):
@@ -22,8 +24,6 @@ class AthleteResponse(AthleteBase):
     coach_last_name: Optional[str] = None
     age: Optional[int] = None
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class AthleteUpdate(AthleteBase):
     last_name: Optional[str] = None
@@ -32,21 +32,17 @@ class AthleteUpdate(AthleteBase):
     birth_date: Optional[date] = None
 
 
-class PaginatedAthletesResponse(BaseModel):
+class PaginatedAthletesResponse(CustomBaseModel):
     data: List[AthleteResponse]
     total: int
     page: int
     limit: int
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class CoachBase(BaseModel):
+class CoachBase(CustomBaseModel):
     last_name: str
     first_name: str
     credentials: Optional[str] = None
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class CoachCreate(CoachBase):
@@ -56,15 +52,11 @@ class CoachCreate(CoachBase):
 class CoachResponse(CoachBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class CategoryBase(BaseModel):
+class CategoryBase(CustomBaseModel):
     name: str
     age: int
     gender: str
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class CategoryCreate(CategoryBase):
@@ -74,10 +66,8 @@ class CategoryCreate(CategoryBase):
 class CategoryResponse(CategoryBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class TournamentBase(BaseModel):
+class TournamentBase(CustomBaseModel):
     name: str
     location: str
     start_date: date
@@ -85,8 +75,6 @@ class TournamentBase(BaseModel):
     registration_start_date: date
     registration_end_date: date
     image_url: Optional[str] = None
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class TournamentCreate(TournamentBase):
@@ -96,16 +84,12 @@ class TournamentCreate(TournamentBase):
 class TournamentResponse(TournamentBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class PaginatedTournamentResponse(BaseModel):
+class PaginatedTournamentResponse(CustomBaseModel):
     data: List[TournamentResponse]
     total: int
     page: int
     limit: int
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class TournamentUpdate(TournamentBase):
@@ -116,27 +100,21 @@ class TournamentUpdate(TournamentBase):
     registration_start_date: Optional[date] = None
     registration_end_date: Optional[date] = None
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class BracketParticipantSchema(BaseModel):
+class BracketParticipantSchema(CustomBaseModel):
     seed: int
     last_name: str
     first_name: str
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class BracketResponse(BaseModel):
+class BracketResponse(CustomBaseModel):
     id: int
     tournament_id: int
     category: str
     participants: List[BracketParticipantSchema]
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class BracketMatchResponse(BaseModel):
+class BracketMatchResponse(CustomBaseModel):
     id: int
     bracket_id: int
     round_number: int
@@ -146,18 +124,14 @@ class BracketMatchResponse(BaseModel):
     winner_id: Optional[int] = None
     is_finished: bool
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class BracketMatchAthlete(BaseModel):
+class BracketMatchAthlete(CustomBaseModel):
     id: int
     first_name: str
     last_name: str
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class MatchSchema(BaseModel):
+class MatchSchema(CustomBaseModel):
     id: int
     round_type: Optional[str] = None
     athlete1: Optional[BracketMatchAthlete]
@@ -167,10 +141,8 @@ class MatchSchema(BaseModel):
     score_athlete2: Optional[int] = None
     is_finished: bool
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class BracketMatchResponse(BaseModel):
+class BracketMatchResponse(CustomBaseModel):
     id: int
     round_number: int
     position: int
@@ -178,10 +150,8 @@ class BracketMatchResponse(BaseModel):
     # next_match_id: Optional[int] = None
     next_slot: Optional[int] = None
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class BracketMatchGroup(BaseModel):
+class BracketMatchGroup(CustomBaseModel):
     bracket_id: int
     category: str
     matches: List[BracketMatchResponse]

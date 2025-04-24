@@ -4,13 +4,13 @@ export async function getCoaches() {
   const res = await fetch(`${url}/coaches`, { cache: "no-store", credentials: "include" });
 
   if (!res.ok) {
-    throw new Error("Ошибка загрузки данных");
+    throw new Error("Failed to load coaches");
   }
 
   return res.json();
 }
 
-export async function uploadPhoto(file: File, path: string): Promise<string | null> {
+export async function uploadImage(file: File, path: string): Promise<string | null> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("path", path);

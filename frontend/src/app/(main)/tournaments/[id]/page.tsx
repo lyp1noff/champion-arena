@@ -163,7 +163,7 @@ export default function TournamentPage() {
         </Accordion>
       )}
 
-      {!loading && brackets.length === 0 && <p className="text-gray-500">Нет данных</p>}
+      {!loading && brackets.length === 0 && <p className="text-gray-500">No Data</p>}
     </div>
   );
 }

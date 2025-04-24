@@ -80,3 +80,32 @@ export async function getTournamentBracketsById(id: number): Promise<Bracket[]> 
 
   return res.json();
 }
+
+export async function downloadTournamentDocx(tournamentId: number): Promise<Blob> {
+  const res = await fetch(`${url}/tournaments/${tournamentId}/docx`, {
+    cache: "no-store",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to download tournament docx");
+  }
+
+  const blob = await res.blob();
+  return blob;
+}
+
+export async function importCbrFile(tournamentId: number, file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${url}/tournaments/${tournamentId}/import`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to upload cbr file");
+  }
+}
