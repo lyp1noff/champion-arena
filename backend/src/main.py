@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
@@ -9,8 +10,11 @@ from src.routers import routers
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    os.makedirs("pdf_storage", exist_ok=True)
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
     yield
 
 
