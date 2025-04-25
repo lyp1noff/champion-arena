@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import {LinkIcon} from "lucide-react";
+// import Link from "next/link";
+// import {LinkIcon} from "lucide-react";
 import {Bracket} from "@/lib/interfaces";
 
 interface ParticipantsViewProps {
@@ -11,12 +11,12 @@ interface ParticipantsViewProps {
 export function ParticipantsView({bracket}: ParticipantsViewProps) {
   return (
     <>
-      <Link
-        href={`/brackets/${bracket.id}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <LinkIcon className="w-4 h-4"/>
-      </Link>
+      {/*<Link*/}
+      {/*  href={`/brackets/${bracket.id}`}*/}
+      {/*  onClick={(e) => e.stopPropagation()}*/}
+      {/*>*/}
+      {/*  <LinkIcon className="w-4 h-4"/>*/}
+      {/*</Link>*/}
       <ul className="list-decimal list-inside mt-2">
         {bracket.participants.map((p) => (
           <li key={p.seed} className="py-1">

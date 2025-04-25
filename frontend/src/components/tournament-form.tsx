@@ -210,7 +210,9 @@ export function TournamentForm({mode, tournamentId, onSuccess}: TournamentFormPr
                           <Calendar
                             mode="single"
                             selected={field.value instanceof Date ? field.value : undefined}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              if (date) field.onChange(date);
+                            }}
                             initialFocus
                           />
                         </PopoverContent>

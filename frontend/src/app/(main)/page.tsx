@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { CalendarIcon, MapPinIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Tournament } from "@/lib/interfaces";
-import { getTournaments } from "@/lib/api/tournaments";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
+import {Card, CardContent, CardFooter, CardHeader} from "@/components/ui/card";
+import {CalendarIcon, MapPinIcon} from "lucide-react";
+import {useEffect, useState} from "react";
+import {Tournament} from "@/lib/interfaces";
+import {getTournaments} from "@/lib/api/tournaments";
+import {toast} from "sonner";
+import {useTranslations} from "next-intl";
 
 const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
 
@@ -51,26 +51,34 @@ export default function TournamentsPage() {
             className="block transition-transform hover:scale-[1.01]"
           >
             <Card className="h-full overflow-hidden">
-              <div className="relative h-48 w-full">
+              <div className="relative h-72 w-full overflow-hidden">
+                <Image
+                  src={tournament.image_url ? `${cdnUrl}/${tournament.image_url}` : "/tournament.svg"}
+                  alt=""
+                  className="absolute inset-0 object-cover blur-md scale-110"
+                  fill
+                  aria-hidden="true"
+                />
                 <Image
                   src={tournament.image_url ? `${cdnUrl}/${tournament.image_url}` : "/tournament.svg"}
                   alt={tournament.name}
-                  className="object-cover"
+                  className="relative object-contain z-10"
                   fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // TODO: check values
-                  priority={true} // TODO: check if this is needed
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  priority
                 />
               </div>
+
               <CardHeader>
                 <h2 className="text-xl font-semibold">{tournament.name}</h2>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPinIcon className="mr-2 h-4 w-4" />
+                  <MapPinIcon className="mr-2 h-4 w-4"/>
                   {tournament.location}
                 </div>
                 <div className="flex items-center text-sm text-muted-foreground">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  <CalendarIcon className="mr-2 h-4 w-4"/>
                   {tournament.start_date.toLocaleString()}
                 </div>
               </CardContent>

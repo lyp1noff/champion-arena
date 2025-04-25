@@ -1,4 +1,4 @@
-import { Bracket, Tournament, TournamentCreate, TournamentUpdate } from "@/lib/interfaces";
+import {Bracket, Tournament, TournamentCreate, TournamentUpdate} from "@/lib/interfaces";
 
 const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
 
@@ -11,7 +11,7 @@ export async function getTournaments(
 ): Promise<{ data: Tournament[]; total: number; page: number; limit: number }> {
   const res = await fetch(
     `${url}/tournaments?page=${page}&limit=${limit}&order_by=${orderBy}&order=${order}&search=${search}`,
-    { cache: "no-store" }
+    {cache: "no-store"}
   );
 
   if (!res.ok) {
@@ -22,7 +22,7 @@ export async function getTournaments(
 }
 
 export async function getTournamentById(id: number): Promise<Tournament> {
-  const res = await fetch(`${url}/tournaments/${id}`, { cache: "no-store" });
+  const res = await fetch(`${url}/tournaments/${id}`, {cache: "no-store"});
 
   if (!res.ok) {
     throw new Error("Failed to load tournament");
@@ -34,7 +34,7 @@ export async function getTournamentById(id: number): Promise<Tournament> {
 export async function createTournament(tournamentData: TournamentCreate): Promise<Tournament> {
   const res = await fetch(`${url}/tournaments`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify(tournamentData),
     credentials: "include",
   });
@@ -49,7 +49,7 @@ export async function createTournament(tournamentData: TournamentCreate): Promis
 export async function updateTournament(id: number, updateData: TournamentUpdate): Promise<Tournament> {
   const res = await fetch(`${url}/tournaments/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify(updateData),
     credentials: "include",
   });
@@ -62,17 +62,17 @@ export async function updateTournament(id: number, updateData: TournamentUpdate)
 }
 
 export async function deleteTournament(id: number): Promise<{ success: boolean }> {
-  const res = await fetch(`${url}/tournaments/${id}`, { method: "DELETE", credentials: "include" });
+  const res = await fetch(`${url}/tournaments/${id}`, {method: "DELETE", credentials: "include"});
 
   if (!res.ok) {
     throw new Error("Error deleting tournament");
   }
 
-  return { success: true };
+  return {success: true};
 }
 
 export async function getTournamentBracketsById(id: number): Promise<Bracket[]> {
-  const res = await fetch(`${url}/tournaments/${id}/brackets`, { cache: "no-store" });
+  const res = await fetch(`${url}/tournaments/${id}/brackets`, {cache: "no-store"});
 
   if (!res.ok) {
     throw new Error("Failed to load tournament brackets");
