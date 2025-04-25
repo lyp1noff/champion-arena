@@ -5,16 +5,14 @@ import {useParams} from "next/navigation";
 import {getTournamentBracketsById, getTournamentById} from "@/lib/api/tournaments";
 import {Bracket, BracketMatches, Tournament} from "@/lib/interfaces";
 import ScreenLoader from "@/components/loader";
-import Link from "next/link";
-import {LinkIcon} from "lucide-react";
 import {Accordion, AccordionContent, AccordionItem, AccordionTrigger} from "@/components/ui/accordion";
 import {getBracketMatchesById} from "@/lib/api/brackets";
-import BracketContent from "@/components/bracket-content";
 import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {getBracketDimensions, getInitialMatchCount} from "@/lib/utils";
 import {useScreenHeight} from "@/hooks/use-screen-height";
 import {useTranslations} from "next-intl";
-import RoundRobinContent from "@/components/round-robin-content";
+import {BracketView} from "@/components/bracket_view";
+import {ParticipantsView} from "@/components/participants_view";
 
 export default function TournamentPage() {
   const t = useTranslations("TournamentPage");
@@ -93,7 +91,13 @@ export default function TournamentPage() {
       {error && <p className="text-red-500">{error}</p>}
 
       {brackets.length > 0 && (
-        <Accordion type="multiple" className="w-full">
+        <Accordion type="multiple" className="w-full" onValueChange={(value) => {
+          console.log("Accordion changed:", value);
+          const bracket_id = Number(value[0]);
+          if (bracket_id && !loadedBracketMatches[bracket_id]) {
+            loadBracketData(bracket_id);
+          }
+        }}>
           {brackets.map((bracket) => {
             const matchCardHeight = 60;
             const {cardHeight, roundTitleHeight, columnGap} = getBracketDimensions(matchCardHeight);
@@ -103,14 +107,7 @@ export default function TournamentPage() {
 
             return (
               <AccordionItem key={bracket.id} value={String(bracket.id)}>
-                <AccordionTrigger
-                  className="text-lg font-medium group flex items-center justify-between"
-                  onClick={() => {
-                    if (!loadedBracketMatches[bracket.id]) {
-                      loadBracketData(bracket.id);
-                    }
-                  }}
-                >
+                <AccordionTrigger className="text-lg font-medium group flex items-center justify-between">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
                     <span className="text-base font-semibold">{bracket.category}</span>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -123,46 +120,20 @@ export default function TournamentPage() {
                 </AccordionTrigger>
 
                 <AccordionContent>
-                  {tab === "brackets" ? (
-                    loadedBracketMatches[bracket.id]?.loading ? (
-                      <div
-                        className="flex items-center justify-center"
-                        style={{
-                          height: Math.min(estimatedHeight, maxHeight),
-                        }}
-                      >
-                        <ScreenLoader/>
-                      </div>
-                    ) : (
-                      bracket.type === "round_robin" ? (
-                        <RoundRobinContent bracketMatches={loadedBracketMatches[bracket.id]?.matches ?? []}/>
-                      ) : (
-                        <BracketContent
-                          bracketMatches={loadedBracketMatches[bracket.id]?.matches ?? []}
-                          matchCardHeight={matchCardHeight}
-                          containerHeight={containerHeight}
-                        />
-                      )
-                    )
+                  {tab !== "brackets" ? (
+                    <ParticipantsView bracket={bracket}/>
                   ) : (
-                    <>
-                      <Link
-                        href={`/brackets/${bracket.id}`}
-                        // rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <LinkIcon className="w-4 h-4"/>
-                      </Link>
-                      <ul className="list-decimal list-inside mt-2">
-                        {bracket.participants.map((p) => (
-                          <li key={p.seed} className="py-1">
-                            {p.last_name} {p.first_name}
-                          </li>
-                        ))}
-                      </ul>
-                    </>
+                    <BracketView
+                      loading={loadedBracketMatches[bracket.id]?.loading ?? true}
+                      matches={loadedBracketMatches[bracket.id]?.matches ?? []}
+                      bracketType={bracket.type}
+                      matchCardHeight={matchCardHeight}
+                      containerHeight={containerHeight}
+                      estimatedHeight={estimatedHeight}
+                    />
                   )}
                 </AccordionContent>
+
               </AccordionItem>
             );
           })}

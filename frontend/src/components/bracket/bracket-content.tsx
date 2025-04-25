@@ -1,6 +1,6 @@
 import {BracketMatches} from "@/lib/interfaces";
-import MatchCard from "./match-card";
-import {ScrollArea, ScrollBar} from "./ui/scroll-area";
+import MatchCard from "../match-card";
+import {ScrollArea, ScrollBar} from "../ui/scroll-area";
 
 interface BracketCardProps {
   bracketMatches: BracketMatches;

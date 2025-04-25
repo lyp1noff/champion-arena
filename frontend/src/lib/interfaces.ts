@@ -34,11 +34,12 @@ export type Participant = {
   coach_last_name: string;
 };
 
+export type BracketType = "round_robin" | "single_elimination";
 export type Bracket = {
   id: number;
   tournament_id: number;
   category: string;
-  type: string;
+  type: BracketType;
   start_time: string;
   tatami: number;
   participants: Participant[];
