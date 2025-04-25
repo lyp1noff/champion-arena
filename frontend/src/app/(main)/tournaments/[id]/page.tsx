@@ -120,32 +120,15 @@ export default function TournamentPage() {
                       }
                     }}
                   >
-                    <div className="flex flex-col sm:grid sm:grid-cols-12 items-start sm:items-center gap-1 sm:gap-4 w-full text-sm text-muted-foreground">
-                      {/* Категория */}
-                      <span className="text-base font-semibold text-white truncate sm:col-span-8">
-                        {bracket.category}
-                      </span>
-
-                      {/* Участники */}
-                      <span className="flex items-center gap-1 sm:col-span-2 whitespace-nowrap">
-                        Participants: {bracket.participants.length}
-                      </span>
-
-                      {/* Время */}
-                      <span className="sm:col-span-2 whitespace-nowrap">{bracket.start_time.slice(0, 5) || "—"}</span>
-
-                      {/*/!* Татами *!/*/}
-                      {/*<span className="sm:col-span-2 whitespace-nowrap">Tatami: {bracket.tatami ?? "—"}</span>*/}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                      <span className="text-base font-semibold">{bracket.category}</span>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        {/* i18n needed*/}
+                        <span>{bracket.start_time.slice(0, 5) || " — "}</span>
+                        <span> | </span>
+                        <span>Participants: {bracket.participants.length || " — "}</span>
+                      </div>
                     </div>
-                    {/*<div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">*/}
-                    {/*  <span className="text-base font-semibold">{bracket.category}</span>*/}
-                    {/*  <div className="flex items-center gap-2 text-sm text-muted-foreground">*/}
-                    {/*    /!* i18n needed*!/*/}
-                    {/*    <span>👥 {bracket.participants.length} participants</span>*/}
-                    {/*    <span>🕒 {bracket.start_time}</span>*/}
-                    {/*    <span>tatami: {bracket.tatami}</span>*/}
-                    {/*  </div>*/}
-                    {/*</div>*/}
                   </AccordionTrigger>
 
                   <AccordionContent>
