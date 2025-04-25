@@ -223,8 +223,12 @@ async def regenerate_tournament(
 async def generate_brackets_export_file(
     tournament_id: int, session: AsyncSession = Depends(get_db)
 ):
+    tournament = await get_tournament(tournament_id, session)
+    tournament_title = (
+        f"{tournament.name} - {tournament.start_date.strftime('%d.%m.%Y')}"
+    )
     data = await get_all_matches_for_tournament(tournament_id, session)
-    return await run_in_threadpool(generate_pdf, data)
+    return await run_in_threadpool(generate_pdf, data, tournament_title)
 
 
 @router.post("/{tournament_id}/import", dependencies=[Depends(get_current_user)])

@@ -12,14 +12,23 @@ SVG_TEMPLATE_PATH = "assets/template.svg"
 HIDE_FINISHED_MATCHES = True
 
 
-def build_entry(bracket, matches, offset, position_offset):
-    entry = {"category": bracket.category}
+def build_entry(bracket, matches, offset, position_offset, tournament_title):
+    entry = {
+        "tournament_name": tournament_title,
+        "category": bracket.category,
+        "pages": "{{ pages }}",
+    }
 
     for match in matches:
         rnd = match.round_number + offset
 
         if HIDE_FINISHED_MATCHES and getattr(match.match, "is_finished", True):
             continue
+
+        round_key = f"type_round{rnd}"
+        round_type = (match.match.round_type or f"round {rnd}").strip()
+        if round_type and round_key not in entry:
+            entry[round_key] = round_type
 
         divisor = 2 ** (match.round_number - 1)
         norm_pos = match.position - (position_offset // divisor)
@@ -43,7 +52,7 @@ def build_entry(bracket, matches, offset, position_offset):
     return entry
 
 
-def build_entries(data):
+def build_entries(data, tournament_title):
     all_entries = []
 
     for bracket in data:
@@ -70,6 +79,7 @@ def build_entries(data):
                 matches=matches,
                 offset=4 - max_round,
                 position_offset=position_offset,
+                tournament_title=tournament_title,
             )
             if len(entry) > 1:
                 all_entries.append(entry)
@@ -77,8 +87,8 @@ def build_entries(data):
     return all_entries
 
 
-def generate_pdf(data):
-    entries = build_entries(data)
+def generate_pdf(data, tournament_title=None):
+    entries = build_entries(data, tournament_title)
     if not entries:
         return {"detail": "Нет данных для генерации."}
 
@@ -86,14 +96,18 @@ def generate_pdf(data):
     temp_paths = []
 
     original_template = Path(SVG_TEMPLATE_PATH).read_text(encoding="utf-8")
+    placeholders = set(re.findall(r"{{\s*(\w+)\s*}}", original_template))
 
-    for entry in entries:
+    total_pages = str(len(entries))
+    for page_num, entry in enumerate(entries, start=1):
         svg_template = original_template
-
-        placeholders = set(re.findall(r"{{\s*(\w+)\s*}}", svg_template))
         for key in placeholders:
             value = entry.get(key, "")
             svg_template = svg_template.replace(f"{{{{ {key} }}}}", value)
+
+        svg_template = svg_template.replace(
+            "{{ pages }}", f"{page_num} of {total_pages}"
+        )
 
         with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             cairosvg.svg2pdf(bytestring=svg_template.encode("utf-8"), write_to=tmp.name)
