@@ -23,7 +23,6 @@ export function BracketView({
                               estimatedHeight,
                             }: BracketViewProps) {
   if (loading) {
-    console.log(estimatedHeight)
     return (
       <div className="flex items-center justify-center" style={{height: estimatedHeight}}>
         <ScreenLoader/>

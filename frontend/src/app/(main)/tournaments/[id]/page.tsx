@@ -91,13 +91,7 @@ export default function TournamentPage() {
       {error && <p className="text-red-500">{error}</p>}
 
       {brackets.length > 0 && (
-        <Accordion type="multiple" className="w-full" onValueChange={(value) => {
-          console.log("Accordion changed:", value);
-          const bracket_id = Number(value[0]);
-          if (bracket_id && !loadedBracketMatches[bracket_id]) {
-            loadBracketData(bracket_id);
-          }
-        }}>
+        <Accordion type="multiple" className="w-full">
           {brackets.map((bracket) => {
             const matchCardHeight = 60;
             const {cardHeight, roundTitleHeight, columnGap} = getBracketDimensions(matchCardHeight);
@@ -107,7 +101,14 @@ export default function TournamentPage() {
 
             return (
               <AccordionItem key={bracket.id} value={String(bracket.id)}>
-                <AccordionTrigger className="text-lg font-medium group flex items-center justify-between">
+                <AccordionTrigger
+                  className="text-lg font-medium group flex items-center justify-between"
+                  onClick={() => {
+                    if (!loadedBracketMatches[bracket.id]) {
+                      loadBracketData(bracket.id);
+                    }
+                  }}
+                >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
                     <span className="text-base font-semibold">{bracket.category}</span>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
