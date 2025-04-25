@@ -1,5 +1,5 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import {clsx, type ClassValue} from "clsx";
+import {twMerge} from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -9,6 +9,19 @@ export function formatDateToISO(date: Date): string {
   if (!date) throw new Error("Date is missing");
   return date.toISOString().split("T")[0]; // returns 'YYYY-MM-DD'
 }
+
+export function formatTimeToISO(timeStr: string | null | undefined): string | null {
+  if (!timeStr) return null;
+
+  const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+  if (!timeRegex.test(timeStr)) {
+    console.warn(`Invalid time format: ${timeStr}`);
+    return null;
+  }
+
+  return `${timeStr}:00`;
+}
+
 
 export function getInitialMatchCount(participantCount: number): number {
   const half = participantCount / 2;
@@ -21,7 +34,7 @@ export function getBracketDimensions(matchCardHeight: number, matchCardWidth?: n
   const roundTitleHeight = cardHeight / 3;
   const columnGap = (cardHeight / 8) * 2;
 
-  return { cardHeight, cardWidth, roundTitleHeight, columnGap };
+  return {cardHeight, cardWidth, roundTitleHeight, columnGap};
 }
 
 export function sanitizeFilename(name: string): string {

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from datetime import date
+from datetime import date, time
 from typing import List, Optional
 
 
@@ -111,17 +111,30 @@ class TournamentUpdate(TournamentBase):
     registration_end_date: Optional[date] = None
 
 
+class BracketBase(CustomBaseModel):
+    tournament_id: int
+    category: str
+    type: str
+    start_time: Optional[time] = None
+    tatami: Optional[int] = None
+
+
 class BracketParticipantSchema(CustomBaseModel):
     seed: int
     last_name: str
     first_name: str
+    coach_last_name: str
 
 
-class BracketResponse(CustomBaseModel):
+class BracketResponse(BracketBase):
     id: int
-    tournament_id: int
-    category: str
     participants: List[BracketParticipantSchema]
+
+
+class BracketUpdateSchema(CustomBaseModel):
+    type: Optional[str] = None
+    start_time: Optional[time] = None
+    tatami: Optional[int] = None
 
 
 class BracketMatchResponse(CustomBaseModel):
@@ -139,6 +152,7 @@ class BracketMatchAthlete(CustomBaseModel):
     id: int
     first_name: str
     last_name: str
+    coach_last_name: str
 
 
 class MatchSchema(CustomBaseModel):

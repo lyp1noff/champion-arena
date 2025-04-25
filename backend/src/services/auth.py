@@ -42,7 +42,7 @@ async def authenticate_user(
 
 
 async def create_default_user(db: AsyncSession):
-    result = await db.execute(select(User).where(User.username == "admin"))
+    result = await db.execute(select(User).where(User.username == "qwe"))  # CHANGE THIS
     user = result.scalar_one_or_none()
 
     if user is None:

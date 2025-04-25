@@ -2,12 +2,12 @@ from typing import List
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import asc, desc, func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies.auth import get_current_user
-from src.models import Bracket, BracketMatch, BracketParticipant, Match, Tournament
+from src.models import Bracket, BracketMatch, BracketParticipant, Match, Tournament, Athlete
 from src.schemas import (
     BracketMatchGroup,
     BracketMatchResponse,
@@ -22,6 +22,7 @@ from src.database import get_db
 from src.services.brackets import regenerate_tournament_brackets
 from src.services.export_file import generate_pdf
 from src.services.import_competitors import import_competitors_from_cbr
+from src.services.serialize import serialize_bracket, serialize_match
 
 router = APIRouter(
     prefix="/tournaments",
@@ -31,12 +32,12 @@ router = APIRouter(
 
 @router.get("", response_model=PaginatedTournamentResponse)
 async def get_tournaments(
-    page: int = Query(1, ge=1),
-    limit: int = Query(10, ge=1, le=100),
-    order_by: str = Query("id"),
-    order: str = Query("asc"),
-    search: str = Query(None),
-    db: AsyncSession = Depends(get_db),
+        page: int = Query(1, ge=1),
+        limit: int = Query(10, ge=1, le=100),
+        order_by: str = Query("id"),
+        order: str = Query("asc"),
+        search: str = Query(None),
+        db: AsyncSession = Depends(get_db),
 ):
     valid_order_fields = {"id", "name", "location", "start_date", "end_date"}
     order_by = order_by if order_by in valid_order_fields else "id"
@@ -82,7 +83,7 @@ async def get_tournament(id: int, db: AsyncSession = Depends(get_db)):
     "", response_model=TournamentResponse, dependencies=[Depends(get_current_user)]
 )
 async def create_tournament(
-    tournament: TournamentCreate, db: AsyncSession = Depends(get_db)
+        tournament: TournamentCreate, db: AsyncSession = Depends(get_db)
 ):
     try:
         new_tournament = Tournament(**tournament.model_dump())
@@ -102,7 +103,7 @@ async def create_tournament(
     "/{id}", response_model=TournamentResponse, dependencies=[Depends(get_current_user)]
 )
 async def update_tournament(
-    id: int, tournament_update: TournamentUpdate, db: AsyncSession = Depends(get_db)
+        id: int, tournament_update: TournamentUpdate, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(Tournament).filter(Tournament.id == id))
     tournament = result.scalars().first()
@@ -138,33 +139,19 @@ async def get_all_brackets(tournament_id: int, db: AsyncSession = Depends(get_db
         .filter_by(tournament_id=tournament_id)
         .options(
             selectinload(Bracket.category),
-            selectinload(Bracket.participants).selectinload(BracketParticipant.athlete),
+            selectinload(Bracket.participants)
+            .selectinload(BracketParticipant.athlete)
+            .selectinload(Athlete.coach)
         )
+        .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
     )
     brackets = result.scalars().all()
-
-    return [
-        BracketResponse(
-            id=bracket.id,
-            tournament_id=bracket.tournament_id,
-            category=bracket.category.name,
-            participants=[
-                BracketParticipantSchema(
-                    seed=p.seed,
-                    first_name=p.athlete.first_name,
-                    last_name=p.athlete.last_name,
-                )
-                for p in sorted(bracket.participants, key=lambda x: x.seed)
-                if p.athlete
-            ],
-        )
-        for bracket in brackets
-    ]
+    return [serialize_bracket(b) for b in brackets]
 
 
 @router.get("/{tournament_id}/matches", response_model=List[BracketMatchGroup])
 async def get_all_matches_for_tournament(
-    tournament_id: int, db: AsyncSession = Depends(get_db)
+        tournament_id: int, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
         select(Bracket)
@@ -173,13 +160,16 @@ async def get_all_matches_for_tournament(
             selectinload(Bracket.category),
             selectinload(Bracket.matches)
             .joinedload(BracketMatch.match)
-            .joinedload(Match.athlete1),
+            .joinedload(Match.athlete1)
+            .joinedload(Athlete.coach),
             selectinload(Bracket.matches)
             .joinedload(BracketMatch.match)
-            .joinedload(Match.athlete2),
+            .joinedload(Match.athlete2)
+            .joinedload(Athlete.coach),
             selectinload(Bracket.matches)
             .joinedload(BracketMatch.match)
-            .joinedload(Match.winner),
+            .joinedload(Match.winner)
+            .joinedload(Athlete.coach),
         )
     )
     brackets = result.scalars().all()
@@ -193,14 +183,14 @@ async def get_all_matches_for_tournament(
                     id=bm.id,
                     round_number=bm.round_number,
                     position=bm.position,
-                    match=bm.match,
+                    match=serialize_match(bm.match),
                     next_slot=bm.next_slot,
                 )
             )
         response.append(
             BracketMatchGroup(
                 bracket_id=bracket.id,
-                category=bracket.category.name if bracket.category else "Без категории",
+                category=bracket.category.name if bracket.category else None,
                 matches=matches,
             )
         )
@@ -210,7 +200,7 @@ async def get_all_matches_for_tournament(
 
 @router.post("/{tournament_id}/regenerate", dependencies=[Depends(get_current_user)])
 async def regenerate_tournament(
-    tournament_id: int, session: AsyncSession = Depends(get_db)
+        tournament_id: int, session: AsyncSession = Depends(get_db)
 ):
     try:
         await regenerate_tournament_brackets(session, tournament_id)
@@ -221,7 +211,7 @@ async def regenerate_tournament(
 
 @router.get("/{tournament_id}/export_file", dependencies=[Depends(get_current_user)])
 async def generate_brackets_export_file(
-    tournament_id: int, session: AsyncSession = Depends(get_db)
+        tournament_id: int, session: AsyncSession = Depends(get_db)
 ):
     tournament = await get_tournament(tournament_id, session)
     tournament_title = (
@@ -233,9 +223,9 @@ async def generate_brackets_export_file(
 
 @router.post("/{tournament_id}/import", dependencies=[Depends(get_current_user)])
 async def import_competitors(
-    tournament_id: int,
-    file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
+        tournament_id: int,
+        file: UploadFile = File(...),
+        db: AsyncSession = Depends(get_db),
 ):
     content = await file.read()
     return await import_competitors_from_cbr(db, tournament_id, content)

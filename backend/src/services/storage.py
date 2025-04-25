@@ -1,18 +1,14 @@
-import os
 import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 from datetime import datetime, timezone
-
-R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
-R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
-R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")
-R2_ENDPOINT = os.getenv("R2_ENDPOINT")
+from src.config import R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME, R2_REGION
 
 s3_client = boto3.client(
     "s3",
     aws_access_key_id=R2_ACCESS_KEY_ID,
     aws_secret_access_key=R2_SECRET_ACCESS_KEY,
     endpoint_url=R2_ENDPOINT,
+    region_name=R2_REGION
 )
 
 

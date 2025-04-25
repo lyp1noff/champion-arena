@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     Boolean,
     DateTime,
+    Time,
     func,
 )
 from sqlalchemy.orm import relationship, declared_attr
@@ -111,6 +112,9 @@ class Bracket(Base):
         index=True,
         nullable=False,
     )
+    type = Column(String, nullable=False)
+    start_time = Column(Time, nullable=True)
+    tatami = Column(Integer, nullable=True)
 
     tournament = relationship(
         "Tournament", back_populates="brackets", passive_deletes=True

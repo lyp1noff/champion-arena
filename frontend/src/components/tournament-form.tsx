@@ -1,32 +1,32 @@
 // components/forms/TournamentForm.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { format, parseISO } from "date-fns";
-import { CalendarIcon, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import {useEffect, useState} from "react";
+import {useForm} from "react-hook-form";
+import {zodResolver} from "@hookform/resolvers/zod";
+import {z} from "zod";
+import {format, parseISO} from "date-fns";
+import {CalendarIcon, Loader2} from "lucide-react";
+import {toast} from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Calendar } from "@/components/ui/calendar";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { uploadImage } from "@/lib/api/api";
-import { formatDateToISO } from "@/lib/utils";
-import { getTournamentById, createTournament, updateTournament, importCbrFile } from "@/lib/api/tournaments";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Calendar} from "@/components/ui/calendar";
+import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
+import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import {uploadImage} from "@/lib/api/api";
+import {formatDateToISO} from "@/lib/utils";
+import {getTournamentById, createTournament, updateTournament, importCbrFile} from "@/lib/api/tournaments";
 
 const formSchema = z
   .object({
-    name: z.string().min(3, { message: "Tournament name must be at least 3 characters." }),
-    location: z.string().min(3, { message: "Location must be at least 3 characters." }),
-    start_date: z.date({ required_error: "Start date is required." }),
-    end_date: z.date({ required_error: "End date is required." }),
-    registration_start_date: z.date({ required_error: "Registration start date is required." }),
-    registration_end_date: z.date({ required_error: "Registration end date is required." }),
+    name: z.string().min(3, {message: "Tournament name must be at least 3 characters."}),
+    location: z.string().min(3, {message: "Location must be at least 3 characters."}),
+    start_date: z.date({required_error: "Start date is required."}),
+    end_date: z.date({required_error: "End date is required."}),
+    registration_start_date: z.date({required_error: "Registration start date is required."}),
+    registration_end_date: z.date({required_error: "Registration end date is required."}),
   })
   .refine((data) => data.end_date >= data.start_date, {
     message: "End date must be after start date",
@@ -54,7 +54,7 @@ interface TournamentFormProps {
   onSuccess?: () => void;
 }
 
-export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentFormProps) {
+export function TournamentForm({mode, tournamentId, onSuccess}: TournamentFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [structureFile, setStructureFile] = useState<File | null>(null);
@@ -101,20 +101,27 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
         uploadedImageUrl = (await uploadImage(selectedImage, "champion/tournaments")) || "";
       }
 
-      const payload = {
-        ...values,
-        start_date: formatDateToISO(values.start_date),
-        end_date: formatDateToISO(values.end_date),
-        registration_start_date: formatDateToISO(values.registration_start_date),
-        registration_end_date: formatDateToISO(values.registration_end_date),
-        image_url: uploadedImageUrl,
-      };
-
       let result;
       if (mode === "create") {
+        const payload = {
+          ...values,
+          start_date: formatDateToISO(values.start_date),
+          end_date: formatDateToISO(values.end_date),
+          registration_start_date: formatDateToISO(values.registration_start_date),
+          registration_end_date: formatDateToISO(values.registration_end_date),
+          image_url: uploadedImageUrl,
+        };
         result = await createTournament(payload);
         toast.success("Tournament created");
       } else if (mode === "edit" && tournamentId) {
+        const payload = {
+          ...values,
+          start_date: formatDateToISO(values.start_date),
+          end_date: formatDateToISO(values.end_date),
+          registration_start_date: formatDateToISO(values.registration_start_date),
+          registration_end_date: formatDateToISO(values.registration_end_date),
+          ...(uploadedImageUrl && {image_url: uploadedImageUrl}),
+        };
         result = await updateTournament(tournamentId, payload);
         toast.success("Tournament updated");
       }
@@ -150,14 +157,14 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
             <FormField
               control={form.control}
               name="name"
-              render={({ field }) => (
+              render={({field}) => (
                 <FormItem>
                   <FormLabel>Tournament Name</FormLabel>
                   <FormControl>
                     <Input placeholder="Karate Junior Tournament" {...field} />
                   </FormControl>
                   <FormDescription>The official name of your tournament.</FormDescription>
-                  <FormMessage />
+                  <FormMessage/>
                 </FormItem>
               )}
             />
@@ -165,14 +172,14 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
             <FormField
               control={form.control}
               name="location"
-              render={({ field }) => (
+              render={({field}) => (
                 <FormItem>
                   <FormLabel>Location</FormLabel>
                   <FormControl>
                     <Input placeholder="Kyiv" {...field} />
                   </FormControl>
                   <FormDescription>Where the tournament will take place.</FormDescription>
-                  <FormMessage />
+                  <FormMessage/>
                 </FormItem>
               )}
             />
@@ -184,7 +191,7 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
                   key={name}
                   control={form.control}
                   name={name}
-                  render={({ field }) => (
+                  render={({field}) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>{name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}</FormLabel>
                       <Popover>
@@ -195,7 +202,7 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
                               className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
                             >
                               {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50"/>
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -208,7 +215,7 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
                           />
                         </PopoverContent>
                       </Popover>
-                      <FormMessage />
+                      <FormMessage/>
                     </FormItem>
                   )}
                 />
@@ -230,7 +237,7 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
                 />
               </FormControl>
               <FormDescription>Recommended size: 800x600px.</FormDescription>
-              <FormMessage />
+              <FormMessage/>
             </FormItem>
 
             <FormItem>
@@ -246,7 +253,7 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
                   }}
                 />
               </FormControl>
-              <FormMessage />
+              <FormMessage/>
             </FormItem>
           </CardContent>
 
@@ -255,7 +262,7 @@ export function TournamentForm({ mode, tournamentId, onSuccess }: TournamentForm
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
               {mode === "create" ? "Create Tournament" : "Update Tournament"}
             </Button>
           </CardFooter>

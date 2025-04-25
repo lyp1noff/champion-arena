@@ -17,7 +17,7 @@ def get_round_type(round_index: int, total_rounds: int) -> str:
 
 
 def distribute_byes_safely(
-    athlete_ids: list[int],
+        athlete_ids: list[int],
 ) -> list[tuple[Optional[int], Optional[int]]]:
     num_players = len(athlete_ids)
     next_power_of_two = 2 ** math.ceil(math.log2(max(num_players, 2)))
@@ -48,7 +48,7 @@ def distribute_byes_safely(
 
 
 async def generate_first_round(
-    session: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
+        session: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
 ):
     pairs = distribute_byes_safely(athlete_ids)
     matches = []
@@ -79,7 +79,7 @@ async def generate_first_round(
 
 
 async def generate_following_rounds(
-    session: AsyncSession, bracket_id: int, total_rounds: int
+        session: AsyncSession, bracket_id: int, total_rounds: int
 ):
     match_matrix = [[] for _ in range(total_rounds)]
 
@@ -103,7 +103,7 @@ async def generate_following_rounds(
 
 
 async def advance_auto_winners(
-    session: AsyncSession, match_matrix: list[list[BracketMatch]]
+        session: AsyncSession, match_matrix: list[list[BracketMatch]]
 ):
     for round_index in range(len(match_matrix) - 1):
         current_round = match_matrix[round_index]
@@ -127,10 +127,10 @@ async def advance_auto_winners(
 
 
 async def regenerate_bracket_matches(
-    session: AsyncSession,
-    bracket_id: int,
-    commit: bool = True,
-    skip_first_round: bool = False,
+        session: AsyncSession,
+        bracket_id: int,
+        commit: bool = True,
+        skip_first_round: bool = False,
 ):
     # Удалим все BracketMatch + Match
     await session.execute(
@@ -191,14 +191,95 @@ async def regenerate_bracket_matches(
         return match_matrix
 
 
+def split_evenly(athletes: list, max_per_group: int = 4) -> list[list]:
+    n = len(athletes)
+    min_groups = math.ceil(n / max_per_group)
+    base_size = n // min_groups
+    extra = n % min_groups
+
+    groups = []
+    start = 0
+    for i in range(min_groups):
+        size = base_size + (1 if i < extra else 0)
+        groups.append(athletes[start: start + size])
+        start += size
+    return groups
+
+
+async def regenerate_round_bracket_matches(
+        session: AsyncSession,
+        bracket_id: int,
+        commit: bool = True,
+):
+    await session.execute(
+        delete(Match).where(
+            Match.id.in_(
+                select(BracketMatch.match_id).where(
+                    BracketMatch.bracket_id == bracket_id
+                )
+            )
+        )
+    )
+    await session.execute(
+        delete(BracketMatch).where(BracketMatch.bracket_id == bracket_id)
+    )
+
+    result = await session.execute(
+        select(BracketParticipant)
+        .filter_by(bracket_id=bracket_id)
+        .order_by(BracketParticipant.seed)
+    )
+    participants = result.scalars().all()
+
+    matches = []
+
+    groups = split_evenly(participants, max_per_group=4)
+
+    for group_index, group in enumerate(groups):
+        position = 1  # reset for each group
+
+        for i in range(len(group)):
+            for j in range(i + 1, len(group)):
+                p1 = group[i]
+                p2 = group[j]
+
+                match = Match(
+                    athlete1_id=p1.athlete_id,
+                    athlete2_id=p2.athlete_id,
+                    round_type="group",
+                )
+                session.add(match)
+                await session.flush()
+
+                bracket_match = BracketMatch(
+                    bracket_id=bracket_id,
+                    round_number=group_index + 1,
+                    position=position,
+                    match_id=match.id,
+                )
+                session.add(bracket_match)
+                matches.append(bracket_match)
+                position += 1
+
+    if commit:
+        await session.commit()
+    else:
+        return matches
+
+
 async def regenerate_tournament_brackets(session: AsyncSession, tournament_id: int):
     result = await session.execute(
-        select(Bracket.id).where(Bracket.tournament_id == tournament_id)
+        select(Bracket.id, Bracket.type).where(Bracket.tournament_id == tournament_id)
     )
-    bracket_ids = result.scalars().all()
+    brackets = result.all()
 
-    for bracket_id in bracket_ids:
-        await regenerate_bracket_matches(session, bracket_id, commit=False)
+    for bracket_id, bracket_type in brackets:
+        if bracket_type == "round_robin":
+            await regenerate_round_bracket_matches(session, bracket_id, commit=False)
+        elif bracket_type == "single_elimination":
+            await regenerate_bracket_matches(session, bracket_id, commit=False)
+        else:
+            print(f"Warning! Bracket type: {bracket_type} not supported")
 
     await session.flush()
     await session.commit()

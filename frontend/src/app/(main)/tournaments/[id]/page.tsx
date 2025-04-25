@@ -1,24 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { getTournamentBracketsById, getTournamentById } from "@/lib/api/tournaments";
-import { Bracket, BracketMatches, Tournament } from "@/lib/interfaces";
+import {useState, useEffect} from "react";
+import {useParams} from "next/navigation";
+import {getTournamentBracketsById, getTournamentById} from "@/lib/api/tournaments";
+import {Bracket, BracketMatches, Tournament} from "@/lib/interfaces";
 import ScreenLoader from "@/components/loader";
 import Link from "next/link";
-import { LinkIcon } from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { getBracketMatchesById } from "@/lib/api/brackets";
+import {LinkIcon} from "lucide-react";
+import {Accordion, AccordionContent, AccordionItem, AccordionTrigger} from "@/components/ui/accordion";
+import {getBracketMatchesById} from "@/lib/api/brackets";
 import BracketContent from "@/components/bracket-content";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getBracketDimensions, getInitialMatchCount } from "@/lib/utils";
-import { useScreenHeight } from "@/hooks/use-screen-height";
-import { useTranslations } from "next-intl";
+import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {getBracketDimensions, getInitialMatchCount} from "@/lib/utils";
+import {useScreenHeight} from "@/hooks/use-screen-height";
+import {useTranslations} from "next-intl";
+import RoundRobinContent from "@/components/round-robin-content";
 
 export default function TournamentPage() {
   const t = useTranslations("TournamentPage");
 
-  const { id } = useParams();
+  const {id} = useParams();
   const [tab, setTab] = useState("brackets");
   const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [tournament, setTournament] = useState<Tournament>();
@@ -36,20 +37,20 @@ export default function TournamentPage() {
 
     setLoadedBracketMatches((prev) => ({
       ...prev,
-      [bracketId]: { loading: true, matches: [] },
+      [bracketId]: {loading: true, matches: []},
     }));
 
     try {
       const res = await getBracketMatchesById(bracketId);
       setLoadedBracketMatches((prev) => ({
         ...prev,
-        [bracketId]: { loading: false, matches: res },
+        [bracketId]: {loading: false, matches: res},
       }));
     } catch (err) {
       console.error("Error fetching tournament bracketMatches:", err);
       setLoadedBracketMatches((prev) => ({
         ...prev,
-        [bracketId]: { loading: false, matches: [] },
+        [bracketId]: {loading: false, matches: []},
       }));
     }
   };
@@ -88,14 +89,14 @@ export default function TournamentPage() {
         </TabsList>
       </Tabs>
 
-      {loading && <ScreenLoader fullscreen />}
+      {loading && <ScreenLoader fullscreen/>}
       {error && <p className="text-red-500">{error}</p>}
 
       {brackets.length > 0 && (
         <Accordion type="multiple" className="w-full">
           {brackets.map((bracket) => {
             const matchCardHeight = 60;
-            const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
+            const {cardHeight, roundTitleHeight, columnGap} = getBracketDimensions(matchCardHeight);
             const estimatedHeight =
               getInitialMatchCount(bracket.participants.length) * (cardHeight + columnGap) + roundTitleHeight;
             const containerHeight = estimatedHeight > maxHeight ? maxHeight : undefined;
@@ -115,7 +116,8 @@ export default function TournamentPage() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       {/* i18n needed*/}
                       <span>👥 {bracket.participants.length} participants</span>
-                      <span>🕒 {"12:00"}</span>
+                      <span>🕒 {bracket.start_time}</span>
+                      <span>tatami: {bracket.tatami}</span>
                     </div>
                   </div>
                 </AccordionTrigger>
@@ -129,14 +131,18 @@ export default function TournamentPage() {
                           height: Math.min(estimatedHeight, maxHeight),
                         }}
                       >
-                        <ScreenLoader />
+                        <ScreenLoader/>
                       </div>
                     ) : (
-                      <BracketContent
-                        bracketMatches={loadedBracketMatches[bracket.id]?.matches ?? []}
-                        matchCardHeight={matchCardHeight}
-                        containerHeight={containerHeight}
-                      />
+                      bracket.type === "round_robin" ? (
+                        <RoundRobinContent bracketMatches={loadedBracketMatches[bracket.id]?.matches ?? []}/>
+                      ) : (
+                        <BracketContent
+                          bracketMatches={loadedBracketMatches[bracket.id]?.matches ?? []}
+                          matchCardHeight={matchCardHeight}
+                          containerHeight={containerHeight}
+                        />
+                      )
                     )
                   ) : (
                     <>
@@ -145,7 +151,7 @@ export default function TournamentPage() {
                         // rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <LinkIcon className="w-4 h-4" />
+                        <LinkIcon className="w-4 h-4"/>
                       </Link>
                       <ul className="list-decimal list-inside mt-2">
                         {bracket.participants.map((p) => (

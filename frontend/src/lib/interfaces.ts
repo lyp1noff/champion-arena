@@ -8,6 +8,7 @@ export interface Athlete {
   coach_id: number;
   coach_last_name: number;
 }
+
 export type AthleteCreate = Omit<Athlete, "id" | "coach_last_name" | "age">;
 export type AthleteUpdate = Partial<AthleteCreate>;
 
@@ -22,6 +23,7 @@ export interface Tournament {
   registration_end_date: string;
   image_url: string;
 }
+
 export type TournamentCreate = Omit<Tournament, "id" | "status">;
 export type TournamentUpdate = Partial<TournamentCreate>;
 
@@ -29,14 +31,19 @@ export type Participant = {
   seed: number;
   last_name: string;
   first_name: string;
+  coach_last_name: string;
 };
 
 export type Bracket = {
   id: number;
   tournament_id: number;
   category: string;
+  type: string;
+  start_time: string;
+  tatami: number;
   participants: Participant[];
 };
+export type BracketUpdate = Partial<Bracket>;
 
 export interface Coach {
   id: number;
@@ -48,6 +55,7 @@ export type BracketMatchAthlete = {
   id: number;
   first_name: string;
   last_name: string;
+  coach_last_name: string;
 };
 
 export type RoundType = "final" | "semifinal" | "quarterfinal" | "";
@@ -71,3 +79,9 @@ export type BracketMatch = {
 };
 
 export type BracketMatches = BracketMatch[];
+
+// export type BracketWithCategory = {
+//   bracket_id: number;
+//   category: string;
+//   matches: BracketMatch[];
+// };

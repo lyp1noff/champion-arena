@@ -1,11 +1,11 @@
 import json
-import random
-from datetime import datetime, timedelta
+from datetime import time
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import (
+    BracketMatch,
     Tournament,
     Coach,
     Category,
@@ -37,6 +37,22 @@ async def import_competitors_from_cbr(
 
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
+
+    brackets = await db.execute(
+        select(Bracket).where(Bracket.tournament_id == tournament_id)
+    )
+    brackets = brackets.scalars().all()
+    for bracket in brackets:
+        await db.execute(
+            delete(BracketParticipant).where(
+                BracketParticipant.bracket_id == bracket.id
+            )
+        )
+        await db.execute(
+            delete(BracketMatch).where(BracketMatch.bracket_id == bracket.id)
+        )
+    # await db.execute(delete(Bracket).where(Bracket.tournament_id == tournament_id))
+    await db.commit()
 
     coaches_cache = {}
     categories_cache = {}
@@ -110,7 +126,13 @@ async def import_competitors_from_cbr(
         )
         bracket = result.scalars().first()
         if not bracket:
-            bracket = Bracket(tournament_id=tournament.id, category_id=category.id)
+            bracket = Bracket(
+                tournament_id=tournament.id,
+                category_id=category.id,
+                type="single_elimination",
+                tatami=1,
+                start_time=time(hour=12),
+            )
             db.add(bracket)
             await db.commit()
 
