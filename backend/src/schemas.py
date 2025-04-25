@@ -3,6 +3,16 @@ from datetime import date
 from typing import List, Optional
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
 class CustomBaseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

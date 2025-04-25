@@ -1,30 +1,39 @@
-from fastapi import APIRouter, Request, HTTPException, Response
-from jose import jwt
-from datetime import datetime, timedelta, timezone
-from src.config import JWT_SECRET, DEV_MODE
+from fastapi import APIRouter, HTTPException, Response, Depends
+from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.schemas import LoginRequest, TokenResponse
+from src.services.auth import authenticate_user, create_token
+from src.database import get_db
+from src.config import DEV_MODE
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/login")
-async def login(request: Request):
-    data = await request.json()
-    username = data.get("username")
-    password = data.get("password")
-
-    if (
-        username != "qwe" or password != "qwe"
-    ):  # TODO: Replace with actual authentication
+@router.post("/token", response_model=TokenResponse)
+async def get_bearer_token(
+    data: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    user = await authenticate_user(db, data.username, data.password)
+    if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
-    token = jwt.encode(
-        {"sub": username, "role": "admin", "exp": expire},
-        JWT_SECRET,
-        algorithm="HS256",
-    )
+    token = create_token(user.username, user.role)
+    return TokenResponse(access_token=token)
 
-    response = Response(content="Login successful")
+
+@router.post("/login")
+async def login(
+    data: LoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    user = await authenticate_user(db, data.username, data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_token(user.username, user.role)
+    response = JSONResponse(content={"message": "Login successful"})
     response.set_cookie(
         key="token",
         value=token,
@@ -34,13 +43,6 @@ async def login(request: Request):
         max_age=1800,
         path="/",
     )
-
-    # TODO: Make sepparate response model
-    # return {
-    #     "access_token": token,
-    #     "token_type": "bearer",
-    # }
-
     return response
 
 

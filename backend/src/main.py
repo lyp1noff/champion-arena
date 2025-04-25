@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 
 from src.config import DEV_MODE
 from src.middleware import add_cors_middleware
-from src.database import engine, Base
+from src.database import SessionLocal, engine, Base
 from src.routers import routers
+from src.services.auth import create_default_user
 
 
 @asynccontextmanager
@@ -14,6 +15,9 @@ async def lifespan(app: FastAPI):
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    async with SessionLocal() as session:
+        await create_default_user(session)
 
     yield
 
