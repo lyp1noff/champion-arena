@@ -77,16 +77,22 @@ export default function ManageTournamentPage() {
     setLoading(true);
     try {
       const formattedStartTime = formatTimeToISO(startTime)
+      if (!formattedStartTime || !tatami) {
+        toast.error("Invalid start time format.");
+        return;
+      }
 
       await updateBracket(selectedBracket.id, {
         type,
-        start_time: formattedStartTime ?? "00:00:00",
-        tatami: tatami === "" ? 0 : tatami,
+        start_time: formattedStartTime,
+        tatami: tatami,
       });
 
       const updatedBracket = {
         ...selectedBracket,
         type,
+        start_time: formattedStartTime,
+        tatami: tatami,
       }
       setSelectedBracket(updatedBracket)
       await fetchBracketMatches(selectedBracket.id);
@@ -106,22 +112,24 @@ export default function ManageTournamentPage() {
 
       {/* Preview */}
       {selectedBracket && (
-        <Card className="w-full md:max-w-8xl">
-          <CardContent className="p-6">
-            <BracketView
-              loading={false}
-              matches={bracketMatches ?? []}
-              bracketType={selectedBracket.type}
-              matchCardHeight={60}
-              containerHeight={600}
-              estimatedHeight={600}
-            />
-          </CardContent>
+        <Card className="flex-1 overflow-hidden">
+          <div className="overflow-x-auto">
+            <CardContent className="p-6">
+              <BracketView
+                loading={false}
+                matches={bracketMatches ?? []}
+                bracketType={selectedBracket.type}
+                matchCardHeight={60}
+                containerHeight={600}
+                estimatedHeight={600}
+              />
+            </CardContent>
+          </div>
         </Card>
       )}
 
       {/* Form */}
-      <Card className="w-full md:max-w-2xl">
+      <Card className="w-full md:w-[380px] shrink-0">
         <CardContent className="p-6 space-y-6">
           <h1 className="text-2xl font-bold">Manage Tournament #{id}</h1>
 
