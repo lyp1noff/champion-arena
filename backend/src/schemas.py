@@ -137,17 +137,6 @@ class BracketUpdateSchema(CustomBaseModel):
     tatami: Optional[int] = None
 
 
-class BracketMatchResponse(CustomBaseModel):
-    id: int
-    bracket_id: int
-    round_number: int
-    position: int
-    athlete1_id: Optional[int] = None
-    athlete2_id: Optional[int] = None
-    winner_id: Optional[int] = None
-    is_finished: bool
-
-
 class BracketMatchAthlete(CustomBaseModel):
     id: int
     first_name: str
@@ -171,11 +160,11 @@ class BracketMatchResponse(CustomBaseModel):
     round_number: int
     position: int
     match: Optional[MatchSchema]
-    # next_match_id: Optional[int] = None
     next_slot: Optional[int] = None
 
 
 class BracketMatchGroup(CustomBaseModel):
     bracket_id: int
     category: str
+    type: Optional[str] = None
     matches: List[BracketMatchResponse]

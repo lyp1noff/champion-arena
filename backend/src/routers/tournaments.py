@@ -11,7 +11,6 @@ from src.models import Bracket, BracketMatch, BracketParticipant, Match, Tournam
 from src.schemas import (
     BracketMatchGroup,
     BracketMatchResponse,
-    BracketParticipantSchema,
     BracketResponse,
     TournamentResponse,
     TournamentCreate,
@@ -191,6 +190,7 @@ async def get_all_matches_for_tournament(
             BracketMatchGroup(
                 bracket_id=bracket.id,
                 category=bracket.category.name if bracket.category else None,
+                type=bracket.type,
                 matches=matches,
             )
         )

@@ -1,4 +1,3 @@
-from datetime import date
 from sqlalchemy import (
     Column,
     Integer,
@@ -41,15 +40,10 @@ class Athlete(Base, TimestampMixin):
     first_name = Column(String, nullable=False)
     gender = Column(String, nullable=False)
     birth_date = Column(Date, nullable=True)
-    coach_id = Column(
-        Integer, ForeignKey("coaches.id", ondelete="SET NULL"), nullable=True
-    )
+    coach_id = Column(Integer, ForeignKey("coaches.id", ondelete="SET NULL"), nullable=True)
 
     coach = relationship("Coach", back_populates="athletes")
-    brackets = relationship(
-        "BracketParticipant",
-        back_populates="athlete",
-    )
+    brackets = relationship("BracketParticipant", back_populates="athlete", cascade="all, delete-orphan")
 
 
 class Coach(Base, TimestampMixin):
@@ -59,10 +53,7 @@ class Coach(Base, TimestampMixin):
     last_name = Column(String, index=True, nullable=False)
     first_name = Column(String, index=True, nullable=False)
 
-    athletes = relationship(
-        "Athlete",
-        back_populates="coach",
-    )
+    athletes = relationship("Athlete", back_populates="coach")
 
 
 class Category(Base):
@@ -88,113 +79,65 @@ class Tournament(Base, TimestampMixin):
     registration_end_date = Column(Date, nullable=True)
     image_url = Column(String, nullable=True)
 
-    brackets = relationship(
-        "Bracket",
-        back_populates="tournament",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
+    brackets = relationship("Bracket", back_populates="tournament", cascade="all, delete-orphan")
 
 
 class Bracket(Base):
     __tablename__ = "brackets"
 
     id = Column(Integer, primary_key=True, index=True)
-    tournament_id = Column(
-        Integer,
-        ForeignKey("tournaments.id", ondelete="CASCADE"),
-        index=True,
-        nullable=False,
-    )
-    category_id = Column(
-        Integer,
-        ForeignKey("categories.id", ondelete="CASCADE"),
-        index=True,
-        nullable=False,
-    )
+    tournament_id = Column(Integer, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="RESTRICT"), nullable=False)
     type = Column(String, nullable=False)
     start_time = Column(Time, nullable=True)
     tatami = Column(Integer, nullable=True)
 
-    tournament = relationship(
-        "Tournament", back_populates="brackets", passive_deletes=True
-    )
-    category = relationship("Category", back_populates="brackets", passive_deletes=True)
-    matches = relationship(
-        "BracketMatch", back_populates="bracket", cascade="all, delete-orphan"
-    )
-    participants = relationship(
-        "BracketParticipant", back_populates="bracket", cascade="all, delete-orphan"
-    )
+    tournament = relationship("Tournament", back_populates="brackets")
+    category = relationship("Category", back_populates="brackets")
+    matches = relationship("BracketMatch", back_populates="bracket", cascade="all, delete-orphan")
+    participants = relationship("BracketParticipant", back_populates="bracket", cascade="all, delete-orphan")
 
 
 class BracketParticipant(Base):
     __tablename__ = "bracket_participants"
 
     id = Column(Integer, primary_key=True, index=True)
-    bracket_id = Column(
-        Integer,
-        ForeignKey("brackets.id", ondelete="CASCADE"),
-        index=True,
-        nullable=False,
-    )
-    athlete_id = Column(
-        Integer,
-        ForeignKey("athletes.id", ondelete="SET NULL"),
-        index=True,
-        nullable=True,
-    )
+    bracket_id = Column(Integer, ForeignKey("brackets.id", ondelete="CASCADE"), nullable=False)
+    athlete_id = Column(Integer, ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True)
     seed = Column(Integer, nullable=False)
 
-    bracket = relationship(
-        "Bracket", back_populates="participants", passive_deletes=True
-    )
-    athlete = relationship("Athlete", back_populates="brackets", passive_deletes=True)
+    bracket = relationship("Bracket", back_populates="participants")
+    athlete = relationship("Athlete", back_populates="brackets")
 
 
 class BracketMatch(Base):
     __tablename__ = "bracket_matches"
 
     id = Column(Integer, primary_key=True, index=True)
-    bracket_id = Column(
-        Integer, ForeignKey("brackets.id", ondelete="CASCADE"), nullable=False
-    )
+    bracket_id = Column(Integer, ForeignKey("brackets.id", ondelete="CASCADE"), nullable=False)
     round_number = Column(Integer, nullable=False)
     position = Column(Integer, nullable=False)
-    match_id = Column(
-        Integer, ForeignKey("matches.id", ondelete="CASCADE"), nullable=False
-    )
+    match_id = Column(Integer, ForeignKey("matches.id", ondelete="CASCADE"), nullable=False)
     next_slot = Column(Integer, nullable=True)
 
-    bracket = relationship("Bracket", back_populates="matches", passive_deletes=True)
-    match = relationship(
-        "Match",
-        back_populates="bracket_match",
-        cascade="all, delete",
-        single_parent=True,
-    )
+    bracket = relationship("Bracket", back_populates="matches")
+    match = relationship("Match", back_populates="bracket_match", cascade="all, delete", single_parent=True)
 
 
 class Match(Base, TimestampMixin):
     __tablename__ = "matches"
 
     id = Column(Integer, primary_key=True, index=True)
-    athlete1_id = Column(
-        Integer, ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True
-    )
-    athlete2_id = Column(
-        Integer, ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True
-    )
-    winner_id = Column(
-        Integer, ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True
-    )
+    athlete1_id = Column(Integer, ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True)
+    athlete2_id = Column(Integer, ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True)
+    winner_id = Column(Integer, ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True)
     score_athlete1 = Column(Integer, nullable=True)
     score_athlete2 = Column(Integer, nullable=True)
     is_finished = Column(Boolean, default=False)
     round_type = Column(String, nullable=True)
 
-    athlete1 = relationship("Athlete", foreign_keys=[athlete1_id], passive_deletes=True)
-    athlete2 = relationship("Athlete", foreign_keys=[athlete2_id], passive_deletes=True)
-    winner = relationship("Athlete", foreign_keys=[winner_id], passive_deletes=True)
+    athlete1 = relationship("Athlete", foreign_keys=[athlete1_id])
+    athlete2 = relationship("Athlete", foreign_keys=[athlete2_id])
+    winner = relationship("Athlete", foreign_keys=[winner_id])
 
     bracket_match = relationship("BracketMatch", back_populates="match", uselist=False)

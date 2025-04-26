@@ -40,7 +40,7 @@ async def login(
         httponly=True,
         secure=not DEV_MODE,
         samesite="lax",
-        max_age=1800,
+        max_age=3600 * 4,
         path="/",
     )
     return response

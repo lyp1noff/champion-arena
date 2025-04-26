@@ -8,6 +8,7 @@ import os
 import uuid
 
 SVG_TEMPLATE_PATH = "assets/template.svg"
+SVG_ROUND_TEMPLATE_PATH = "assets/round_template.svg"
 
 HIDE_FINISHED_MATCHES = True
 
@@ -41,13 +42,35 @@ def build_entry(bracket, matches, offset, position_offset, tournament_title):
 
         if a1:
             entry[f"round{rnd}_position{norm_pos}_athlete1"] = (
-                f"{a1.last_name} {a1.first_name}"
+                f"{a1.last_name} {a1.first_name} ({a1.coach_last_name})"
             )
 
         if a2:
             entry[f"round{rnd}_position{norm_pos}_athlete2"] = (
-                f"{a2.last_name} {a2.first_name}"
+                f"{a2.last_name} {a2.first_name} ({a2.coach_last_name})"
             )
+
+    return entry
+
+def build_round_robin_entry(matches, tournament_title, category):
+    athletes_map = {}
+    for match in matches:
+        a1 = match.match.athlete1
+        a2 = match.match.athlete2
+        if a1:
+            athletes_map[a1.id] = f"{a1.last_name} {a1.first_name} ({a1.coach_last_name})"
+        if a2:
+            athletes_map[a2.id] = f"{a2.last_name} {a2.first_name} ({a2.coach_last_name})"
+
+    athletes = list(athletes_map.values())
+
+    entry = {
+        "tournament_name": tournament_title,
+        "category": category,
+    }
+
+    for idx, athlete in enumerate(athletes, start=1):
+        entry[f"athlete{idx}"] = athlete
 
     return entry
 
@@ -60,6 +83,21 @@ def build_entries(data, tournament_title):
         if not matches:
             continue
 
+        if bracket.type == "round_robin":
+            grouped = {}
+            for match in matches:
+                grouped.setdefault(match.round_number, []).append(match)
+
+            for round_number, group_matches in grouped.items():
+                entry = build_round_robin_entry(
+                    matches=group_matches,
+                    tournament_title=tournament_title,
+                    category=bracket.category,
+                )
+                entry["_template"] = "round_robin"
+                all_entries.append(entry)
+            continue
+
         max_round = min(4, max(m.round_number for m in matches))
 
         round1_matches = sorted(
@@ -67,12 +105,7 @@ def build_entries(data, tournament_title):
         )
 
         chunk_size = 8
-        position_chunks = [
-            [m.position for m in round1_matches[i : i + chunk_size]]
-            for i in range(0, len(round1_matches), chunk_size)
-        ]
-
-        for i, pos_set in enumerate(position_chunks):
+        for i in range(0, len(round1_matches), chunk_size):
             position_offset = i * chunk_size
             entry = build_entry(
                 bracket=bracket,
@@ -82,6 +115,7 @@ def build_entries(data, tournament_title):
                 tournament_title=tournament_title,
             )
             if len(entry) > 1:
+                entry["_template"] = "elimination"
                 all_entries.append(entry)
 
     return all_entries
@@ -95,19 +129,21 @@ def generate_pdf(data, tournament_title=None):
     merger = PdfMerger()
     temp_paths = []
 
-    original_template = Path(SVG_TEMPLATE_PATH).read_text(encoding="utf-8")
-    placeholders = set(re.findall(r"{{\s*(\w+)\s*}}", original_template))
+    elimination_template = Path(SVG_TEMPLATE_PATH).read_text(encoding="utf-8")
+    round_template = Path(SVG_ROUND_TEMPLATE_PATH).read_text(encoding="utf-8")
 
-    total_pages = str(len(entries))
-    for page_num, entry in enumerate(entries, start=1):
-        svg_template = original_template
+    for entry in entries:
+        template_type = entry.get("_template", "elimination")
+        if template_type == "round_robin":
+            svg_template = round_template
+        else:
+            svg_template = elimination_template
+
+        placeholders = set(re.findall(r"{{\s*(\w+)\s*}}", svg_template))
+
         for key in placeholders:
             value = entry.get(key, "")
             svg_template = svg_template.replace(f"{{{{ {key} }}}}", value)
-
-        svg_template = svg_template.replace(
-            "{{ pages }}", f"{page_num} of {total_pages}"
-        )
 
         with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             cairosvg.svg2pdf(bytestring=svg_template.encode("utf-8"), write_to=tmp.name)
