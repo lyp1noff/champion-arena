@@ -82,7 +82,7 @@ def build_entries(data, tournament_title):
     all_entries = []
 
     for bracket in data:
-        start_time_tatami = f"Start time: {bracket.start_time.strftime("%H:%M")} | Tatami: {bracket.tatami}"
+        start_time_tatami = f"Start time: {bracket.start_time.strftime('%H:%M')} | Tatami: {bracket.tatami}"
         matches = bracket.matches
         if not matches:
             continue
