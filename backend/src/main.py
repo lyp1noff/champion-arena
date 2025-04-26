@@ -32,8 +32,10 @@ app = FastAPI(
 
 add_cors_middleware(app)
 
-os.makedirs("pdf_storage", exist_ok=True)
+BASE_DIR = os.getcwd()
+pdf_storage_path = os.path.join(BASE_DIR, "pdf_storage")
+os.makedirs(pdf_storage_path, exist_ok=True)
 
-app.mount("/pdf_storage", StaticFiles(directory="pdf_storage"), name="static")
+app.mount("/pdf_storage", StaticFiles(directory=pdf_storage_path), name="static")
 for router in routers:
     app.include_router(router)

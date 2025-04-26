@@ -157,7 +157,9 @@ def generate_pdf(data, tournament_title=None):
             merger.append(tmp.name)
 
     sanitized_title = sanitize_filename(tournament_title)
-    final_path = f"pdf_storage/{sanitized_title}.pdf"
+
+    pdf_storage_path = os.path.join(os.getcwd(), "pdf_storage")
+    final_path = os.path.join(pdf_storage_path, f"{sanitized_title}.pdf")
 
     with open(final_path, "wb") as final_file:
         merger.write(final_file)
