@@ -1,3 +1,5 @@
+from datetime import datetime, UTC
+from pathlib import Path
 from typing import List
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -10,7 +12,6 @@ from src.dependencies.auth import get_current_user
 from src.models import Bracket, BracketMatch, BracketParticipant, Match, Tournament, Athlete
 from src.schemas import (
     BracketMatchesFull,
-    BracketMatchResponse,
     BracketResponse,
     TournamentResponse,
     TournamentCreate,
@@ -23,6 +24,7 @@ from src.services.export_file import generate_pdf
 from src.services.import_competitors import import_competitors_from_cbr
 from src.services.serialize import serialize_bracket, \
     serialize_bracket_matches_full
+from utils import sanitize_filename
 
 router = APIRouter(
     prefix="/tournaments",
@@ -172,6 +174,7 @@ async def get_matches_for_tournament_full(
             .joinedload(Match.winner)
             .joinedload(Athlete.coach),
         )
+        .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
     )
 
     brackets = result.scalars().all()
@@ -197,8 +200,22 @@ async def generate_brackets_export_file(
     tournament_title = (
         f"{tournament.name} - {tournament.start_date.strftime('%d.%m.%Y')}"
     )
-    data = await get_matches_for_tournament_full(tournament_id, session)
-    return await run_in_threadpool(generate_pdf, data, tournament_title)
+    final_filename = f"{sanitize_filename(tournament_title)}.pdf"
+    final_path = Path("pdf_storage") / final_filename
+
+    if final_path.exists():
+        file_mtime = datetime.fromtimestamp(final_path.stat().st_mtime, UTC)
+
+        if tournament.export_last_updated_at and file_mtime > tournament.export_last_updated_at:
+            pass
+        else:
+            data = await get_matches_for_tournament_full(tournament_id, session)
+            await run_in_threadpool(generate_pdf, data, tournament_title)
+    else:
+        data = await get_matches_for_tournament_full(tournament_id, session)
+        await run_in_threadpool(generate_pdf, data, tournament_title)
+
+    return {"filename": final_path}
 
 
 @router.post("/{tournament_id}/import", dependencies=[Depends(get_current_user)])

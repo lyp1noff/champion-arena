@@ -103,13 +103,13 @@ async def regenerate_matches_endpoint(
 ):
     try:
         result = await session.execute(
-            select(Bracket.type).where(Bracket.id == bracket_id)
+            select(Bracket.type, Bracket.tournament_id).where(Bracket.id == bracket_id)
         )
-        bracket_type = result.scalars().first()
+        bracket_type, tournament_id = result.scalars().first()
         if bracket_type == "round_robin":
-            await regenerate_round_bracket_matches(session, bracket_id)
+            await regenerate_round_bracket_matches(session, bracket_id, tournament_id)
         elif bracket_type == "single_elimination":
-            await regenerate_bracket_matches(session, bracket_id)
+            await regenerate_bracket_matches(session, bracket_id, tournament_id)
         else:
             print(f"Warning! Bracket type: {bracket_type} not supported")
         return {"status": "ok"}

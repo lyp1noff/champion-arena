@@ -1,7 +1,7 @@
-import {Row} from "@tanstack/react-table";
-import {MoreHorizontal} from "lucide-react";
+import { Row } from "@tanstack/react-table";
+import { MoreHorizontal } from "lucide-react";
 
-import {Button} from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,18 +9,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {deleteTournament, downloadTournamentDocx} from "@/lib/api/tournaments";
-import {toast} from "sonner";
-import {Tournament} from "@/lib/interfaces";
-import {sanitizeFilename} from "@/lib/utils";
-import {useRouter} from "next/navigation";
+import { deleteTournament, downloadTournamentDocx } from "@/lib/api/tournaments";
+import { toast } from "sonner";
+import { Tournament } from "@/lib/interfaces";
+import { useRouter } from "next/navigation";
 
 interface DataTableRowActionsProps {
   row: Row<Tournament>;
   onDataChanged?: () => void;
 }
 
-export function DataTableRowActions({row, onDataChanged}: DataTableRowActionsProps) {
+export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsProps) {
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -46,27 +45,16 @@ export function DataTableRowActions({row, onDataChanged}: DataTableRowActionsPro
   };
 
   const exportFile = async () => {
-    const filename = sanitizeFilename(row.original.name) || "tournament";
-
     toast.promise(
       (async () => {
-        const blob = await downloadTournamentDocx(row.original.id);
-        const url = window.URL.createObjectURL(blob);
-
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${filename}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-
-        window.URL.revokeObjectURL(url);
+        const url = await downloadTournamentDocx(row.original.id);
+        window.open(url, "_blank");
       })(),
       {
         loading: "Generating file, please wait...",
-        success: "File downloaded successfully",
+        success: "File exported successfully",
         error: (err) => `Error exporting file: ${err}`,
-      }
+      },
     );
   };
 
@@ -74,7 +62,7 @@ export function DataTableRowActions({row, onDataChanged}: DataTableRowActionsPro
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="flex h-8 w-8 p-0 data-[state=open]:bg-muted">
-          <MoreHorizontal/>
+          <MoreHorizontal />
           <span className="sr-only">Open menu</span>
         </Button>
       </DropdownMenuTrigger>
@@ -83,7 +71,7 @@ export function DataTableRowActions({row, onDataChanged}: DataTableRowActionsPro
         <DropdownMenuItem onClick={handleEdit}>Edit</DropdownMenuItem>
         <DropdownMenuItem onClick={handleManage}>Manage</DropdownMenuItem>
         <DropdownMenuItem onClick={exportFile}>Export to File</DropdownMenuItem>
-        <DropdownMenuSeparator/>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleDelete}>Delete</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

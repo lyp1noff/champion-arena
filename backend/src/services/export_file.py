@@ -1,12 +1,12 @@
 import os
 import re
-import uuid
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import cairosvg
 from PyPDF2 import PdfMerger
-from fastapi.responses import FileResponse
+
+from src.utils import sanitize_filename
 
 SVG_TEMPLATE_PATH = "assets/template.svg"
 SVG_ROUND_TEMPLATE_PATH = "assets/round_template.svg"
@@ -156,7 +156,9 @@ def generate_pdf(data, tournament_title=None):
             temp_paths.append(tmp.name)
             merger.append(tmp.name)
 
-    final_path = f"pdf_storage/{uuid.uuid4()}.pdf"
+    sanitized_title = sanitize_filename(tournament_title)
+    final_path = f"pdf_storage/{sanitized_title}.pdf"
+
     with open(final_path, "wb") as final_file:
         merger.write(final_file)
     merger.close()
@@ -164,6 +166,4 @@ def generate_pdf(data, tournament_title=None):
     for path in temp_paths:
         os.remove(path)
 
-    return FileResponse(
-        final_path, media_type="application/pdf", filename="brackets.pdf"
-    )
+    return final_path

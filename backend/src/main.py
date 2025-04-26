@@ -2,6 +2,8 @@ import os
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
+from starlette.staticfiles import StaticFiles
+
 from src.config import DEV_MODE
 from src.middleware import add_cors_middleware
 from src.database import SessionLocal, engine, Base
@@ -11,8 +13,6 @@ from src.services.auth import create_default_user
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    os.makedirs("pdf_storage", exist_ok=True)
-
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -32,5 +32,8 @@ app = FastAPI(
 
 add_cors_middleware(app)
 
+os.makedirs("pdf_storage", exist_ok=True)
+
+app.mount("/pdf_storage", StaticFiles(directory="pdf_storage"), name="static")
 for router in routers:
     app.include_router(router)

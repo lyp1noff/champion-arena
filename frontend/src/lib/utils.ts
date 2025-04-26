@@ -1,5 +1,5 @@
-import {clsx, type ClassValue} from "clsx";
-import {twMerge} from "tailwind-merge";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -8,11 +8,10 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDateToISO(date: Date): string {
   if (!date) throw new Error("Date is missing");
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
-
 
 export function formatTimeToISO(timeStr: string | null | undefined): string | null {
   if (!timeStr) return null;
@@ -26,7 +25,6 @@ export function formatTimeToISO(timeStr: string | null | undefined): string | nu
   return `${timeStr}:00`;
 }
 
-
 export function getInitialMatchCount(participantCount: number): number {
   const half = participantCount / 2;
   return 2 ** Math.ceil(Math.log2(half));
@@ -38,93 +36,5 @@ export function getBracketDimensions(matchCardHeight: number, matchCardWidth?: n
   const roundTitleHeight = cardHeight / 3;
   const columnGap = (cardHeight / 8) * 2;
 
-  return {cardHeight, cardWidth, roundTitleHeight, columnGap};
-}
-
-export function sanitizeFilename(name: string): string {
-  const cyrillicToLatinMap: Record<string, string> = {
-    а: "a",
-    б: "b",
-    в: "v",
-    г: "h",
-    ґ: "g",
-    д: "d",
-    е: "e",
-    ё: "yo",
-    є: "ye",
-    ж: "zh",
-    з: "z",
-    и: "y",
-    і: "i",
-    ї: "yi",
-    й: "j",
-    к: "k",
-    л: "l",
-    м: "m",
-    н: "n",
-    о: "o",
-    п: "p",
-    р: "r",
-    с: "s",
-    т: "t",
-    у: "u",
-    ф: "f",
-    х: "kh",
-    ц: "ts",
-    ч: "ch",
-    ш: "sh",
-    щ: "shch",
-    ь: "",
-    ю: "yu",
-    я: "ya",
-    ы: "y",
-    э: "e",
-
-    А: "A",
-    Б: "B",
-    В: "V",
-    Г: "H",
-    Ґ: "G",
-    Д: "D",
-    Е: "E",
-    Ё: "Yo",
-    Є: "Ye",
-    Ж: "Zh",
-    З: "Z",
-    И: "Y",
-    І: "I",
-    Ї: "Yi",
-    Й: "J",
-    К: "K",
-    Л: "L",
-    М: "M",
-    Н: "N",
-    О: "O",
-    П: "P",
-    Р: "R",
-    С: "S",
-    Т: "T",
-    У: "U",
-    Ф: "F",
-    Х: "Kh",
-    Ц: "Ts",
-    Ч: "Ch",
-    Ш: "Sh",
-    Щ: "Shch",
-    Ь: "",
-    Ю: "Yu",
-    Я: "Ya",
-    Ы: "Y",
-    Э: "E",
-  };
-
-  const transliterated = name
-    .split("")
-    .map((char) => cyrillicToLatinMap[char] || char)
-    .join("");
-
-  return transliterated
-    .toLowerCase()
-    .replace(/\s+/g, "_")
-    .replace(/[^a-z0-9_\-]/g, "");
+  return { cardHeight, cardWidth, roundTitleHeight, columnGap };
 }

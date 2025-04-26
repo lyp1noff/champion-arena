@@ -78,6 +78,7 @@ class Tournament(Base, TimestampMixin):
     registration_start_date = Column(Date, nullable=True)
     registration_end_date = Column(Date, nullable=True)
     image_url = Column(String, nullable=True)
+    export_last_updated_at = Column(DateTime(timezone=True), nullable=True)
 
     brackets = relationship("Bracket", back_populates="tournament", cascade="all, delete-orphan")
 

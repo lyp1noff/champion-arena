@@ -1,8 +1,9 @@
 import math
+from datetime import datetime, UTC
 from typing import Optional
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.models import Bracket, BracketParticipant, BracketMatch, Match
+from src.models import Bracket, BracketParticipant, BracketMatch, Match, Tournament
 
 
 def get_round_type(round_index: int, total_rounds: int) -> str:
@@ -129,6 +130,7 @@ async def advance_auto_winners(
 async def regenerate_bracket_matches(
         session: AsyncSession,
         bracket_id: int,
+        tournament_id: int,
         commit: bool = True,
         skip_first_round: bool = False,
 ):
@@ -186,6 +188,8 @@ async def regenerate_bracket_matches(
     await advance_auto_winners(session, match_matrix)
 
     if commit:
+        tournament = await session.get(Tournament, tournament_id)
+        tournament.export_last_updated_at = datetime.now(UTC)
         await session.commit()
     else:
         return match_matrix
@@ -209,6 +213,7 @@ def split_evenly(athletes: list, max_per_group: int = 4) -> list[list]:
 async def regenerate_round_bracket_matches(
         session: AsyncSession,
         bracket_id: int,
+        tournament_id: int,
         commit: bool = True,
 ):
     await session.execute(
@@ -262,6 +267,8 @@ async def regenerate_round_bracket_matches(
                 position += 1
 
     if commit:
+        tournament = await session.get(Tournament, tournament_id)
+        tournament.export_last_updated_at = datetime.now(UTC)
         await session.commit()
     else:
         return matches
@@ -275,11 +282,14 @@ async def regenerate_tournament_brackets(session: AsyncSession, tournament_id: i
 
     for bracket_id, bracket_type in brackets:
         if bracket_type == "round_robin":
-            await regenerate_round_bracket_matches(session, bracket_id, commit=False)
+            await regenerate_round_bracket_matches(session, bracket_id, tournament_id, commit=False)
         elif bracket_type == "single_elimination":
-            await regenerate_bracket_matches(session, bracket_id, commit=False)
+            await regenerate_bracket_matches(session, bracket_id, tournament_id, commit=False)
         else:
             print(f"Warning! Bracket type: {bracket_type} not supported")
+
+    tournament = await session.get(Tournament, tournament_id)
+    tournament.export_last_updated_at = datetime.now(UTC)
 
     await session.flush()
     await session.commit()
