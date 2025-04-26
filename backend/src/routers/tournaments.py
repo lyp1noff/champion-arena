@@ -24,7 +24,7 @@ from src.services.export_file import generate_pdf
 from src.services.import_competitors import import_competitors_from_cbr
 from src.services.serialize import serialize_bracket, \
     serialize_bracket_matches_full
-from utils import sanitize_filename
+from src.utils import sanitize_filename
 
 router = APIRouter(
     prefix="/tournaments",
