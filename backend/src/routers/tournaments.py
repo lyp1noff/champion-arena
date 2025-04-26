@@ -2,14 +2,14 @@ from typing import List
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import asc, desc, func, select
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies.auth import get_current_user
 from src.models import Bracket, BracketMatch, BracketParticipant, Match, Tournament, Athlete
 from src.schemas import (
-    BracketMatchGroup,
+    BracketMatchesFull,
     BracketMatchResponse,
     BracketResponse,
     TournamentResponse,
@@ -21,7 +21,8 @@ from src.database import get_db
 from src.services.brackets import regenerate_tournament_brackets
 from src.services.export_file import generate_pdf
 from src.services.import_competitors import import_competitors_from_cbr
-from src.services.serialize import serialize_bracket, serialize_match
+from src.services.serialize import serialize_bracket, \
+    serialize_bracket_matches_full
 
 router = APIRouter(
     prefix="/tournaments",
@@ -148,8 +149,9 @@ async def get_all_brackets(tournament_id: int, db: AsyncSession = Depends(get_db
     return [serialize_bracket(b) for b in brackets]
 
 
-@router.get("/{tournament_id}/matches", response_model=List[BracketMatchGroup])
-async def get_all_matches_for_tournament(
+@router.get("/{tournament_id}/matches_full", response_model=List[BracketMatchesFull],
+            dependencies=[Depends(get_current_user)])
+async def get_matches_for_tournament_full(
         tournament_id: int, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
@@ -171,31 +173,9 @@ async def get_all_matches_for_tournament(
             .joinedload(Athlete.coach),
         )
     )
+
     brackets = result.scalars().all()
-
-    response = []
-    for bracket in brackets:
-        matches = []
-        for bm in sorted(bracket.matches, key=lambda m: (m.round_number, m.position)):
-            matches.append(
-                BracketMatchResponse(
-                    id=bm.id,
-                    round_number=bm.round_number,
-                    position=bm.position,
-                    match=serialize_match(bm.match),
-                    next_slot=bm.next_slot,
-                )
-            )
-        response.append(
-            BracketMatchGroup(
-                bracket_id=bracket.id,
-                category=bracket.category.name if bracket.category else None,
-                type=bracket.type,
-                matches=matches,
-            )
-        )
-
-    return response
+    return [serialize_bracket_matches_full(bracket) for bracket in brackets]
 
 
 @router.post("/{tournament_id}/regenerate", dependencies=[Depends(get_current_user)])
@@ -217,7 +197,7 @@ async def generate_brackets_export_file(
     tournament_title = (
         f"{tournament.name} - {tournament.start_date.strftime('%d.%m.%Y')}"
     )
-    data = await get_all_matches_for_tournament(tournament_id, session)
+    data = await get_matches_for_tournament_full(tournament_id, session)
     return await run_in_threadpool(generate_pdf, data, tournament_title)
 
 

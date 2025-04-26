@@ -1,11 +1,12 @@
-from fastapi.responses import FileResponse
-from tempfile import NamedTemporaryFile
-from pathlib import Path
-import cairosvg
-import re
-from PyPDF2 import PdfMerger
 import os
+import re
 import uuid
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+import cairosvg
+from PyPDF2 import PdfMerger
+from fastapi.responses import FileResponse
 
 SVG_TEMPLATE_PATH = "assets/template.svg"
 SVG_ROUND_TEMPLATE_PATH = "assets/round_template.svg"
@@ -13,11 +14,11 @@ SVG_ROUND_TEMPLATE_PATH = "assets/round_template.svg"
 HIDE_FINISHED_MATCHES = True
 
 
-def build_entry(bracket, matches, offset, position_offset, tournament_title):
+def build_entry(matches, bracket, offset, position_offset, start_time_tatami, tournament_title):
     entry = {
         "tournament_name": tournament_title,
         "category": bracket.category,
-        "pages": "{{ pages }}",
+        "start_time_tatami": start_time_tatami,
     }
 
     for match in matches:
@@ -52,7 +53,8 @@ def build_entry(bracket, matches, offset, position_offset, tournament_title):
 
     return entry
 
-def build_round_robin_entry(matches, tournament_title, category):
+
+def build_round_robin_entry(matches, category, start_time_tatami, tournament_title):
     athletes_map = {}
     for match in matches:
         a1 = match.match.athlete1
@@ -67,6 +69,7 @@ def build_round_robin_entry(matches, tournament_title, category):
     entry = {
         "tournament_name": tournament_title,
         "category": category,
+        "start_time_tatami": start_time_tatami,
     }
 
     for idx, athlete in enumerate(athletes, start=1):
@@ -79,6 +82,7 @@ def build_entries(data, tournament_title):
     all_entries = []
 
     for bracket in data:
+        start_time_tatami = f"Start time: {bracket.start_time.strftime("%H:%M")} | Tatami: {bracket.tatami}"
         matches = bracket.matches
         if not matches:
             continue
@@ -91,8 +95,9 @@ def build_entries(data, tournament_title):
             for round_number, group_matches in grouped.items():
                 entry = build_round_robin_entry(
                     matches=group_matches,
-                    tournament_title=tournament_title,
                     category=bracket.category,
+                    start_time_tatami=start_time_tatami,
+                    tournament_title=tournament_title,
                 )
                 entry["_template"] = "round_robin"
                 all_entries.append(entry)
@@ -112,6 +117,7 @@ def build_entries(data, tournament_title):
                 matches=matches,
                 offset=4 - max_round,
                 position_offset=position_offset,
+                start_time_tatami=start_time_tatami,
                 tournament_title=tournament_title,
             )
             if len(entry) > 1:

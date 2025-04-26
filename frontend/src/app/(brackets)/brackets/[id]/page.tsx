@@ -1,17 +1,17 @@
 "use client";
 
-import {useEffect, useState} from "react";
-import {useParams} from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import ScreenLoader from "@/components/loader";
-import {BracketMatch} from "@/lib/interfaces";
-import {getBracketMatchesById} from "@/lib/api/brackets";
+import { BracketMatches } from "@/lib/interfaces";
+import { getBracketMatchesById } from "@/lib/api/brackets";
 import BracketContent from "@/components/bracket/bracket-content";
-import {Card} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 // import { Button } from "@/components/ui/button";
 
 export default function BracketPage() {
-  const {id} = useParams();
-  const [bracketMatches, setMatches] = useState<BracketMatch[]>([]);
+  const { id } = useParams();
+  const [bracketMatches, setMatches] = useState<BracketMatches>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -37,7 +37,7 @@ export default function BracketPage() {
     fetchMatches();
   }, [id]);
 
-  if (loading) return <ScreenLoader/>;
+  if (loading) return <ScreenLoader />;
   if (error) return <p className="text-red-500">{error}</p>;
   if (!bracketMatches.length) return <p className="text-gray-500">Нет данных</p>;
 
@@ -47,7 +47,7 @@ export default function BracketPage() {
       <h1 className="text-3xl font-bold text-center pb-2">🏆 Сетка турнира #{id}</h1>
       <div className="w-full flex justify-center overflow-auto">
         <Card className="flex flex-col w-max max-w-full p-6" id="bracket-fullscreen">
-          <BracketContent bracketMatches={bracketMatches}/>
+          <BracketContent bracketMatches={bracketMatches} />
         </Card>
       </div>
     </div>

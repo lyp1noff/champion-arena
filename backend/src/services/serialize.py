@@ -1,10 +1,10 @@
-from typing import Optional, List
-from src.models import Athlete, Match, Bracket
+from typing import Optional
+from src.models import Athlete, Match, Bracket, BracketMatch
 from src.schemas import (
     BracketMatchAthlete,
     MatchSchema,
     BracketResponse,
-    BracketParticipantSchema,
+    BracketParticipantSchema, BracketMatchResponse, BracketMatchesFull,
 )
 
 
@@ -31,6 +31,38 @@ def serialize_match(match: Optional[Match]) -> Optional[MatchSchema]:
         score_athlete1=match.score_athlete1,
         score_athlete2=match.score_athlete2,
         is_finished=match.is_finished,
+    )
+
+
+def serialize_bracket_match(match: BracketMatch) -> BracketMatchResponse:
+    return BracketMatchResponse(
+        id=match.id,
+        round_number=match.round_number,
+        position=match.position,
+        match=serialize_match(match.match),
+        next_slot=match.next_slot,
+    )
+
+
+def serialize_bracket_matches_full(bracket: Bracket) -> BracketMatchesFull:
+    matches = [
+        BracketMatchResponse(
+            id=bm.id,
+            round_number=bm.round_number,
+            position=bm.position,
+            match=serialize_match(bm.match),
+            next_slot=bm.next_slot,
+        )
+        for bm in bracket.matches
+    ]
+
+    return BracketMatchesFull(
+        bracket_id=bracket.id,
+        category=bracket.category.name if bracket.category else None,
+        type=bracket.type,
+        start_time=bracket.start_time,
+        tatami=bracket.tatami,
+        matches=matches,
     )
 
 

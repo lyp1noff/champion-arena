@@ -3,11 +3,11 @@
 import ScreenLoader from "@/components/loader";
 import BracketContent from "@/components/bracket/bracket-content";
 import RoundRobinContent from "@/components/bracket/round-robin-content";
-import {BracketMatch, BracketType} from "@/lib/interfaces";
+import { BracketMatches, BracketType } from "@/lib/interfaces";
 
 interface BracketViewProps {
   loading: boolean;
-  matches: BracketMatch[];
+  matches: BracketMatches;
   bracketType: BracketType;
   matchCardHeight: number;
   containerHeight?: number;
@@ -15,23 +15,23 @@ interface BracketViewProps {
 }
 
 export function BracketView({
-                              loading,
-                              matches,
-                              bracketType,
-                              matchCardHeight,
-                              containerHeight,
-                              estimatedHeight,
-                            }: BracketViewProps) {
+  loading,
+  matches,
+  bracketType,
+  matchCardHeight,
+  containerHeight,
+  estimatedHeight,
+}: BracketViewProps) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center" style={{height: estimatedHeight}}>
-        <ScreenLoader/>
+      <div className="flex items-center justify-center" style={{ height: estimatedHeight }}>
+        <ScreenLoader />
       </div>
     );
   }
 
   if (bracketType === "round_robin") {
-    return <RoundRobinContent bracketMatches={matches ?? []}/>;
+    return <RoundRobinContent bracketMatches={matches ?? []} />;
   }
 
   return (

@@ -7,9 +7,9 @@ from sqlalchemy.orm import selectinload
 from src.database import get_db
 from src.dependencies.auth import get_current_user
 from src.models import Bracket, BracketMatch, BracketParticipant, Match, Athlete
-from src.schemas import BracketMatchResponse, BracketResponse, BracketParticipantSchema, BracketUpdateSchema
+from src.schemas import BracketMatchResponse, BracketResponse, BracketUpdateSchema
 from src.services.brackets import regenerate_bracket_matches, regenerate_round_bracket_matches
-from src.services.serialize import serialize_bracket
+from src.services.serialize import serialize_bracket, serialize_bracket_match
 
 router = APIRouter(prefix="/brackets", tags=["Brackets"])
 
@@ -73,9 +73,6 @@ async def update_bracket(
     return bracket
 
 
-from src.services.serialize import serialize_match
-
-
 @router.get("/{bracket_id}/matches", response_model=List[BracketMatchResponse])
 async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -96,16 +93,7 @@ async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db
     )
     matches = result.scalars().all()
 
-    return [
-        BracketMatchResponse(
-            id=m.id,
-            round_number=m.round_number,
-            position=m.position,
-            match=serialize_match(m.match),
-            next_slot=m.next_slot,
-        )
-        for m in matches
-    ]
+    return [serialize_bracket_match(m) for m in matches]
 
 
 @router.post("/{bracket_id}/regenerate", dependencies=[Depends(get_current_user)])

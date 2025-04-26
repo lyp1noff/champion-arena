@@ -112,7 +112,6 @@ class TournamentUpdate(TournamentBase):
 
 
 class BracketBase(CustomBaseModel):
-    tournament_id: int
     category: str
     type: str
     start_time: Optional[time] = None
@@ -128,6 +127,7 @@ class BracketParticipantSchema(CustomBaseModel):
 
 class BracketResponse(BracketBase):
     id: int
+    tournament_id: int
     participants: List[BracketParticipantSchema]
 
 
@@ -159,12 +159,10 @@ class BracketMatchResponse(CustomBaseModel):
     id: int
     round_number: int
     position: int
-    match: Optional[MatchSchema]
+    match: MatchSchema
     next_slot: Optional[int] = None
 
 
-class BracketMatchGroup(CustomBaseModel):
+class BracketMatchesFull(BracketBase):
     bracket_id: int
-    category: str
-    type: Optional[str] = None
     matches: List[BracketMatchResponse]
