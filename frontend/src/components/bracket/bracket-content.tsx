@@ -1,6 +1,6 @@
-import {BracketMatches} from "@/lib/interfaces";
+import { BracketMatches } from "@/lib/interfaces";
 import MatchCard from "../match-card";
-import {ScrollArea, ScrollBar} from "../ui/scroll-area";
+import { ScrollArea, ScrollBar } from "../ui/scroll-area";
 
 interface BracketCardProps {
   bracketMatches: BracketMatches;
@@ -10,21 +10,24 @@ interface BracketCardProps {
 }
 
 export default function BracketContent({
-                                         bracketMatches,
-                                         matchCardHeight = 80,
-                                         matchCardWidth,
-                                         containerHeight,
-                                       }: BracketCardProps) {
+  bracketMatches,
+  matchCardHeight = 80,
+  matchCardWidth,
+  containerHeight,
+}: BracketCardProps) {
   const cardHeight = matchCardHeight;
   const cardWidth = matchCardWidth ?? cardHeight * 4;
   const roundTitleHeight = cardHeight / 3;
   const columnGap = (cardHeight / 8) * 2;
 
-  const groupedRounds = bracketMatches.reduce((acc, bracketMatch) => {
-    if (!acc[bracketMatch.round_number]) acc[bracketMatch.round_number] = [];
-    acc[bracketMatch.round_number].push(bracketMatch);
-    return acc;
-  }, {} as Record<number, BracketMatches>);
+  const groupedRounds = bracketMatches.reduce(
+    (acc, bracketMatch) => {
+      if (!acc[bracketMatch.round_number]) acc[bracketMatch.round_number] = [];
+      acc[bracketMatch.round_number].push(bracketMatch);
+      return acc;
+    },
+    {} as Record<number, BracketMatches>,
+  );
 
   const sortedRounds = Object.entries(groupedRounds)
     .map(([roundStr, bracketMatches]) => ({
@@ -48,8 +51,8 @@ export default function BracketContent({
       />
 
       {/* Bracket */}
-      <div className="flex items-start justify-center" style={{columnGap}}>
-        {sortedRounds.map(({round, bracketMatches}) => {
+      <div className="flex items-start justify-center" style={{ columnGap }}>
+        {sortedRounds.map(({ round, bracketMatches }) => {
           const label = bracketMatches.find((m) => m.match?.round_type)?.match.round_type ?? `round ${round}`;
 
           return (
@@ -71,7 +74,7 @@ export default function BracketContent({
               >
                 <h2
                   className="text-sm font-semibold text-center leading-none"
-                  style={{fontSize: `calc(${roundTitleHeight}px * 0.8)`}}
+                  style={{ fontSize: `calc(${roundTitleHeight}px * 0.8)` }}
                 >
                   {label}
                 </h2>
@@ -134,7 +137,7 @@ export default function BracketContent({
                       </>
                     )}
 
-                    <MatchCard bracketMatch={bracketMatch} height={cardHeight} width={cardWidth}/>
+                    <MatchCard bracketMatch={bracketMatch} height={cardHeight} width={cardWidth} />
                   </li>
                 );
               })}
@@ -142,12 +145,12 @@ export default function BracketContent({
           );
         })}
       </div>
-      <ScrollBar orientation="horizontal"/>
+      <ScrollBar orientation="horizontal" />
     </ScrollArea>
   );
 
   return containerHeight ? (
-    <div className="flex" style={{height: containerHeight}}>
+    <div className="flex" style={{ height: containerHeight }}>
       {content}
     </div>
   ) : (

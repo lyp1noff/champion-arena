@@ -1,33 +1,23 @@
 "use client";
 
-import {useState, useEffect} from "react";
-import {useParams} from "next/navigation";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandItem
-} from "@/components/ui/command";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
-import {Card, CardContent} from "@/components/ui/card";
-import {Bracket, BracketMatches, BracketType} from "@/lib/interfaces";
-import {getTournamentBracketsById} from "@/lib/api/tournaments";
-import {getBracketMatchesById, updateBracket} from "@/lib/api/brackets";
-import {toast} from "sonner";
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
-import {formatTimeToISO} from "@/lib/utils";
-import {BracketView} from "@/components/bracket_view";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Bracket, BracketMatches, BracketType } from "@/lib/interfaces";
+import { getTournamentBracketsById } from "@/lib/api/tournaments";
+import { getBracketMatchesById, updateBracket } from "@/lib/api/brackets";
+import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatTimeToISO } from "@/lib/utils";
+import { BracketView } from "@/components/bracket_view";
 
 export default function ManageTournamentPage() {
-  const {id} = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
 
   const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [bracketMatches, setBracketMatches] = useState<BracketMatches>();
@@ -63,12 +53,14 @@ export default function ManageTournamentPage() {
   }, [id]);
 
   const handleBracketSelect = async (bracket: Bracket) => {
+    setLoading(true);
     setSelectedBracket(bracket);
     setType(bracket.type || "");
     setStartTime(bracket.start_time || "");
     setTatami(bracket.tatami ?? "");
     setOpen(false);
-    await fetchBracketMatches(bracket.id)
+    await fetchBracketMatches(bracket.id);
+    setLoading(false);
   };
 
   const handleSave = async () => {
@@ -76,7 +68,7 @@ export default function ManageTournamentPage() {
 
     setLoading(true);
     try {
-      const formattedStartTime = formatTimeToISO(startTime)
+      const formattedStartTime = formatTimeToISO(startTime);
       if (!formattedStartTime || !tatami) {
         toast.error("Invalid start time format.");
         return;
@@ -93,12 +85,11 @@ export default function ManageTournamentPage() {
         type,
         start_time: formattedStartTime,
         tatami: tatami,
-      }
-      setSelectedBracket(updatedBracket)
+      };
+      setSelectedBracket(updatedBracket);
       await fetchBracketMatches(selectedBracket.id);
 
       toast.success("Bracket saved successfully.");
-
     } catch (error) {
       console.error("Save error:", error);
       toast.error("Failed to save bracket.");
@@ -109,19 +100,16 @@ export default function ManageTournamentPage() {
 
   return (
     <div className="flex flex-col md:flex-row gap-6 p-6 md:p-10 justify-center">
-
       {/* Preview */}
       {selectedBracket && (
         <Card className="flex-1 overflow-hidden">
           <div className="overflow-x-auto">
             <CardContent className="p-6">
               <BracketView
-                loading={false}
+                loading={loading}
                 matches={bracketMatches ?? []}
-                bracketType={selectedBracket.type}
-                matchCardHeight={60}
+                bracket={selectedBracket}
                 containerHeight={600}
-                estimatedHeight={600}
               />
             </CardContent>
           </div>
@@ -142,14 +130,14 @@ export default function ManageTournamentPage() {
                   variant="outline"
                   role="combobox"
                   aria-expanded={open}
-                  className="w-full justify-between"
+                  className="w-full block whitespace-normal text-left h-auto min-h-10"
                 >
                   {selectedBracket ? selectedBracket.category : "Select a bracket..."}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                 <Command>
-                  <CommandInput placeholder="Search brackets..."/>
+                  <CommandInput placeholder="Search brackets..." />
                   <CommandList>
                     <CommandEmpty>No brackets found.</CommandEmpty>
                     {brackets.map((bracket) => (
@@ -172,7 +160,7 @@ export default function ManageTournamentPage() {
             <Label>Type</Label>
             <Select value={type} onValueChange={(val) => setType(val as BracketType)}>
               <SelectTrigger>
-                <SelectValue placeholder="Select type"/>
+                <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="round_robin">Round Robin</SelectItem>
@@ -183,11 +171,7 @@ export default function ManageTournamentPage() {
 
           <div className="space-y-2">
             <Label>Start Time</Label>
-            <Input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-            />
+            <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
           </div>
 
           <div className="space-y-2">
@@ -195,18 +179,12 @@ export default function ManageTournamentPage() {
             <Input
               type="number"
               value={tatami}
-              onChange={(e) =>
-                setTatami(e.target.value === "" ? "" : Number(e.target.value))
-              }
+              onChange={(e) => setTatami(e.target.value === "" ? "" : Number(e.target.value))}
               placeholder="Enter tatami number"
             />
           </div>
 
-          <Button
-            className="w-full mt-6"
-            onClick={handleSave}
-            disabled={!selectedBracket || loading}
-          >
+          <Button className="w-full mt-6" onClick={handleSave} disabled={!selectedBracket || loading}>
             {loading ? "Saving..." : "Save"}
           </Button>
         </CardContent>

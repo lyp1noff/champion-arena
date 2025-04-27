@@ -8,8 +8,7 @@ import ScreenLoader from "@/components/loader";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { getBracketMatchesById } from "@/lib/api/brackets";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getBracketDimensions, getInitialMatchCount } from "@/lib/utils";
-import { useScreenHeight } from "@/hooks/use-screen-height";
+// import { useScreenHeight } from "@/hooks/use-screen-height";
 import { useTranslations } from "next-intl";
 import { BracketView } from "@/components/bracket_view";
 import { ParticipantsView } from "@/components/participants_view";
@@ -27,8 +26,9 @@ export default function TournamentPage() {
     Record<number, { loading: boolean; matches: BracketMatches }>
   >({});
 
-  const screenHeight = useScreenHeight();
-  const maxHeight = screenHeight * 0.7;
+  // const screenHeight = useScreenHeight();
+  // const maxHeight = screenHeight * 0.7;
+  // const matchCardHeight = 60;
 
   const loadBracketData = async (bracketId: number) => {
     if (loadedBracketMatches[bracketId]) return;
@@ -104,11 +104,10 @@ export default function TournamentPage() {
           <h2 className="text-2xl font-bold mb-2">Tatami {tatami}</h2>
           <Accordion type="multiple" className="w-full">
             {tatamiBrackets.map((bracket) => {
-              const matchCardHeight = 60;
-              const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
-              const estimatedHeight =
-                getInitialMatchCount(bracket.participants.length) * (cardHeight + columnGap) + roundTitleHeight;
-              const containerHeight = estimatedHeight > maxHeight ? maxHeight : undefined;
+              // const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
+              // const estimatedHeight =
+              //   getInitialMatchCount(bracket.participants.length) * (cardHeight + columnGap) + roundTitleHeight;
+              // const containerHeight = estimatedHeight > maxHeight ? maxHeight : estimatedHeight;
 
               return (
                 <AccordionItem key={bracket.id} value={String(bracket.id)}>
@@ -138,10 +137,8 @@ export default function TournamentPage() {
                       <BracketView
                         loading={loadedBracketMatches[bracket.id]?.loading ?? true}
                         matches={loadedBracketMatches[bracket.id]?.matches ?? []}
-                        bracketType={bracket.type}
-                        matchCardHeight={matchCardHeight}
-                        containerHeight={containerHeight}
-                        estimatedHeight={estimatedHeight}
+                        bracket={bracket}
+                        // maxHeight={maxHeight}
                       />
                     )}
                   </AccordionContent>
