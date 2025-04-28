@@ -12,6 +12,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslations } from "next-intl";
 import { BracketView } from "@/components/bracket_view";
 import { ParticipantsView } from "@/components/participants_view";
+import { Input } from "@/components/ui/input";
+import { useDebounce } from "use-debounce";
 
 export default function TournamentPage() {
   const t = useTranslations("TournamentPage");
@@ -25,6 +27,16 @@ export default function TournamentPage() {
   const [loadedBracketMatches, setLoadedBracketMatches] = useState<
     Record<number, { loading: boolean; matches: BracketMatches }>
   >({});
+
+  const [search, setSearch] = useState("");
+  const [debouncedSearch] = useDebounce(search, 500);
+  const [filteredBrackets, setFilteredBrackets] = useState<Bracket[]>([]);
+  // const [searchFields, setSearchFields] = useState({
+  //   bracketCategory: true,
+  //   participantFirstName: true,
+  //   participantLastName: true,
+  //   coachLastName: true,
+  // });
 
   // const screenHeight = useScreenHeight();
   // const maxHeight = screenHeight * 0.7;
@@ -76,7 +88,34 @@ export default function TournamentPage() {
     fetchData();
   }, [id]);
 
-  const bracketsByTatami = brackets.reduce<Record<string, typeof brackets>>((acc, bracket) => {
+  useEffect(() => {
+    if (!brackets.length) return;
+
+    const searchLower = (debouncedSearch ?? "").trim().toLowerCase();
+
+    if (!searchLower) {
+      setFilteredBrackets(brackets);
+      return;
+    }
+
+    const result = brackets.filter((bracket) => {
+      const matchesBracketCategory = bracket.category?.toLowerCase().includes(searchLower);
+
+      const matchesParticipant = bracket.participants.some((participant) => {
+        const firstName = participant.first_name?.toLowerCase() ?? "";
+        const lastName = participant.last_name?.toLowerCase() ?? "";
+        const coachLastName = participant.coach_last_name?.toLowerCase() ?? "";
+
+        return firstName.includes(searchLower) || lastName.includes(searchLower) || coachLastName.includes(searchLower);
+      });
+
+      return matchesBracketCategory || matchesParticipant;
+    });
+
+    setFilteredBrackets(result);
+  }, [debouncedSearch, brackets]);
+
+  const bracketsByTatami = filteredBrackets.reduce<Record<string, typeof brackets>>((acc, bracket) => {
     const tatamiKey = bracket.tatami ?? "Unknown";
     if (!acc[tatamiKey]) {
       acc[tatamiKey] = [];
@@ -89,18 +128,26 @@ export default function TournamentPage() {
     <div className="container py-10 mx-auto">
       <h1 className="text-2xl font-bold mb-10">{tournament ? tournament.name : "Tournament"}</h1>
 
-      <Tabs defaultValue="brackets" onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="brackets">{t("brackets")}</TabsTrigger>
-          <TabsTrigger value="participants">{t("participants")}</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6 sm:mb-10">
+        <Input
+          placeholder={"Search brackets or participants..."}
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+        />
+
+        <Tabs defaultValue="brackets" onValueChange={setTab}>
+          <TabsList>
+            <TabsTrigger value="brackets">{t("brackets")}</TabsTrigger>
+            <TabsTrigger value="participants">{t("participants")}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
       {loading && <ScreenLoader fullscreen />}
       {error && <p className="text-red-500">{error}</p>}
 
       {Object.entries(bracketsByTatami).map(([tatami, tatamiBrackets]) => (
-        <div key={tatami} className="pt-10">
+        <div key={tatami} className="mt-10">
           <h2 className="text-2xl font-bold mb-2">Tatami {tatami}</h2>
           <Accordion type="multiple" className="w-full">
             {tatamiBrackets.map((bracket) => {
