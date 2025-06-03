@@ -1,6 +1,7 @@
 # BACKEND
 backend/venv/
 __pycache__/
+backend/pdf_storage/*
 
 # FRONTEND
 frontend/.next/
@@ -9,6 +10,7 @@ frontend/node_modules/
 .env
 .env.*
 .vscode
+.idea
 
 data.cbr
 start.sh

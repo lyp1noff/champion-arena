@@ -1,26 +1,41 @@
+import os
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from src.middleware import add_cors_middleware
 
-from src.database import engine, Base
-from src.coaches import router as coach
-from src.athletes import router as athlete
-from src.tournaments import router as tournament
-from src.categories import router as category
+from starlette.staticfiles import StaticFiles
+
+from src.config import DEV_MODE
+from src.middleware import add_cors_middleware
+from src.database import SessionLocal, engine, Base
+from src.routers import routers
+from src.services.auth import create_default_user
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    async with SessionLocal() as session:
+        await create_default_user(session)
+
     yield
 
 
-app = FastAPI(root_path="/api", lifespan=lifespan)
+app = FastAPI(
+    root_path="/api",
+    docs_url="/docs" if DEV_MODE else None,
+    redoc_url="/redoc" if DEV_MODE else None,
+    openapi_url="/openapi.json" if DEV_MODE else None,
+    lifespan=lifespan,
+)
 
 add_cors_middleware(app)
 
-app.include_router(coach.router)
-app.include_router(athlete.router)
-app.include_router(tournament.router)
-app.include_router(category.router)
+BASE_DIR = os.getcwd()
+pdf_storage_path = os.path.join(BASE_DIR, "pdf_storage")
+os.makedirs(pdf_storage_path, exist_ok=True)
+
+app.mount("/pdf_storage", StaticFiles(directory=pdf_storage_path), name="static")
+for router in routers:
+    app.include_router(router)
