@@ -3,13 +3,13 @@ from pathlib import Path
 from typing import List
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import asc, desc, func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy import asc, desc, select, func, distinct
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.dependencies.auth import get_current_user
-from src.models import Bracket, BracketMatch, BracketParticipant, Match, Tournament, Athlete
+from src.models import Bracket, BracketMatch, BracketParticipant, Match, Tournament, Athlete, Coach
 from src.schemas import (
     BracketMatchesFull,
     BracketResponse,
@@ -149,6 +149,45 @@ async def get_all_brackets(tournament_id: int, db: AsyncSession = Depends(get_db
     )
     brackets = result.scalars().all()
     return [serialize_bracket(b) for b in brackets]
+
+
+# CLI ONLY
+@router.get("/{tournament_id}/coaches/participants")
+async def get_participant_count_per_coach(tournament_id: int, db: AsyncSession = Depends(get_db)):
+    subquery = (
+        select(
+            distinct(Athlete.id).label("athlete_id"),
+            Athlete.coach_id.label("coach_id")
+        )
+        .join(BracketParticipant, BracketParticipant.athlete_id == Athlete.id)
+        .join(Bracket, Bracket.id == BracketParticipant.bracket_id)
+        .filter(Bracket.tournament_id == tournament_id)
+        .subquery()
+    )
+
+    result = await db.execute(
+        select(
+            Coach.id,
+            Coach.last_name,
+            Coach.first_name,
+            func.count(subquery.c.athlete_id).label("participant_count")
+        )
+        .join(subquery, subquery.c.coach_id == Coach.id)
+        .group_by(Coach.id, Coach.last_name, Coach.first_name)
+        .order_by(func.count(subquery.c.athlete_id).desc())
+    )
+
+    coaches_data = result.all()
+
+    return [
+        {
+            "coach_id": coach_id,
+            "coach_last_name": last_name,
+            "coach_first_name": first_name,
+            "participant_count": participant_count
+        }
+        for coach_id, last_name, first_name, participant_count in coaches_data
+    ]
 
 
 @router.get("/{tournament_id}/matches_full", response_model=List[BracketMatchesFull],

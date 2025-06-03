@@ -8,11 +8,11 @@ export async function getAthletes(
   orderBy: string = "last_name",
   order: string = "asc",
   search: string = "",
-  coach_search: string = ""
+  coach_search: string = "",
 ) {
   const res = await fetch(
     `${url}/athletes?page=${page}&limit=${limit}&order_by=${orderBy}&order=${order}&search=${search}&coach_search=${coach_search}`,
-    { cache: "no-store", credentials: "include" }
+    { cache: "no-store", credentials: "include" },
   );
 
   if (!res.ok) {
@@ -23,7 +23,6 @@ export async function getAthletes(
 }
 
 export async function createAthletes(data: AthleteCreate): Promise<Athlete> {
-  console.log(data);
   const res = await fetch(`${url}/athletes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
