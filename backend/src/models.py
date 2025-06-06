@@ -7,7 +7,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Time,
-    func,
+    func, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship, declared_attr
 from src.database import Base
@@ -81,6 +81,21 @@ class Tournament(Base, TimestampMixin):
     export_last_updated_at = Column(DateTime(timezone=True), nullable=True)
 
     brackets = relationship("Bracket", back_populates="tournament", cascade="all, delete-orphan")
+
+
+class Application(Base, TimestampMixin):
+    __tablename__ = "applications"
+    __table_args__ = (UniqueConstraint("athlete_id", "category_id", "tournament_id", name="uix_application_unique"),)
+
+    id = Column(Integer, primary_key=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False)
+    athlete_id = Column(Integer, ForeignKey("athletes.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String, default="pending")  # "pending", "approved", "rejected"
+    comment = Column(String, nullable=True)
+
+    athlete = relationship("Athlete")
+    category = relationship("Category")
 
 
 class Bracket(Base):

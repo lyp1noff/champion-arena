@@ -22,7 +22,7 @@ export async function getAthletes(
   return res.json();
 }
 
-export async function createAthletes(data: AthleteCreate): Promise<Athlete> {
+export async function createAthlete(data: AthleteCreate): Promise<Athlete> {
   const res = await fetch(`${url}/athletes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -33,6 +33,17 @@ export async function createAthletes(data: AthleteCreate): Promise<Athlete> {
   if (!res.ok) {
     throw new Error("Error creating athlete");
   }
+
+  return res.json();
+}
+
+export async function getAllAthletes(): Promise<Athlete[]> {
+  const res = await fetch(`${url}/athletes/all`, {
+    cache: "no-store",
+    credentials: "include",
+  });
+
+  if (!res.ok) throw new Error("Failed to load athletes");
 
   return res.json();
 }

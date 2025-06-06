@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -20,13 +22,13 @@ router = APIRouter(
 
 @router.get("", response_model=PaginatedAthletesResponse)
 async def get_athletes(
-    page: int = Query(1, alias="page", ge=1),
-    limit: int = Query(10, alias="limit", ge=1, le=100),
-    order_by: str = Query("id", alias="order_by"),
-    order: str = Query("asc", alias="order"),
-    search: str = Query(None, alias="search"),
-    coach_search: str = Query(None, alias="coach_search"),
-    db: AsyncSession = Depends(get_db),
+        page: int = Query(1, alias="page", ge=1),
+        limit: int = Query(10, alias="limit", ge=1, le=100),
+        order_by: str = Query("id", alias="order_by"),
+        order: str = Query("asc", alias="order"),
+        search: str = Query(None, alias="search"),
+        coach_search: str = Query(None, alias="coach_search"),
+        db: AsyncSession = Depends(get_db),
 ):
     valid_order_fields = {
         "id",
@@ -98,6 +100,27 @@ async def get_athletes(
     }
 
 
+@router.get("/all", response_model=List[AthleteResponse])
+async def get_all_athletes(
+        db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(
+            Athlete,
+            Coach.last_name.label("coach_last_name"),
+            func.date_part("year", func.age(Athlete.birth_date)).label("age"),
+        ).outerjoin(Coach, Athlete.coach_id == Coach.id)
+    )
+
+    athletes = [
+        AthleteResponse.model_validate(
+            {**vars(athlete), "coach_last_name": coach_last_name, "age": age}
+        )
+        for athlete, coach_last_name, age in result.all()
+    ]
+    return athletes
+
+
 @router.get("/{id}", response_model=AthleteResponse)
 async def get_athlete(id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -142,7 +165,7 @@ async def create_athlete(athlete: AthleteCreate, db: AsyncSession = Depends(get_
 
 @router.put("/{id}", response_model=AthleteResponse)
 async def update_athlete(
-    id: int, athlete_update: AthleteUpdate, db: AsyncSession = Depends(get_db)
+        id: int, athlete_update: AthleteUpdate, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(Athlete).filter(Athlete.id == id))
     athlete = result.scalars().first()

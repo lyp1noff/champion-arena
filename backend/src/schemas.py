@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from datetime import date, time
+from datetime import date, time, datetime
 from typing import List, Optional
 
 
@@ -109,6 +109,24 @@ class TournamentUpdate(TournamentBase):
     end_date: Optional[date] = None
     registration_start_date: Optional[date] = None
     registration_end_date: Optional[date] = None
+
+
+class ApplicationResponse(BaseModel):
+    id: int
+    tournament_id: int
+    athlete_id: int
+    category_id: int
+    status: str
+    athlete: AthleteResponse
+    category: CategoryResponse
+    created_at: datetime
+
+
+class ApplicationCreate(BaseModel):
+    tournament_id: int
+    athlete_id: int
+    category_id: int
+    comment: Optional[str] = None
 
 
 class BracketBase(CustomBaseModel):

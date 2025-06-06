@@ -45,13 +45,13 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
         >
           Edit
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => {
-            console.log(row);
-          }}
-        >
-          Make a copy
-        </DropdownMenuItem>
+        {/*<DropdownMenuItem*/}
+        {/*  onClick={() => {*/}
+        {/*    console.log(row);*/}
+        {/*  }}*/}
+        {/*>*/}
+        {/*  Make a copy*/}
+        {/*</DropdownMenuItem>*/}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleDelete}>Delete</DropdownMenuItem>
       </DropdownMenuContent>

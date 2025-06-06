@@ -27,6 +27,26 @@ export interface Tournament {
 export type TournamentCreate = Omit<Tournament, "id" | "status">;
 export type TournamentUpdate = Partial<TournamentCreate>;
 
+export interface Application {
+  athlete_id: number;
+  category_id: number;
+  tournament_id: number;
+}
+
+export interface ApplicationResponse extends Application {
+  id: number;
+  status: string;
+  athlete: Athlete;
+  category: Category;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  age: number;
+  gender: string; //"male" | "female" | "any";
+}
+
 export type Participant = {
   seed: number;
   last_name: string;
