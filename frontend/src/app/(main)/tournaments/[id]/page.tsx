@@ -170,7 +170,7 @@ export default function TournamentPage() {
                       <span className="text-base font-semibold">{bracket.category}</span>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         {/* i18n needed*/}
-                        <span>{bracket.start_time.slice(0, 5) || " — "}</span>
+                        <span>{(bracket.start_time && bracket.start_time.slice(0, 5)) || " — "}</span>
                         <span> | </span>
                         <span>Participants: {bracket.participants.length || " — "}</span>
                       </div>

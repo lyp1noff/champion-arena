@@ -60,7 +60,7 @@ export type Bracket = {
   tournament_id: number;
   category: string;
   type: BracketType;
-  start_time: string;
+  start_time: string | null;
   tatami: number;
   participants: Participant[];
 };

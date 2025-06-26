@@ -1,101 +1,56 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Bracket, BracketMatches, BracketType } from "@/lib/interfaces";
+import { BracketView } from "@/components/bracket_view";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bracket, BracketMatches, BracketType } from "@/lib/interfaces";
-import { getTournamentBracketsById } from "@/lib/api/tournaments";
-import { getBracketMatchesById, updateBracket } from "@/lib/api/brackets";
-import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatTimeToISO } from "@/lib/utils";
-import { BracketView } from "@/components/bracket_view";
 
-export default function ManageTournamentPage() {
-  const { id } = useParams<{ id: string }>();
+interface Props {
+  tournamentId: number;
+  brackets: Bracket[];
+  selectedBracket: Bracket | null;
+  bracketMatches?: BracketMatches;
+  loading: boolean;
+  onSelectBracket: (bracket: Bracket) => Promise<void>;
+  onSaveBracket: (updated: { id: number; type: BracketType; start_time: string; tatami: number }) => Promise<void>;
+}
 
-  const [brackets, setBrackets] = useState<Bracket[]>([]);
-  const [bracketMatches, setBracketMatches] = useState<BracketMatches>();
-  const [selectedBracket, setSelectedBracket] = useState<Bracket | null>(null);
+export default function ManageTournamentPage({
+  tournamentId,
+  brackets,
+  selectedBracket,
+  bracketMatches,
+  loading,
+  onSelectBracket,
+  onSaveBracket,
+}: Props) {
   const [open, setOpen] = useState(false);
-
   const [type, setType] = useState<BracketType>("single_elimination");
   const [startTime, setStartTime] = useState<string>("");
   const [tatami, setTatami] = useState<number | "">("");
 
-  const [loading, setLoading] = useState(false);
-
-  async function fetchBracketMatches(bracket_id: number) {
-    try {
-      const data = await getBracketMatchesById(bracket_id);
-      setBracketMatches(data);
-    } catch (error) {
-      console.error("Failed to fetch brackets:", error);
-    }
-  }
-
   useEffect(() => {
-    async function fetchBrackets() {
-      try {
-        const data = await getTournamentBracketsById(Number(id));
-        setBrackets(data);
-      } catch (error) {
-        console.error("Failed to fetch brackets:", error);
-      }
+    if (selectedBracket) {
+      setType(selectedBracket.type || "single_elimination");
+      setStartTime(selectedBracket.start_time || "");
+      setTatami(selectedBracket.tatami ?? "");
     }
+  }, [selectedBracket]);
 
-    fetchBrackets();
-  }, [id]);
-
-  const handleBracketSelect = async (bracket: Bracket) => {
-    setLoading(true);
-    setSelectedBracket(bracket);
-    setType(bracket.type || "");
-    setStartTime(bracket.start_time || "");
-    setTatami(bracket.tatami ?? "");
-    setOpen(false);
-    await fetchBracketMatches(bracket.id);
-    setLoading(false);
-  };
-
-  const handleSave = async () => {
-    if (!selectedBracket) return;
-
-    setLoading(true);
-    try {
-      const formattedStartTime = formatTimeToISO(startTime);
-      if (!formattedStartTime || !tatami) {
-        toast.error("Invalid start time format.");
-        return;
-      }
-
-      await updateBracket(selectedBracket.id, {
-        type,
-        start_time: formattedStartTime,
-        tatami: tatami,
-      });
-
-      const updatedBracket = {
-        ...selectedBracket,
-        type,
-        start_time: formattedStartTime,
-        tatami: tatami,
-      };
-      setSelectedBracket(updatedBracket);
-      await fetchBracketMatches(selectedBracket.id);
-
-      toast.success("Bracket saved successfully.");
-    } catch (error) {
-      console.error("Save error:", error);
-      toast.error("Failed to save bracket.");
-    } finally {
-      setLoading(false);
-    }
+  const handleSave = () => {
+    if (!selectedBracket || !startTime || tatami === "") return;
+    onSaveBracket({
+      id: selectedBracket.id,
+      type,
+      start_time: startTime,
+      tatami: Number(tatami),
+    });
   };
 
   return (
@@ -119,7 +74,7 @@ export default function ManageTournamentPage() {
       {/* Form */}
       <Card className="w-full md:w-[380px] shrink-0">
         <CardContent className="p-6 space-y-6">
-          <h1 className="text-2xl font-bold">Manage Tournament #{id}</h1>
+          <h1 className="text-2xl font-bold">Manage Tournament #{tournamentId}</h1>
 
           {/* Bracket selection */}
           <div className="space-y-2">
@@ -144,7 +99,10 @@ export default function ManageTournamentPage() {
                       <CommandItem
                         key={bracket.id}
                         value={bracket.category}
-                        onSelect={() => handleBracketSelect(bracket)}
+                        onSelect={() => {
+                          onSelectBracket(bracket);
+                          setOpen(false);
+                        }}
                       >
                         {bracket.category}
                       </CommandItem>
@@ -171,7 +129,12 @@ export default function ManageTournamentPage() {
 
           <div className="space-y-2">
             <Label>Start Time</Label>
-            <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            <Input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              placeholder="Enter time (hh:mm)"
+            />
           </div>
 
           <div className="space-y-2">

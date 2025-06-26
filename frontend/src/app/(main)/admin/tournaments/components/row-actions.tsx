@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Row } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 
@@ -13,6 +14,8 @@ import { deleteTournament, downloadTournamentDocx } from "@/lib/api/tournaments"
 import { toast } from "sonner";
 import { Tournament } from "@/lib/interfaces";
 import { useRouter } from "next/navigation";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { TournamentForm } from "@/components/tournament-form";
 
 interface DataTableRowActionsProps {
   row: Row<Tournament>;
@@ -20,6 +23,7 @@ interface DataTableRowActionsProps {
 }
 
 export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsProps) {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -36,12 +40,10 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
     router.push(`/tournaments/${row.original.id}`);
   };
 
-  const handleEdit = () => {
-    router.push(`/admin/tournaments/edit/${row.original.id}`);
-  };
+  const handleEdit = () => setIsEditDialogOpen(true);
 
   const handleManage = () => {
-    router.push(`/admin/tournaments/manage/${row.original.id}`);
+    router.push(`/admin/tournaments/${row.original.id}/manage`);
   };
 
   const exportFile = async () => {
@@ -59,21 +61,36 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex h-8 w-8 p-0 data-[state=open]:bg-muted">
-          <MoreHorizontal />
-          <span className="sr-only">Open menu</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[160px]">
-        <DropdownMenuItem onClick={handleOpen}>Open</DropdownMenuItem>
-        <DropdownMenuItem onClick={handleEdit}>Edit</DropdownMenuItem>
-        <DropdownMenuItem onClick={handleManage}>Manage</DropdownMenuItem>
-        <DropdownMenuItem onClick={exportFile}>Export to File</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleDelete}>Delete</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="flex h-8 w-8 p-0 data-[state=open]:bg-muted">
+            <MoreHorizontal />
+            <span className="sr-only">Open menu</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-[160px]">
+          <DropdownMenuItem onClick={handleOpen}>Open</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleEdit}>Edit</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleManage}>Manage</DropdownMenuItem>
+          <DropdownMenuItem onClick={exportFile}>Export to File</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleDelete}>Delete</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogTitle>Edit Tournament</DialogTitle>
+          <TournamentForm
+            tournamentId={row.original.id}
+            onSuccess={() => {
+              setIsEditDialogOpen(false);
+              onDataChanged?.();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
