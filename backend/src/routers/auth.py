@@ -11,8 +11,8 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/token", response_model=TokenResponse)
 async def get_bearer_token(
-    data: LoginRequest,
-    db: AsyncSession = Depends(get_db),
+        data: LoginRequest,
+        db: AsyncSession = Depends(get_db),
 ):
     user = await authenticate_user(db, data.username, data.password)
     if not user:
@@ -24,9 +24,8 @@ async def get_bearer_token(
 
 @router.post("/login")
 async def login(
-    data: LoginRequest,
-    response: Response,
-    db: AsyncSession = Depends(get_db),
+        data: LoginRequest,
+        db: AsyncSession = Depends(get_db),
 ):
     user = await authenticate_user(db, data.username, data.password)
     if not user:

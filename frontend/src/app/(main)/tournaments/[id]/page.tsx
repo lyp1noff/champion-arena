@@ -104,9 +104,11 @@ export default function TournamentPage() {
       const matchesParticipant = bracket.participants.some((participant) => {
         const firstName = participant.first_name?.toLowerCase() ?? "";
         const lastName = participant.last_name?.toLowerCase() ?? "";
-        const coachLastName = participant.coach_last_name?.toLowerCase() ?? "";
+        const coachLastNames = participant.coaches_last_name?.join(" ").toLowerCase() ?? "";
 
-        return firstName.includes(searchLower) || lastName.includes(searchLower) || coachLastName.includes(searchLower);
+        return (
+          firstName.includes(searchLower) || lastName.includes(searchLower) || coachLastNames.includes(searchLower)
+        );
       });
 
       return matchesBracketCategory || matchesParticipant;

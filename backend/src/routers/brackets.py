@@ -6,10 +6,29 @@ from sqlalchemy.orm import selectinload
 
 from src.database import get_db
 from src.dependencies.auth import get_current_user
-from src.models import Bracket, BracketMatch, BracketParticipant, Match, Athlete
-from src.schemas import BracketMatchResponse, BracketResponse, BracketUpdateSchema
-from src.services.brackets import regenerate_bracket_matches, regenerate_round_bracket_matches
-from src.services.serialize import serialize_bracket, serialize_bracket_match
+from src.models import (
+    Bracket,
+    BracketMatch,
+    BracketParticipant,
+    Match,
+    Athlete,
+    AthleteCoachLink,
+)
+from src.schemas import (
+    BracketResponse,
+    BracketMatchResponse,
+    BracketMatchesFull,
+    BracketUpdateSchema,
+)
+from src.services.serialize import (
+    serialize_bracket,
+    serialize_bracket_match,
+    serialize_bracket_matches_full,
+)
+from src.services.brackets import (
+    regenerate_bracket_matches,
+    regenerate_round_bracket_matches,
+)
 
 router = APIRouter(prefix="/brackets", tags=["Brackets"])
 
@@ -21,7 +40,8 @@ async def get_all_brackets(db: AsyncSession = Depends(get_db)):
             selectinload(Bracket.category),
             selectinload(Bracket.participants)
             .selectinload(BracketParticipant.athlete)
-            .selectinload(Athlete.coach)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
         )
     )
     brackets = result.scalars().all()
@@ -29,18 +49,20 @@ async def get_all_brackets(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{bracket_id}", response_model=BracketResponse)
-async def get_bracket_by_id(bracket_id: int, db: AsyncSession = Depends(get_db)):
+async def get_bracket(bracket_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Bracket)
-        .filter(Bracket.id == bracket_id)
+        .filter_by(id=bracket_id)
         .options(
             selectinload(Bracket.category),
             selectinload(Bracket.participants)
             .selectinload(BracketParticipant.athlete)
-            .selectinload(Athlete.coach)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
         )
     )
-    bracket = result.scalars().first()
+    bracket = result.scalar_one_or_none()
+
     if not bracket:
         raise HTTPException(status_code=404, detail="Bracket not found")
 
@@ -49,9 +71,9 @@ async def get_bracket_by_id(bracket_id: int, db: AsyncSession = Depends(get_db))
 
 @router.put("/{bracket_id}", dependencies=[Depends(get_current_user)])
 async def update_bracket(
-        bracket_id: int,
-        update_data: BracketUpdateSchema,
-        db: AsyncSession = Depends(get_db),
+    bracket_id: int,
+    update_data: BracketUpdateSchema,
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Bracket).where(Bracket.id == bracket_id))
     bracket = result.scalars().first()
@@ -77,35 +99,41 @@ async def update_bracket(
 async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(BracketMatch)
-        .where(BracketMatch.bracket_id == bracket_id)
+        .filter_by(bracket_id=bracket_id)
         .options(
             selectinload(BracketMatch.match)
             .selectinload(Match.athlete1)
-            .selectinload(Athlete.coach),
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
             selectinload(BracketMatch.match)
             .selectinload(Match.athlete2)
-            .selectinload(Athlete.coach),
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
             selectinload(BracketMatch.match)
             .selectinload(Match.winner)
-            .selectinload(Athlete.coach),
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
         )
         .order_by(BracketMatch.round_number, BracketMatch.position)
     )
     matches = result.scalars().all()
-
-    return [serialize_bracket_match(m) for m in matches]
+    return [serialize_bracket_match(match) for match in matches]
 
 
 @router.post("/{bracket_id}/regenerate", dependencies=[Depends(get_current_user)])
 async def regenerate_matches_endpoint(
-        bracket_id: int,
-        session: AsyncSession = Depends(get_db),
+    bracket_id: int,
+    session: AsyncSession = Depends(get_db),
 ):
     try:
         result = await session.execute(
             select(Bracket.type, Bracket.tournament_id).where(Bracket.id == bracket_id)
         )
-        bracket_type, tournament_id = result.first()
+        bracket_data = result.first()
+        if not bracket_data:
+            raise HTTPException(status_code=404, detail="Bracket not found")
+
+        bracket_type, tournament_id = bracket_data
         if bracket_type == "round_robin":
             await regenerate_round_bracket_matches(session, bracket_id, tournament_id)
         elif bracket_type == "single_elimination":

@@ -11,6 +11,7 @@ from src.models import (
     BracketParticipant,
     Coach,
     Athlete,
+    AthleteCoachLink,
     Category,
     Tournament,
     # TournamentParticipant,
@@ -91,9 +92,13 @@ async def import_data():
                     last_name=last_name,
                     gender="male-or-female",
                     birth_date=birth_date,
-                    coach_id=coach.id,
                 )
                 session.add(athlete)
+                await session.commit()
+
+                # Create coach link
+                coach_link = AthleteCoachLink(athlete_id=athlete.id, coach_id=coach.id)
+                session.add(coach_link)
                 await session.commit()
 
             # result = await session.execute(

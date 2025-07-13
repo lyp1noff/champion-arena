@@ -52,7 +52,7 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
     fetchSubmitted();
   });
 
-  const filteredAthletes = selectedCoach ? athletesState.filter((a) => a.coach_id === selectedCoach.id) : [];
+  const filteredAthletes = selectedCoach ? athletesState.filter((a) => a.coaches_id?.includes(selectedCoach.id)) : [];
 
   const filteredCategories = categories;
   // const filteredCategories = selectedAthlete

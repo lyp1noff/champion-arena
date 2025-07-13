@@ -1,12 +1,13 @@
+from datetime import datetime, UTC
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import asc, desc, func, or_, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import asc, desc, func, or_, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.dependencies.auth import get_current_user
-from src.models import Athlete, Coach
+from src.models import Athlete, Coach, AthleteCoachLink
 from src.schemas import (
     AthleteResponse,
     AthleteCreate,
@@ -30,156 +31,279 @@ async def get_athletes(
         coach_search: str = Query(None, alias="coach_search"),
         db: AsyncSession = Depends(get_db),
 ):
+    offset = (page - 1) * limit
+
+    stmt = select(Athlete).options(
+        selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach)
+    )
+
+    if search:
+        stmt = stmt.where(
+            or_(
+                Athlete.first_name.ilike(f"%{search}%"),
+                Athlete.last_name.ilike(f"%{search}%"),
+            )
+        )
+
+    if coach_search:
+        stmt = stmt.join(AthleteCoachLink, Athlete.id == AthleteCoachLink.athlete_id)
+        stmt = stmt.join(Coach, AthleteCoachLink.coach_id == Coach.id)
+        stmt = stmt.where(Coach.last_name.ilike(f"%{coach_search}%"))
+
     valid_order_fields = {
         "id",
         "last_name",
         "first_name",
         "gender",
         "birth_date",
-        "coach_last_name",
-        "age",
+        "coaches_last_name",
     }
 
     if order_by not in valid_order_fields:
         order_by = "id"
 
-    if order_by == "age":
-        order_column = func.date_part("year", func.age(Athlete.birth_date))
-    elif order_by == "coach_last_name":
-        order_column = Coach.last_name
+    # Handle special case for coaches_last_name sorting
+    if order_by == "coaches_last_name":
+        # Only add joins if they don't already exist (from coach_search)
+        if not coach_search:
+            stmt = stmt.outerjoin(
+                AthleteCoachLink, Athlete.id == AthleteCoachLink.athlete_id
+            )
+            stmt = stmt.outerjoin(Coach, AthleteCoachLink.coach_id == Coach.id)
+        # Group by athlete to avoid duplicates and sort by the first coach's last name
+        stmt = stmt.group_by(Athlete.id)
+        order_column = func.min(
+            Coach.last_name
+        )
+        stmt = stmt.order_by(
+            desc(order_column) if order.lower() == "desc" else asc(order_column)
+        )
     else:
         order_column = getattr(Athlete, order_by)
+        stmt = stmt.order_by(
+            desc(order_column) if order.lower() == "desc" else asc(order_column)
+        )
 
-    order_column = desc(order_column) if order.lower() == "desc" else asc(order_column)
+    stmt = stmt.offset(offset).limit(limit)
 
-    offset = (page - 1) * limit
+    result = await db.execute(stmt)
+    athletes = result.scalars().all()
 
-    filters = []
-    if search:
-        filters.append(
-            or_(
-                Athlete.first_name.ilike(f"%{search}%"),
-                Athlete.last_name.ilike(f"%{search}%"),
+    athlete_responses = []
+    for athlete in athletes:
+        coaches_last_name = [
+            link.coach.last_name
+            for link in athlete.coach_links
+            if link.coach is not None
+        ]
+
+        age = (
+            None
+            if athlete.birth_date is None
+            else int((datetime.now(UTC).date() - athlete.birth_date).days // 365)
+        )
+
+        athlete_responses.append(
+            AthleteResponse(
+                id=athlete.id,
+                first_name=athlete.first_name,
+                last_name=athlete.last_name,
+                gender=athlete.gender,
+                birth_date=athlete.birth_date,
+                coaches_last_name=coaches_last_name,
+                age=age,
             )
         )
-    if coach_search:
-        filters.append(Coach.last_name.ilike(f"%{coach_search}%"))
 
-    total_query = await db.execute(
-        select(func.count(Athlete.id))
-        .outerjoin(Coach, Athlete.coach_id == Coach.id)
-        .where(*filters)
+    total_stmt = select(func.count(Athlete.id))
+    if search or coach_search:
+        total_stmt = total_stmt.select_from(Athlete)
+        if coach_search:
+            total_stmt = total_stmt.join(
+                AthleteCoachLink, Athlete.id == AthleteCoachLink.athlete_id
+            )
+            total_stmt = total_stmt.join(Coach, AthleteCoachLink.coach_id == Coach.id)
+        if search:
+            total_stmt = total_stmt.where(
+                or_(
+                    Athlete.first_name.ilike(f"%{search}%"),
+                    Athlete.last_name.ilike(f"%{search}%"),
+                )
+            )
+        if coach_search:
+            total_stmt = total_stmt.where(Coach.last_name.ilike(f"%{coach_search}%"))
+
+    total_result = await db.execute(total_stmt)
+    total = total_result.scalar_one() or 0
+
+    return PaginatedAthletesResponse(
+        data=athlete_responses,
+        total=total,
+        page=page,
+        limit=limit,
     )
-    total = total_query.scalar_one_or_none() or 0
-
-    result = await db.execute(
-        select(
-            Athlete,
-            Coach.last_name.label("coach_last_name"),
-            func.date_part("year", func.age(Athlete.birth_date)).label("age"),
-        )
-        .outerjoin(Coach, Athlete.coach_id == Coach.id)
-        .where(*filters)
-        .order_by(order_column)
-        .offset(offset)
-        .limit(limit)
-    )
-
-    athletes = [
-        AthleteResponse.model_validate(
-            {**vars(athlete), "coach_last_name": coach_last_name, "age": age}
-        )
-        for athlete, coach_last_name, age in result.all()
-    ]
-
-    return {
-        "data": athletes,
-        "total": total,
-        "page": page,
-        "limit": limit,
-    }
 
 
 @router.get("/all", response_model=List[AthleteResponse])
 async def get_all_athletes(
         db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(
-            Athlete,
-            Coach.last_name.label("coach_last_name"),
-            func.date_part("year", func.age(Athlete.birth_date)).label("age"),
-        ).outerjoin(Coach, Athlete.coach_id == Coach.id)
+    stmt = select(Athlete).options(
+        selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach)
     )
+    result = await db.execute(stmt)
+    athletes_db = result.scalars().all()
 
-    athletes = [
-        AthleteResponse.model_validate(
-            {**vars(athlete), "coach_last_name": coach_last_name, "age": age}
+    athletes = []
+    for athlete in athletes_db:
+        coaches_last_name = [
+            link.coach.last_name
+            for link in athlete.coach_links
+            if link.coach is not None
+        ]
+
+        age = (
+            None
+            if athlete.birth_date is None
+            else int((datetime.now(UTC).date() - athlete.birth_date).days // 365)
         )
-        for athlete, coach_last_name, age in result.all()
-    ]
+
+        athletes.append(
+            AthleteResponse(
+                id=athlete.id,
+                first_name=athlete.first_name,
+                last_name=athlete.last_name,
+                gender=athlete.gender,
+                birth_date=athlete.birth_date,
+                coaches_last_name=coaches_last_name,
+                age=age,
+            )
+        )
+
     return athletes
 
 
 @router.get("/{id}", response_model=AthleteResponse)
 async def get_athlete(id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(
-            Athlete,
-            Coach.last_name.label("coach_last_name"),
-            func.date_part("year", func.age(Athlete.birth_date)).label("age"),
-        )
-        .outerjoin(Coach, Athlete.coach_id == Coach.id)
-        .filter(Athlete.id == id)
+    stmt = (
+        select(Athlete)
+        .where(Athlete.id == id)
+        .options(selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach))
     )
-    athlete = result.first()
+    result = await db.execute(stmt)
+    athlete = result.scalar_one_or_none()
 
     if not athlete:
         raise HTTPException(status_code=404, detail="Athlete not found")
 
-    athlete_data = AthleteResponse.model_validate(
-        {**vars(athlete[0]), "coach_last_name": athlete[1], "age": athlete[2]}
+    coaches_last_name = [
+        link.coach.last_name for link in athlete.coach_links if link.coach is not None
+    ]
+
+    age = (
+        None
+        if athlete.birth_date is None
+        else int((datetime.now(UTC).date() - athlete.birth_date).days // 365)
     )
 
-    return athlete_data
+    return AthleteResponse(
+        id=athlete.id,
+        first_name=athlete.first_name,
+        last_name=athlete.last_name,
+        gender=athlete.gender,
+        birth_date=athlete.birth_date,
+        coaches_last_name=coaches_last_name,
+        age=age,
+    )
 
 
 @router.post("", response_model=AthleteResponse)
 async def create_athlete(athlete: AthleteCreate, db: AsyncSession = Depends(get_db)):
-    try:
-        new_athlete = Athlete(**athlete.model_dump())
-        db.add(new_athlete)
-        await db.commit()
-        await db.refresh(new_athlete)
-        return new_athlete
+    new_athlete = Athlete(
+        first_name=athlete.first_name,
+        last_name=athlete.last_name,
+        gender=athlete.gender,
+        birth_date=athlete.birth_date,
+    )
+    db.add(new_athlete)
+    await db.flush()
 
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(
-            status_code=400, detail="Invalid coach_id: coach does not exist"
-        )
+    if athlete.coaches_id:
+        links = [
+            AthleteCoachLink(athlete_id=new_athlete.id, coach_id=coach_id)
+            for coach_id in athlete.coaches_id
+        ]
+        db.add_all(links)
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    await db.commit()
+    await db.refresh(new_athlete)
+
+    result = await db.execute(
+        select(Athlete)
+        .where(Athlete.id == new_athlete.id)
+        .options(selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach))
+    )
+    athlete = result.scalar_one()
+
+    coaches_last_name = [
+        link.coach.last_name for link in athlete.coach_links if link.coach is not None
+    ]
+
+    return AthleteResponse(
+        id=athlete.id,
+        first_name=athlete.first_name,
+        last_name=athlete.last_name,
+        gender=athlete.gender,
+        birth_date=athlete.birth_date,
+        coaches_last_name=coaches_last_name,
+    )
 
 
 @router.put("/{id}", response_model=AthleteResponse)
 async def update_athlete(
         id: int, athlete_update: AthleteUpdate, db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(select(Athlete).filter(Athlete.id == id))
-    athlete = result.scalars().first()
+    result = await db.execute(select(Athlete).where(Athlete.id == id))
+    athlete = result.scalar_one_or_none()
 
     if not athlete:
         raise HTTPException(status_code=404, detail="Athlete not found")
 
     for key, value in athlete_update.model_dump(exclude_unset=True).items():
-        setattr(athlete, key, value)
+        if key != "coaches_id":
+            setattr(athlete, key, value)
+
+    if athlete_update.coaches_id is not None:
+        await db.execute(
+            delete(AthleteCoachLink).where(AthleteCoachLink.athlete_id == id)
+        )
+        links = [
+            AthleteCoachLink(athlete_id=id, coach_id=coach_id)
+            for coach_id in athlete_update.coaches_id
+        ]
+        db.add_all(links)
 
     await db.commit()
-    await db.refresh(athlete)
 
-    return athlete
+    result = await db.execute(
+        select(Athlete)
+        .where(Athlete.id == id)
+        .options(selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach))
+    )
+    athlete = result.scalar_one()
+
+    coaches_last_name = [
+        link.coach.last_name for link in athlete.coach_links if link.coach is not None
+    ]
+
+    return AthleteResponse(
+        id=athlete.id,
+        first_name=athlete.first_name,
+        last_name=athlete.last_name,
+        gender=athlete.gender,
+        birth_date=athlete.birth_date,
+        coaches_last_name=coaches_last_name,
+    )
 
 
 @router.delete("/{id}", status_code=204)

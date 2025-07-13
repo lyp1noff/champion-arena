@@ -33,7 +33,7 @@ export default function RoundRobinContent({ bracketMatches, containerHeight }: R
                       <th className="border px-2 py-1 bg-muted"></th>
                       {athletes.map((a) => (
                         <th key={a.id} className="border px-2 py-1 bg-muted text-center font-normal text-xs">
-                          {a.last_name} {a.first_name} ({a.coach_last_name})
+                          {a.last_name} {a.first_name} ({a.coaches_last_name?.join(", ") || "No coach"})
                         </th>
                       ))}
                     </tr>
@@ -42,7 +42,8 @@ export default function RoundRobinContent({ bracketMatches, containerHeight }: R
                     {athletes.map((rowAthlete) => (
                       <tr key={rowAthlete.id} style={{ height: TR_HEIGHT }}>
                         <td className="border px-2 py-1 bg-muted font-normal text-xs">
-                          {rowAthlete.last_name} {rowAthlete.first_name} ({rowAthlete.coach_last_name})
+                          {rowAthlete.last_name} {rowAthlete.first_name} (
+                          {rowAthlete.coaches_last_name?.join(", ") || "No coach"})
                         </td>
                         {athletes.map((colAthlete) => {
                           const isSame = rowAthlete.id === colAthlete.id;

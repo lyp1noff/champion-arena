@@ -10,6 +10,7 @@ from src.models import (
     Coach,
     Category,
     Athlete,
+    AthleteCoachLink,
     # TournamentParticipant,
     Bracket,
     BracketParticipant,
@@ -99,9 +100,13 @@ async def import_competitors_from_cbr(
                 last_name=last_name,
                 gender="male-or-female",
                 # birth_date=birth_date,
-                coach_id=coach.id,
             )
             db.add(athlete)
+            await db.commit()
+
+            # Create coach link
+            coach_link = AthleteCoachLink(athlete_id=athlete.id, coach_id=coach.id)
+            db.add(coach_link)
             await db.commit()
 
         # TournamentParticipant

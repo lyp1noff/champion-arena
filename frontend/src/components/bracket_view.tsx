@@ -28,6 +28,29 @@ interface WithBracket {
 
 type BracketViewProps = BracketViewBaseProps & (WithBracketType | WithBracket);
 
+function calculateOptimalHeight(
+  bracket: Bracket | undefined,
+  bracketType: BracketType | undefined,
+  matchCardHeight: number,
+  maxHeight: number,
+): number | undefined {
+  if (!bracket) return undefined;
+
+  const isRoundRobin = bracketType === "round_robin" || bracket.type === "round_robin";
+
+  if (isRoundRobin) {
+    // TODO: Implement round robin height calculation when needed
+    // For now, let the component size itself naturally
+    return undefined;
+  }
+
+  const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
+  const estimatedHeight =
+    getInitialMatchCount(bracket.participants.length) * (cardHeight + columnGap) + roundTitleHeight;
+
+  return Math.min(estimatedHeight, maxHeight);
+}
+
 export function BracketView({
   loading,
   matches,
@@ -39,35 +62,9 @@ export function BracketView({
 }: BracketViewProps) {
   const isRoundRobin = bracketType === "round_robin" || bracket?.type === "round_robin";
 
-  const resolvedContainerHeight = (() => {
-    if (containerHeight) return containerHeight;
-
-    if (bracket) {
-      if (isRoundRobin) {
-        // const participantsCount = bracket.participants.length;
-        // const groupsCount = Math.ceil(participantsCount / 4);
-        //
-        // const participantHeight = 50;
-        // const groupTitleHeight = 37 + participantHeight;
-        // const additionalGroupHeight = groupsCount > 1 ? 40 * groupsCount : 0;
-        //
-        // const estimatedHeight =
-        //   participantHeight * participantsCount + groupTitleHeight * groupsCount + additionalGroupHeight;
-        //
-        // return estimatedHeight > maxHeight ? maxHeight : estimatedHeight;
-
-        return undefined;
-      }
-
-      const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
-      const estimatedHeight =
-        getInitialMatchCount(bracket.participants.length) * (cardHeight + columnGap) + roundTitleHeight;
-
-      return estimatedHeight > maxHeight ? maxHeight : estimatedHeight;
-    }
-
-    return undefined;
-  })();
+  // Use provided containerHeight or calculate optimal height
+  const resolvedContainerHeight =
+    containerHeight ?? calculateOptimalHeight(bracket, bracketType, matchCardHeight, maxHeight);
 
   if (loading) {
     return (

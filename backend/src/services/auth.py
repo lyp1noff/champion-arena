@@ -1,4 +1,3 @@
-import secrets
 from jose import jwt
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,12 +26,8 @@ def create_token(username: str, role: str) -> str:
     )
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
-
-
 async def authenticate_user(
-    db: AsyncSession, username: str, password: str
+        db: AsyncSession, username: str, password: str
 ) -> User | None:
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()

@@ -14,10 +14,12 @@ SVG_ROUND_TEMPLATE_PATH = "assets/round_template.svg"
 HIDE_FINISHED_MATCHES = True
 
 
-def build_entry(matches, bracket, offset, position_offset, start_time_tatami, tournament_title):
+def build_entry(
+    matches, bracket, offset, position_offset, start_time_tatami, tournament_title
+):
     entry = {
         "tournament_name": tournament_title,
-        "category": bracket.category,
+        "category": bracket.category.name,
         "start_time_tatami": start_time_tatami,
     }
 
@@ -42,13 +44,27 @@ def build_entry(matches, bracket, offset, position_offset, start_time_tatami, to
         a2 = match.match.athlete2
 
         if a1:
+            # Get coach names from the many-to-many relationship
+            coach_names = [
+                link.coach.last_name
+                for link in a1.coach_links
+                if link.coach is not None
+            ]
+            coach_str = ", ".join(coach_names) if coach_names else ""
             entry[f"round{rnd}_position{norm_pos}_athlete1"] = (
-                f"{a1.last_name} {a1.first_name} ({a1.coach_last_name})"
+                f"{a1.last_name} {a1.first_name} ({coach_str})"
             )
 
         if a2:
+            # Get coach names from the many-to-many relationship
+            coach_names = [
+                link.coach.last_name
+                for link in a2.coach_links
+                if link.coach is not None
+            ]
+            coach_str = ", ".join(coach_names) if coach_names else ""
             entry[f"round{rnd}_position{norm_pos}_athlete2"] = (
-                f"{a2.last_name} {a2.first_name} ({a2.coach_last_name})"
+                f"{a2.last_name} {a2.first_name} ({coach_str})"
             )
 
     return entry
@@ -60,9 +76,23 @@ def build_round_robin_entry(matches, category, start_time_tatami, tournament_tit
         a1 = match.match.athlete1
         a2 = match.match.athlete2
         if a1:
-            athletes_map[a1.id] = f"{a1.last_name} {a1.first_name} ({a1.coach_last_name})"
+            # Get coach names from the many-to-many relationship
+            coach_names = [
+                link.coach.last_name
+                for link in a1.coach_links
+                if link.coach is not None
+            ]
+            coach_str = ", ".join(coach_names) if coach_names else ""
+            athletes_map[a1.id] = f"{a1.last_name} {a1.first_name} ({coach_str})"
         if a2:
-            athletes_map[a2.id] = f"{a2.last_name} {a2.first_name} ({a2.coach_last_name})"
+            # Get coach names from the many-to-many relationship
+            coach_names = [
+                link.coach.last_name
+                for link in a2.coach_links
+                if link.coach is not None
+            ]
+            coach_str = ", ".join(coach_names) if coach_names else ""
+            athletes_map[a2.id] = f"{a2.last_name} {a2.first_name} ({coach_str})"
 
     athletes = list(athletes_map.values())
 
@@ -95,7 +125,7 @@ def build_entries(data, tournament_title):
             for round_number, group_matches in grouped.items():
                 entry = build_round_robin_entry(
                     matches=group_matches,
-                    category=bracket.category,
+                    category=bracket.category.name,
                     start_time_tatami=start_time_tatami,
                     tournament_title=tournament_title,
                 )
@@ -156,7 +186,7 @@ def generate_pdf(data, tournament_title=None):
             temp_paths.append(tmp.name)
             merger.append(tmp.name)
 
-    sanitized_title = sanitize_filename(tournament_title)
+    sanitized_title = sanitize_filename(tournament_title or "tournament")
 
     pdf_storage_path = os.path.join(os.getcwd(), "pdf_storage")
     final_path = os.path.join(pdf_storage_path, f"{sanitized_title}.pdf")

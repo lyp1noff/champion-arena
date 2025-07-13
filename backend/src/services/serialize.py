@@ -4,18 +4,26 @@ from src.schemas import (
     BracketMatchAthlete,
     MatchSchema,
     BracketResponse,
-    BracketParticipantSchema, BracketMatchResponse, BracketMatchesFull,
+    BracketParticipantSchema,
+    BracketMatchResponse,
+    BracketMatchesFull,
 )
 
 
 def serialize_athlete(athlete: Optional[Athlete]) -> Optional[BracketMatchAthlete]:
     if not athlete:
         return None
+
+    # Get coach names from the many-to-many relationship
+    coaches_last_name = [
+        link.coach.last_name for link in athlete.coach_links if link.coach is not None
+    ]
+
     return BracketMatchAthlete(
         id=athlete.id,
         first_name=athlete.first_name,
         last_name=athlete.last_name,
-        coach_last_name=athlete.coach.last_name if athlete.coach else None,
+        coaches_last_name=coaches_last_name,
     )
 
 
@@ -79,7 +87,11 @@ def serialize_bracket(bracket: Bracket) -> BracketResponse:
                 seed=p.seed,
                 first_name=p.athlete.first_name,
                 last_name=p.athlete.last_name,
-                coach_last_name=p.athlete.coach.last_name if p.athlete.coach else None,
+                coaches_last_name=[
+                    link.coach.last_name
+                    for link in p.athlete.coach_links
+                    if link.coach is not None
+                ],
             )
             for p in sorted(bracket.participants, key=lambda x: x.seed)
             if p.athlete

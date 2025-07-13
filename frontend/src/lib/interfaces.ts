@@ -5,11 +5,11 @@ export interface Athlete {
   gender: string;
   birth_date: string;
   age: string;
-  coach_id: number;
-  coach_last_name: number;
+  coaches_id: number[];
+  coaches_last_name: string[];
 }
 
-export type AthleteCreate = Omit<Athlete, "id" | "coach_last_name" | "age">;
+export type AthleteCreate = Omit<Athlete, "id" | "coaches_last_name" | "age">;
 export type AthleteUpdate = Partial<AthleteCreate>;
 
 export interface Tournament {
@@ -51,7 +51,7 @@ export type Participant = {
   seed: number;
   last_name: string;
   first_name: string;
-  coach_last_name: string;
+  coaches_last_name: string[];
 };
 
 export type BracketType = "round_robin" | "single_elimination";
@@ -76,7 +76,7 @@ export type BracketMatchAthlete = {
   id: number;
   first_name: string;
   last_name: string;
-  coach_last_name: string;
+  coaches_last_name: string[];
 };
 
 export type RoundType = "final" | "semifinal" | "quarterfinal" | "";

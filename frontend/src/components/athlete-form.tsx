@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { ChevronsUpDown, Loader2 } from "lucide-react";
+import { ChevronsUpDown, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ const formSchema = z.object({
   first_name: z.string().min(2, { message: "First name must be at least 2 characters." }),
   gender: z.string().nonempty({ message: "Please select a gender." }),
   birth_date: z.string().nonempty({ message: "Birth date is required." }),
-  coach_id: z.number({ required_error: "Please select a coach." }),
+  coaches_id: z.array(z.number()).default([]),
 });
 
 interface AthleteFormProps {
@@ -47,7 +47,7 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
       first_name: "",
       gender: "",
       birth_date: "",
-      coach_id: undefined,
+      coaches_id: [],
     },
   });
 
@@ -165,22 +165,24 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
 
         <FormField
           control={form.control}
-          name="coach_id"
+          name="coaches_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Coach</FormLabel>
+              <FormLabel>Coaches</FormLabel>
               <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button variant="outline" role="combobox" className="w-full justify-between">
-                      {coaches.find((coach) => coach.id === field.value)?.last_name || "Select coach"}
+                      {field.value.length > 0
+                        ? `${field.value.length} coach${field.value.length > 1 ? "es" : ""} selected`
+                        : "Select coaches"}
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput placeholder="Search coach..." />
+                    <CommandInput placeholder="Search coaches..." />
                     <CommandList>
                       <CommandEmpty>No coach found.</CommandEmpty>
                       <CommandGroup>
@@ -189,11 +191,31 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
                             key={coach.id}
                             value={coach.last_name}
                             onSelect={() => {
-                              form.setValue("coach_id", coach.id);
-                              setIsPopoverOpen(false);
+                              const currentCoaches = field.value || [];
+                              const coachIndex = currentCoaches.indexOf(coach.id);
+
+                              if (coachIndex > -1) {
+                                // Remove coach if already selected
+                                const newCoaches = currentCoaches.filter((id) => id !== coach.id);
+                                form.setValue("coaches_id", newCoaches);
+                              } else {
+                                // Add coach if not selected
+                                form.setValue("coaches_id", [...currentCoaches, coach.id]);
+                              }
                             }}
                           >
-                            {coach.last_name}
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-4 h-4 border rounded flex items-center justify-center ${field.value?.includes(coach.id) ? "bg-primary border-primary" : "border-gray-300"}`}
+                              >
+                                {field.value?.includes(coach.id) && (
+                                  <span className="w-3 h-3 text-white flex items-center justify-center">
+                                    <Check size={12} />
+                                  </span>
+                                )}
+                              </div>
+                              {coach.last_name}
+                            </div>
                           </CommandItem>
                         ))}
                       </CommandGroup>

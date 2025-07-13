@@ -1,4 +1,4 @@
-import {BracketMatch, BracketMatchAthlete} from "@/lib/interfaces";
+import { BracketMatch, BracketMatchAthlete } from "@/lib/interfaces";
 
 interface MatchCardProps {
   bracketMatch: BracketMatch;
@@ -6,7 +6,7 @@ interface MatchCardProps {
   height?: number;
 }
 
-export default function MatchCard({bracketMatch, width = 220, height = 80}: MatchCardProps) {
+export default function MatchCard({ bracketMatch, width = 220, height = 80 }: MatchCardProps) {
   const calculatedHeight = (height - 3) / 2;
   const calculatedFontSize = height / 5;
 
@@ -14,7 +14,7 @@ export default function MatchCard({bracketMatch, width = 220, height = 80}: Matc
   // return <div className="border border-dashed border-gray-500 rounded-md opacity-30" style={{ width, height }} />;
 
   return (
-    <div className="overflow-hidden rounded-md border" style={{width, height}}>
+    <div className="overflow-hidden rounded-md border" style={{ width, height }}>
       <PlayerSlot
         player={bracketMatch.match.athlete1}
         isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete1?.id}
@@ -25,7 +25,7 @@ export default function MatchCard({bracketMatch, width = 220, height = 80}: Matc
         width={width}
         fontSize={calculatedFontSize}
       />
-      <div className="h-px"/>
+      <div className="h-px" />
       <PlayerSlot
         player={bracketMatch.match.athlete2}
         isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete2?.id}
@@ -51,7 +51,7 @@ interface PlayerSlotProps {
   fontSize?: number;
 }
 
-function PlayerSlot({player, score, isTop, height = 40, width = 220, fontSize = 14}: PlayerSlotProps) {
+function PlayerSlot({ player, score, isTop, height = 40, width = 220, fontSize = 14 }: PlayerSlotProps) {
   const bgColor = isTop ? "bg-red-800" : "bg-blue-800";
   const paddingX = Math.max(4, Math.floor(width / 25));
 
@@ -59,7 +59,7 @@ function PlayerSlot({player, score, isTop, height = 40, width = 220, fontSize = 
     return (
       <div
         className={`flex items-center justify-between text-white ${bgColor}`}
-        style={{height, fontSize, paddingLeft: paddingX, paddingRight: paddingX}}
+        style={{ height, fontSize, paddingLeft: paddingX, paddingRight: paddingX }}
       >
         <span className="italic"></span>
         {/* <span className="italic">{isFirstRound ? "Bye" : "TBD"}</span>
@@ -71,10 +71,10 @@ function PlayerSlot({player, score, isTop, height = 40, width = 220, fontSize = 
   return (
     <div
       className={`flex items-center justify-between text-white ${bgColor}`}
-      style={{height, fontSize, paddingLeft: paddingX, paddingRight: paddingX}}
+      style={{ height, fontSize, paddingLeft: paddingX, paddingRight: paddingX }}
     >
       <span className="font-medium truncate">
-        {player.last_name} {player.first_name} ({player.coach_last_name})
+        {player.last_name} {player.first_name} ({player.coaches_last_name?.join(", ") || "No coach"})
       </span>
       <span className="ml-2 font-bold">{score !== null ? score : "-"}</span>
     </div>
