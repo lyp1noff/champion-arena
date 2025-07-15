@@ -87,7 +87,7 @@ export default function ManageTournamentPage({
                   aria-expanded={open}
                   className="w-full block whitespace-normal text-left h-auto min-h-10"
                 >
-                  {selectedBracket ? selectedBracket.category : "Select a bracket..."}
+                  {selectedBracket ? selectedBracket.display_name || selectedBracket.category : "Select a bracket..."}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -98,13 +98,13 @@ export default function ManageTournamentPage({
                     {brackets.map((bracket) => (
                       <CommandItem
                         key={bracket.id}
-                        value={bracket.category}
+                        value={bracket.display_name || bracket.category}
                         onSelect={() => {
                           onSelectBracket(bracket);
                           setOpen(false);
                         }}
                       >
-                        {bracket.category}
+                        {bracket.display_name || bracket.category}
                       </CommandItem>
                     ))}
                   </CommandList>

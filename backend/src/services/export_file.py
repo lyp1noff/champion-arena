@@ -15,11 +15,15 @@ HIDE_FINISHED_MATCHES = True
 
 
 def build_entry(
-    matches, bracket, offset, position_offset, start_time_tatami, tournament_title
+        matches, bracket, offset, position_offset, start_time_tatami, tournament_title
 ):
     entry = {
         "tournament_name": tournament_title,
-        "category": bracket.category.name,
+        "category": (
+            bracket.get_display_name()
+            if hasattr(bracket, "get_display_name")
+            else bracket.category.name
+        ),
         "start_time_tatami": start_time_tatami,
     }
 
@@ -118,19 +122,18 @@ def build_entries(data, tournament_title):
             continue
 
         if bracket.type == "round_robin":
-            grouped = {}
-            for match in matches:
-                grouped.setdefault(match.round_number, []).append(match)
-
-            for round_number, group_matches in grouped.items():
-                entry = build_round_robin_entry(
-                    matches=group_matches,
-                    category=bracket.category.name,
-                    start_time_tatami=start_time_tatami,
-                    tournament_title=tournament_title,
-                )
-                entry["_template"] = "round_robin"
-                all_entries.append(entry)
+            entry = build_round_robin_entry(
+                matches=matches,
+                category=(
+                    bracket.get_display_name()
+                    if hasattr(bracket, "get_display_name")
+                    else bracket.category.name
+                ),
+                start_time_tatami=start_time_tatami,
+                tournament_title=tournament_title,
+            )
+            entry["_template"] = "round_robin"
+            all_entries.append(entry)
             continue
 
         max_round = min(4, max(m.round_number for m in matches))

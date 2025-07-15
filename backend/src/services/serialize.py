@@ -70,6 +70,8 @@ def serialize_bracket_matches_full(bracket: Bracket) -> BracketMatchesFull:
         type=bracket.type,
         start_time=bracket.start_time,
         tatami=bracket.tatami,
+        group_id=bracket.group_id,
+        display_name=bracket.get_display_name(),
         matches=matches,
     )
 
@@ -82,6 +84,8 @@ def serialize_bracket(bracket: Bracket) -> BracketResponse:
         type=bracket.type,
         start_time=bracket.start_time,
         tatami=bracket.tatami,
+        group_id=bracket.group_id,
+        display_name=bracket.get_display_name(),
         participants=[
             BracketParticipantSchema(
                 seed=p.seed,

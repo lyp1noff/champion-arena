@@ -134,6 +134,8 @@ class BracketBase(CustomBaseModel):
     type: str
     start_time: Optional[time] = None
     tatami: Optional[int] = None
+    group_id: Optional[int] = 1
+    display_name: Optional[str] = None
 
 
 class BracketParticipantSchema(CustomBaseModel):
@@ -153,6 +155,7 @@ class BracketUpdateSchema(CustomBaseModel):
     type: Optional[str] = None
     start_time: Optional[time] = None
     tatami: Optional[int] = None
+    group_id: Optional[int] = None
 
 
 class BracketMatchAthlete(CustomBaseModel):

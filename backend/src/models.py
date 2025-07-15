@@ -199,6 +199,14 @@ class Application(Base, TimestampMixin):
 
 class Bracket(Base, TimestampMixin):
     __tablename__ = "brackets"
+    __table_args__ = (
+        UniqueConstraint(
+            "tournament_id",
+            "category_id",
+            "group_id",
+            name="uix_tournament_category_group",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     tournament_id = Column(
@@ -213,6 +221,7 @@ class Bracket(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
+    group_id = Column(Integer, nullable=False, default=1)
     type = Column(String(50), nullable=False)
     start_time = Column(Time, nullable=True)
     tatami = Column(Integer, nullable=True)
@@ -225,6 +234,15 @@ class Bracket(Base, TimestampMixin):
     participants = relationship(
         "BracketParticipant", back_populates="bracket", cascade="all, delete-orphan"
     )
+
+    def get_display_name(self) -> str:
+        """Generate display name combining category name and group number"""
+        category_name = self.category.name if self.category else "Unknown Category"
+        # Check if group_id is set and not equal to 1
+        group_id = getattr(self, "group_id", None)
+        if group_id is not None and group_id != 1:
+            return f"{category_name} (Group {group_id})"
+        return category_name
 
 
 class BracketParticipant(Base):

@@ -100,6 +100,7 @@ export default function TournamentPage() {
 
     const result = brackets.filter((bracket) => {
       const matchesBracketCategory = bracket.category?.toLowerCase().includes(searchLower);
+      const matchesDisplayName = bracket.display_name?.toLowerCase().includes(searchLower);
 
       const matchesParticipant = bracket.participants.some((participant) => {
         const firstName = participant.first_name?.toLowerCase() ?? "";
@@ -111,7 +112,7 @@ export default function TournamentPage() {
         );
       });
 
-      return matchesBracketCategory || matchesParticipant;
+      return matchesBracketCategory || matchesDisplayName || matchesParticipant;
     });
 
     setFilteredBrackets(result);
@@ -169,7 +170,7 @@ export default function TournamentPage() {
                     }}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                      <span className="text-base font-semibold">{bracket.category}</span>
+                      <span className="text-base font-semibold">{bracket.display_name || bracket.category}</span>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         {/* i18n needed*/}
                         <span>{(bracket.start_time && bracket.start_time.slice(0, 5)) || " — "}</span>

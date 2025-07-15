@@ -62,6 +62,8 @@ export type Bracket = {
   type: BracketType;
   start_time: string | null;
   tatami: number;
+  group_id?: number;
+  display_name?: string;
   participants: Participant[];
 };
 export type BracketUpdate = Partial<Bracket>;
