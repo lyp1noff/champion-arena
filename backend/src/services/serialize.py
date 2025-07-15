@@ -88,6 +88,7 @@ def serialize_bracket(bracket: Bracket) -> BracketResponse:
         display_name=bracket.get_display_name(),
         participants=[
             BracketParticipantSchema(
+                athlete_id=p.athlete.id,
                 seed=p.seed,
                 first_name=p.athlete.first_name,
                 last_name=p.athlete.last_name,

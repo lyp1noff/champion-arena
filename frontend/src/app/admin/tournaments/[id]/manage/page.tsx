@@ -6,7 +6,7 @@ import { getTournamentBracketsById } from "@/lib/api/tournaments";
 import { getBracketMatchesById, updateBracket } from "@/lib/api/brackets";
 import { toast } from "sonner";
 import { Bracket, BracketMatches, BracketType } from "@/lib/interfaces";
-import ManageTournamentPage from "./components/manage-tournament";
+import ManageTournamentPage from "./ManageTournamentPage";
 import { formatTimeToISO } from "@/lib/utils";
 
 export default function Page() {
@@ -66,6 +66,23 @@ export default function Page() {
     }
   };
 
+  const handleBracketsUpdate = async () => {
+    try {
+      const refreshed = await getTournamentBracketsById(tournamentId);
+      setBrackets(refreshed);
+      if (selectedBracket) {
+        const newSelected = refreshed.find((b) => b.id === selectedBracket.id);
+        if (newSelected) {
+          setSelectedBracket(newSelected);
+          await fetchMatches(newSelected.id);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to refresh brackets:", error);
+      toast.error("Failed to refresh brackets");
+    }
+  };
+
   return (
     <ManageTournamentPage
       tournamentId={tournamentId}
@@ -75,6 +92,7 @@ export default function Page() {
       loading={loading}
       onSelectBracket={handleSelect}
       onSaveBracket={handleSave}
+      onBracketsUpdate={handleBracketsUpdate}
     />
   );
 }

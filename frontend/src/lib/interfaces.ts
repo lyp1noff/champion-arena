@@ -48,6 +48,7 @@ export interface Category {
 }
 
 export type Participant = {
+  athlete_id: number;
   seed: number;
   last_name: string;
   first_name: string;
@@ -102,6 +103,40 @@ export type BracketMatch = {
 };
 
 export type BracketMatches = BracketMatch[];
+
+export interface Category {
+  id: number;
+  name: string;
+  age: number;
+  gender: string;
+}
+
+export interface ParticipantMove {
+  athlete_id: number;
+  from_bracket_id: number;
+  to_bracket_id: number;
+  new_seed: number;
+}
+
+export interface ParticipantReorder {
+  bracket_id: number;
+  participant_updates: Array<{ athlete_id: number; new_seed: number }>;
+}
+
+export interface BracketCreate {
+  tournament_id: number;
+  category_id: number;
+  group_id?: number;
+  type?: string;
+  start_time?: string;
+  tatami?: number;
+}
+
+export interface CategoryCreate {
+  name: string;
+  age: number;
+  gender: string;
+}
 
 // export type BracketWithCategory = {
 //   bracket_id: number;

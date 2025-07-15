@@ -1,7 +1,22 @@
 const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
 
+// Helper to handle refresh token logic
+export async function fetchWithRefresh(input: RequestInfo, init?: RequestInit): Promise<Response> {
+  let response = await fetch(input, { ...init, credentials: "include" });
+  if (response.status === 401) {
+    // Try to refresh the access token
+    const refreshRes = await fetch(`${url}/auth/refresh`, { method: "POST", credentials: "include" });
+    if (refreshRes.ok) {
+      // Optionally update any in-memory access token here if you use one
+      // Retry the original request
+      response = await fetch(input, { ...init, credentials: "include" });
+    }
+  }
+  return response;
+}
+
 export async function getCoaches() {
-  const res = await fetch(`${url}/coaches`, { cache: "no-store", credentials: "include" });
+  const res = await fetchWithRefresh(`${url}/coaches`, { cache: "no-store" });
 
   if (!res.ok) {
     throw new Error("Failed to load coaches");
@@ -16,10 +31,9 @@ export async function uploadImage(file: File, path: string): Promise<string | nu
   formData.append("path", path);
 
   try {
-    const response = await fetch(`${url}/upload/photo`, {
+    const response = await fetchWithRefresh(`${url}/upload/photo`, {
       method: "POST",
       body: formData,
-      credentials: "include",
     });
 
     if (!response.ok) throw new Error("Failed to upload");

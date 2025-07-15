@@ -11,6 +11,7 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    refresh_token: Optional[str] = None
 
 
 class CustomBaseModel(BaseModel):
@@ -139,6 +140,7 @@ class BracketBase(CustomBaseModel):
 
 
 class BracketParticipantSchema(CustomBaseModel):
+    athlete_id: int
     seed: int
     last_name: str
     first_name: str
@@ -156,6 +158,7 @@ class BracketUpdateSchema(CustomBaseModel):
     start_time: Optional[time] = None
     tatami: Optional[int] = None
     group_id: Optional[int] = None
+    category_id: Optional[int] = None
 
 
 class BracketMatchAthlete(CustomBaseModel):
@@ -187,3 +190,32 @@ class BracketMatchResponse(CustomBaseModel):
 class BracketMatchesFull(BracketBase):
     bracket_id: int
     matches: List[BracketMatchResponse]
+
+
+class ParticipantMoveSchema(BaseModel):
+    athlete_id: int
+    from_bracket_id: int
+    to_bracket_id: int
+    new_seed: int
+
+
+class ParticipantReorderSchema(BaseModel):
+    bracket_id: int
+    participant_updates: List[
+        dict[str, int]
+    ]  # List of {athlete_id: int, new_seed: int}
+
+
+class BracketCreateSchema(BaseModel):
+    tournament_id: int
+    category_id: int
+    group_id: int = 1
+    type: str = "single_elimination"
+    start_time: Optional[time] = None
+    tatami: Optional[int] = None
+
+
+class CategoryCreateSchema(BaseModel):
+    name: str
+    age: int
+    gender: str

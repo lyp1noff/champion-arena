@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy import delete, update
 
 from src.database import get_db
 from src.dependencies.auth import get_current_user
@@ -13,12 +14,19 @@ from src.models import (
     Match,
     Athlete,
     AthleteCoachLink,
+    Category,
+    Tournament,
 )
 from src.schemas import (
     BracketResponse,
     BracketMatchResponse,
     BracketMatchesFull,
     BracketUpdateSchema,
+    ParticipantMoveSchema,
+    ParticipantReorderSchema,
+    BracketCreateSchema,
+    CategoryCreateSchema,
+    CategoryResponse,
 )
 from src.services.serialize import (
     serialize_bracket,
@@ -83,6 +91,34 @@ async def update_bracket(
 
     old_type = bracket.type
 
+    # TODO: Prbly remove uniqueness constraint
+    # If category_id, group_id, or tournament_id are being updated, check uniqueness constraint
+    new_category_id = (
+        update_data.category_id
+        if update_data.category_id is not None
+        else bracket.category_id
+    )
+    new_group_id = (
+        update_data.group_id if update_data.group_id is not None else bracket.group_id
+    )
+    new_tournament_id = (
+        bracket.tournament_id
+    )  # tournament_id is not updatable, but included for completeness
+    if update_data.category_id is not None or update_data.group_id is not None:
+        existing = await db.execute(
+            select(Bracket).where(
+                Bracket.tournament_id == new_tournament_id,
+                Bracket.category_id == new_category_id,
+                Bracket.group_id == new_group_id,
+                Bracket.id != bracket_id,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail="Bracket already exists for this category and group in this tournament",
+            )
+
     for key, value in update_data.model_dump(exclude_unset=True).items():
         setattr(bracket, key, value)
 
@@ -143,3 +179,101 @@ async def regenerate_matches_endpoint(
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to regenerate: {str(e)}")
+
+
+@router.post("/participants/move", dependencies=[Depends(get_current_user)])
+async def move_participant(
+    move_data: ParticipantMoveSchema,
+    db: AsyncSession = Depends(get_db),
+):
+    # Remove from source bracket
+    await db.execute(
+        delete(BracketParticipant).where(
+            BracketParticipant.bracket_id == move_data.from_bracket_id,
+            BracketParticipant.athlete_id == move_data.athlete_id,
+        )
+    )
+
+    # Find max seed in target bracket
+    result = await db.execute(
+        select(BracketParticipant.seed)
+        .where(BracketParticipant.bracket_id == move_data.to_bracket_id)
+        .order_by(BracketParticipant.seed.desc())
+        .limit(1)
+    )
+    max_seed = result.scalar()
+    new_seed = (max_seed or 0) + 1
+
+    # Add to target bracket at the end
+    new_participant = BracketParticipant(
+        bracket_id=move_data.to_bracket_id,
+        athlete_id=move_data.athlete_id,
+        seed=new_seed,
+    )
+    db.add(new_participant)
+
+    await db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/participants/reorder", dependencies=[Depends(get_current_user)])
+async def reorder_participants(
+    reorder_data: ParticipantReorderSchema,
+    db: AsyncSession = Depends(get_db),
+):
+    for upd in reorder_data.participant_updates:
+        await db.execute(
+            update(BracketParticipant)
+            .where(
+                BracketParticipant.bracket_id == reorder_data.bracket_id,
+                BracketParticipant.athlete_id == upd["athlete_id"],
+            )
+            .values(seed=upd["new_seed"])
+        )
+
+    await db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/create", dependencies=[Depends(get_current_user)])
+async def create_bracket(
+    bracket_data: BracketCreateSchema,
+    db: AsyncSession = Depends(get_db),
+):
+    # Check if tournament exists
+    tournament = await db.get(Tournament, bracket_data.tournament_id)
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    # Check if category exists
+    category = await db.get(Category, bracket_data.category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    # Check if bracket already exists for this tournament/category/group combination
+    existing_bracket = await db.execute(
+        select(Bracket).where(
+            Bracket.tournament_id == bracket_data.tournament_id,
+            Bracket.category_id == bracket_data.category_id,
+            Bracket.group_id == bracket_data.group_id,
+        )
+    )
+    if existing_bracket.scalar_one_or_none():
+        raise HTTPException(
+            status_code=400, detail="Bracket already exists for this category and group"
+        )
+
+    new_bracket = Bracket(
+        tournament_id=bracket_data.tournament_id,
+        category_id=bracket_data.category_id,
+        group_id=bracket_data.group_id,
+        type=bracket_data.type,
+        start_time=bracket_data.start_time,
+        tatami=bracket_data.tatami,
+    )
+
+    db.add(new_bracket)
+    await db.commit()
+    await db.refresh(new_bracket)
+
+    return serialize_bracket(new_bracket)

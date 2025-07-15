@@ -26,8 +26,17 @@ def create_token(username: str, role: str) -> str:
     )
 
 
+def create_refresh_token(username: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(days=7)
+    return jwt.encode(
+        {"sub": username, "exp": expire},
+        JWT_SECRET,
+        algorithm="HS256",
+    )
+
+
 async def authenticate_user(
-        db: AsyncSession, username: str, password: str
+    db: AsyncSession, username: str, password: str
 ) -> User | None:
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
