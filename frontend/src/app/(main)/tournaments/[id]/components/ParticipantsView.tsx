@@ -2,13 +2,13 @@
 
 // import Link from "next/link";
 // import {LinkIcon} from "lucide-react";
-import {Bracket} from "@/lib/interfaces";
+import { Bracket } from "@/lib/interfaces";
 
 interface ParticipantsViewProps {
   bracket: Bracket;
 }
 
-export function ParticipantsView({bracket}: ParticipantsViewProps) {
+export function ParticipantsView({ bracket }: ParticipantsViewProps) {
   return (
     <>
       {/*<Link*/}
@@ -20,7 +20,7 @@ export function ParticipantsView({bracket}: ParticipantsViewProps) {
       <ul className="list-decimal list-inside mt-2">
         {bracket.participants.map((p) => (
           <li key={p.seed} className="py-1">
-            {p.last_name} {p.first_name}
+            {p.last_name} {p.first_name} ({p.coaches_last_name?.join(", ")})
           </li>
         ))}
       </ul>

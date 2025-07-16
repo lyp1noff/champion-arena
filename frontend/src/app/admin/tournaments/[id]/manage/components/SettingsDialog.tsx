@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -31,16 +31,12 @@ export default function SettingsDialog({
   setSettingsForm,
   onSave,
   categories,
-  selectedBracket,
 }: SettingsDialogProps) {
-  if (!open || !selectedBracket) return null;
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="w-96">
-        <CardHeader>
-          <CardTitle>Edit Bracket Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogTitle>Edit Bracket Settings</DialogTitle>
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label>Category</Label>
             <Select
@@ -110,8 +106,8 @@ export default function SettingsDialog({
               Cancel
             </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

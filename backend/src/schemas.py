@@ -196,7 +196,6 @@ class ParticipantMoveSchema(BaseModel):
     athlete_id: int
     from_bracket_id: int
     to_bracket_id: int
-    new_seed: int
 
 
 class ParticipantReorderSchema(BaseModel):

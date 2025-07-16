@@ -10,8 +10,8 @@ import { getBracketMatchesById } from "@/lib/api/brackets";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // import { useScreenHeight } from "@/hooks/use-screen-height";
 import { useTranslations } from "next-intl";
-import { BracketView } from "@/components/bracket_view";
-import { ParticipantsView } from "@/components/participants_view";
+import { BracketView } from "@/components/bracket-view";
+import { ParticipantsView } from "./components/ParticipantsView";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "use-debounce";
 

@@ -213,6 +213,11 @@ async def move_participant(
     db.add(new_participant)
 
     await db.commit()
+
+    # Regenerate matches for both brackets
+    await regenerate_matches_endpoint(move_data.from_bracket_id, session=db)
+    await regenerate_matches_endpoint(move_data.to_bracket_id, session=db)
+
     return {"status": "ok"}
 
 

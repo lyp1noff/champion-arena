@@ -18,7 +18,7 @@ def get_round_type(round_index: int, total_rounds: int) -> str:
 
 
 def distribute_byes_safely(
-    athlete_ids: list[int],
+        athlete_ids: list[int],
 ) -> list[tuple[Optional[int], Optional[int]]]:
     num_players = len(athlete_ids)
     next_power_of_two = 2 ** math.ceil(math.log2(max(num_players, 2)))
@@ -49,7 +49,7 @@ def distribute_byes_safely(
 
 
 async def generate_first_round(
-    session: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
+        session: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
 ):
     pairs = distribute_byes_safely(athlete_ids)
     matches = []
@@ -80,7 +80,7 @@ async def generate_first_round(
 
 
 async def generate_following_rounds(
-    session: AsyncSession, bracket_id: int, total_rounds: int
+        session: AsyncSession, bracket_id: int, total_rounds: int
 ):
     match_matrix = [[] for _ in range(total_rounds)]
 
@@ -104,7 +104,7 @@ async def generate_following_rounds(
 
 
 async def advance_auto_winners(
-    session: AsyncSession, match_matrix: list[list[BracketMatch]]
+        session: AsyncSession, match_matrix: list[list[BracketMatch]]
 ):
     for round_index in range(len(match_matrix) - 1):
         current_round = match_matrix[round_index]
@@ -128,11 +128,11 @@ async def advance_auto_winners(
 
 
 async def regenerate_bracket_matches(
-    session: AsyncSession,
-    bracket_id: int,
-    tournament_id: int,
-    commit: bool = True,
-    skip_first_round: bool = False,
+        session: AsyncSession,
+        bracket_id: int,
+        tournament_id: int,
+        commit: bool = True,
+        skip_first_round: bool = False,
 ):
     # Удалим все BracketMatch + Match
     await session.execute(
@@ -205,16 +205,16 @@ def split_evenly(athletes: list, max_per_group: int = 4) -> list[list]:
     start = 0
     for i in range(min_groups):
         size = base_size + (1 if i < extra else 0)
-        groups.append(athletes[start : start + size])
+        groups.append(athletes[start: start + size])
         start += size
     return groups
 
 
 async def regenerate_round_bracket_matches(
-    session: AsyncSession,
-    bracket_id: int,
-    tournament_id: int,
-    commit: bool = True,
+        session: AsyncSession,
+        bracket_id: int,
+        tournament_id: int,
+        commit: bool = True,
 ):
     await session.execute(
         delete(Match).where(
@@ -248,7 +248,7 @@ async def regenerate_round_bracket_matches(
             match = Match(
                 athlete1_id=p1.athlete_id,
                 athlete2_id=p2.athlete_id,
-                round_type="round_robin",
+                round_type="group",
             )
             session.add(match)
             await session.flush()

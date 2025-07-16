@@ -49,7 +49,7 @@ export async function regenerateBracket(bracketId: number) {
   return await response.json();
 }
 
-export async function moveParticipant(athleteId: number, fromBracketId: number, toBracketId: number, newSeed: number) {
+export async function moveParticipant(athleteId: number, fromBracketId: number, toBracketId: number) {
   const response = await fetchWithRefresh(`${url}/brackets/participants/move`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -57,7 +57,6 @@ export async function moveParticipant(athleteId: number, fromBracketId: number, 
       athlete_id: athleteId,
       from_bracket_id: fromBracketId,
       to_bracket_id: toBracketId,
-      new_seed: newSeed,
     }),
   });
 

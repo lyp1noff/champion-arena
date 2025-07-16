@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Bracket, BracketMatches, BracketType, Category, Participant } from "@/lib/interfaces";
-import { BracketView } from "@/components/bracket_view";
+import { BracketView } from "@/components/bracket-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,7 +29,9 @@ import {
   createBracket,
   getCategories,
   createCategory,
+  moveParticipant,
 } from "@/lib/api/brackets";
+import DeleteBracketDialog from "./components/DeleteBracketDialog";
 
 interface Props {
   tournamentId: number;
@@ -90,6 +92,9 @@ export default function ManageTournamentPage({
     age: "",
     gender: "male",
   });
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [bracketToDelete, setBracketToDelete] = useState<Bracket | null>(null);
+  const [transferTargetId, setTransferTargetId] = useState<number | null>(null);
 
   // --- Effects ---
   useEffect(() => {
@@ -278,6 +283,57 @@ export default function ManageTournamentPage({
     }
   };
 
+  // --- Context Menu Handlers ---
+  const handleDeleteBracket = (bracket: Bracket) => {
+    setBracketToDelete(bracket);
+    setShowDeleteDialog(true);
+  };
+
+  const handleEditBracket = async (bracket: Bracket) => {
+    if (!selectedBracket || selectedBracket.id !== bracket.id) {
+      await onSelectBracket(bracket);
+    }
+    setShowSettings(true);
+  };
+
+  const handleConfirmDelete = () => {
+    // TODO: Implement API call for delete/transfer
+    setShowDeleteDialog(false);
+    setBracketToDelete(null);
+    setTransferTargetId(null);
+    toast.success("Bracket deleted (not really, just UI)");
+  };
+  const handleCancelDelete = () => {
+    setShowDeleteDialog(false);
+    setBracketToDelete(null);
+    setTransferTargetId(null);
+  };
+
+  // --- Move Participant Handler ---
+  const handleMoveParticipant = async (participant: Participant, targetBracketId: number) => {
+    if (!selectedBracket) return;
+    try {
+      await moveParticipant(participant.athlete_id, selectedBracket.id, targetBracketId);
+      const targetBracket = brackets.find((b) => b.id === targetBracketId);
+      toast.success(
+        <>
+          Participant moved to:
+          <br />
+          {targetBracket?.display_name || targetBracket?.category || targetBracketId.toString()}
+        </>,
+      );
+      // Update local participants state for immediate feedback
+      setParticipants((prev) => prev.filter((p) => p.athlete_id !== participant.athlete_id));
+      await onBracketsUpdate();
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        toast.error(e.message || "Failed to move participant");
+      } else {
+        toast.error("Failed to move participant");
+      }
+    }
+  };
+
   // --- Render ---
   return (
     <DndContext
@@ -305,6 +361,8 @@ export default function ManageTournamentPage({
                   isSelected={selectedBracket?.id === bracket.id}
                   onSelect={() => handleBracketSelect(bracket)}
                   participants={bracket.participants}
+                  onDeleteBracket={handleDeleteBracket}
+                  onEditBracket={handleEditBracket}
                 />
               ))}
             </div>
@@ -359,7 +417,12 @@ export default function ManageTournamentPage({
                   <div className="text-sm text-muted-foreground">Drag to reorder or move between brackets</div>
                 </CardHeader>
                 <CardContent className="max-h-full p-0">
-                  <ParticipantsList participants={participants} bracketId={selectedBracket.id} />
+                  <ParticipantsList
+                    participants={participants}
+                    bracketId={selectedBracket.id}
+                    eligibleBrackets={brackets}
+                    onMoveParticipant={handleMoveParticipant}
+                  />
                 </CardContent>
               </Card>
             </>
@@ -402,6 +465,15 @@ export default function ManageTournamentPage({
         onCreate={handleCreateCategory}
       />
       <UnsavedChangesDialog open={showUnsavedDialog} onDiscard={confirmSwitch} onCancel={cancelSwitch} />
+      <DeleteBracketDialog
+        open={showDeleteDialog}
+        onClose={handleCancelDelete}
+        bracketToDelete={bracketToDelete}
+        brackets={brackets}
+        transferTargetId={transferTargetId}
+        setTransferTargetId={setTransferTargetId}
+        onConfirm={handleConfirmDelete}
+      />
     </DndContext>
   );
 }
