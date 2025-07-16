@@ -17,8 +17,8 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_token(username: str, role: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+def create_token(username: str, role: str, expires_in: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
     return jwt.encode(
         {"sub": username, "role": role, "exp": expire},
         JWT_SECRET,
@@ -26,8 +26,8 @@ def create_token(username: str, role: str) -> str:
     )
 
 
-def create_refresh_token(username: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=7)
+def create_refresh_token(username: str, expires_in: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
     return jwt.encode(
         {"sub": username, "exp": expire},
         JWT_SECRET,
