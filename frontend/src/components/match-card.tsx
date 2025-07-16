@@ -1,4 +1,7 @@
 import { BracketMatch, BracketMatchAthlete } from "@/lib/interfaces";
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent } from "@/components/ui/context-menu";
+import ParticipantMiniCard from "@/components/participant-mini-card";
+import React, { useRef } from "react";
 
 interface MatchCardProps {
   bracketMatch: BracketMatch;
@@ -15,10 +18,10 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
 
   return (
     <div className="overflow-hidden rounded-md border" style={{ width, height }}>
-      <PlayerSlot
+      <PlayerSlotWithContextMenu
         player={bracketMatch.match.athlete1}
-        isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete1?.id}
         score={bracketMatch.match.score_athlete1}
+        isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete1?.id}
         isFirstRound={bracketMatch.round_number === 1}
         isTop={true}
         height={calculatedHeight}
@@ -26,10 +29,10 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
         fontSize={calculatedFontSize}
       />
       <div className="h-px" />
-      <PlayerSlot
+      <PlayerSlotWithContextMenu
         player={bracketMatch.match.athlete2}
-        isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete2?.id}
         score={bracketMatch.match.score_athlete2}
+        isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete2?.id}
         isFirstRound={bracketMatch.round_number === 1}
         isTop={false}
         height={calculatedHeight}
@@ -78,5 +81,40 @@ function PlayerSlot({ player, score, isTop, height = 40, width = 220, fontSize =
       </span>
       <span className="ml-2 font-bold">{score !== null ? score : "-"}</span>
     </div>
+  );
+}
+
+function PlayerSlotWithContextMenu(props: PlayerSlotProps) {
+  const { player } = props;
+  const triggerRef = useRef<HTMLDivElement>(null);
+
+  if (!player) {
+    return <PlayerSlot {...props} />;
+  }
+
+  const handleLeftClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Simulate right-click to open context menu
+    const event = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      clientX: e.clientX,
+      clientY: e.clientY,
+    });
+    triggerRef.current?.dispatchEvent(event);
+  };
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div ref={triggerRef} onClick={handleLeftClick} style={{ cursor: "pointer" }}>
+          <PlayerSlot {...props} />
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ParticipantMiniCard participant={player} />
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
