@@ -15,10 +15,6 @@ from src.services.auth import create_default_user
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-    async with SessionLocal() as session:
-        await create_default_user(session)
-
     yield
 
 

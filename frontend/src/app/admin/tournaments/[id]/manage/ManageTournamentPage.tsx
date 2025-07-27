@@ -334,111 +334,6 @@ export default function ManageTournamentPage({
     }
   };
 
-  function BracketsList() {
-    return (
-      <div className="min-w-80 max-w-80 flex flex-col gap-4 h-full">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold">Brackets</h2>
-          <Button size="sm" onClick={() => setShowCreateBracket(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            New Bracket
-          </Button>
-        </div>
-        <ScrollArea className="flex-1 max-h-full overflow-auto">
-          <div className="space-y-3 p-1">
-            {brackets.map((bracket) => (
-              <BracketCard
-                key={bracket.id}
-                bracket={bracket}
-                isSelected={selectedBracket?.id === bracket.id}
-                onSelect={() => handleBracketSelect(bracket)}
-                participants={bracket.participants}
-                onDeleteBracket={handleDeleteBracket}
-                onEditBracket={handleEditBracket}
-              />
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
-    );
-  }
-
-  function BracketPreview() {
-    return (
-      <div className="flex-1 flex flex-col gap-4 h-full overflow-auto">
-        {selectedBracket ? (
-          <>
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">{selectedBracket.display_name || selectedBracket.category}</h2>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleRegenerate} disabled={loading}>
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Regenerate
-                </Button>
-                <Button onClick={handleSave} disabled={loading}>
-                  <Save className="h-4 w-4 mr-1" />
-                  Save & Regenerate
-                </Button>
-              </div>
-            </div>
-            <Card className="flex-1 h-full flex flex-col overflow-auto">
-              <CardContent className="flex-1 p-0 h-full">
-                <ScrollArea className="h-full w-full">
-                  <div className="p-6 h-full w-full">
-                    <BracketView loading={loading} matches={bracketMatches ?? []} bracket={selectedBracket} />
-                  </div>
-                  <ScrollBar orientation="horizontal" />
-                  <ScrollBar orientation="vertical" />
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Select a bracket to view details
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  function ParticipantsPanel() {
-    return (
-      <div className="min-w-80 max-w-80 flex flex-col h-full gap-4">
-        {selectedBracket ? (
-          <>
-            <Button variant="outline" className="w-full" onClick={() => setShowSettings(true)}>
-              Settings
-            </Button>
-            <Card className="flex-1 max-h-full overflow-auto">
-              <CardHeader>
-                <CardTitle>
-                  Participants
-                  {hasPendingChanges() && (
-                    <span style={{ color: "red", fontSize: 12, marginLeft: 8 }}>(Unsaved changes)</span>
-                  )}
-                </CardTitle>
-                <div className="text-sm text-muted-foreground">Drag to reorder or move between brackets</div>
-              </CardHeader>
-              <CardContent className="max-h-full p-0">
-                <ParticipantsList
-                  participants={participants}
-                  bracketId={selectedBracket.id}
-                  eligibleBrackets={brackets}
-                  onMoveParticipant={handleMoveParticipant}
-                />
-              </CardContent>
-            </Card>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Select a bracket to manage
-          </div>
-        )}
-      </div>
-    );
-  }
-
   // --- Render ---
   return (
     <DndContext
@@ -449,11 +344,100 @@ export default function ManageTournamentPage({
     >
       <div className="flex gap-4 p-4" style={{ height: "calc(100dvh - 65px)" }}>
         {/* Left Column - Brackets List */}
-        <BracketsList />
+        <div className="min-w-80 max-w-80 flex flex-col gap-4 h-full">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold">Brackets</h2>
+            <Button size="sm" onClick={() => setShowCreateBracket(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              New Bracket
+            </Button>
+          </div>
+          <ScrollArea className="flex-1 max-h-full overflow-auto">
+            <div className="space-y-3 p-1">
+              {brackets.map((bracket) => (
+                <BracketCard
+                  key={bracket.id}
+                  bracket={bracket}
+                  isSelected={selectedBracket?.id === bracket.id}
+                  onSelect={() => handleBracketSelect(bracket)}
+                  participants={bracket.participants}
+                  onDeleteBracket={handleDeleteBracket}
+                  onEditBracket={handleEditBracket}
+                />
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+
         {/* Middle Column - Bracket Preview */}
-        <BracketPreview />
+        <div className="flex-1 flex flex-col gap-4 h-full overflow-auto">
+          {selectedBracket ? (
+            <>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">{selectedBracket.display_name || selectedBracket.category}</h2>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handleRegenerate} disabled={loading}>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Regenerate
+                  </Button>
+                  <Button onClick={handleSave} disabled={loading}>
+                    <Save className="h-4 w-4 mr-1" />
+                    Save & Regenerate
+                  </Button>
+                </div>
+              </div>
+              <Card className="flex-1 h-full flex flex-col overflow-auto">
+                <CardContent className="flex-1 p-0 h-full">
+                  <ScrollArea className="h-full w-full">
+                    <div className="p-6 h-full w-full">
+                      <BracketView loading={loading} matches={bracketMatches ?? []} bracket={selectedBracket} />
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                    <ScrollBar orientation="vertical" />
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-muted-foreground">
+              Select a bracket to view details
+            </div>
+          )}
+        </div>
+
         {/* Right Column - Options & Participants */}
-        <ParticipantsPanel />
+        <div className="min-w-80 max-w-80 flex flex-col h-full gap-4">
+          {selectedBracket ? (
+            <>
+              <Button variant="outline" className="w-full" onClick={() => setShowSettings(true)}>
+                Settings
+              </Button>
+              <Card className="flex-1 max-h-full overflow-auto">
+                <CardHeader>
+                  <CardTitle>
+                    Participants
+                    {hasPendingChanges() && (
+                      <span style={{ color: "red", fontSize: 12, marginLeft: 8 }}>(Unsaved changes)</span>
+                    )}
+                  </CardTitle>
+                  <div className="text-sm text-muted-foreground">Drag to reorder or move between brackets</div>
+                </CardHeader>
+                <CardContent className="max-h-full p-0">
+                  <ParticipantsList
+                    participants={participants}
+                    bracketId={selectedBracket.id}
+                    eligibleBrackets={brackets}
+                    onMoveParticipant={handleMoveParticipant}
+                  />
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-muted-foreground">
+              Select a bracket to manage
+            </div>
+          )}
+        </div>
       </div>
       <DragOverlay>
         {draggedParticipant && (

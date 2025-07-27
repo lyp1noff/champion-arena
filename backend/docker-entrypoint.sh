@@ -1,11 +1,23 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "Running Alembic migrations"
-alembic upgrade head
-echo "Alembic migrations completed"
+if [[ "${WAIT_FOR_DB:-true}" == "true" ]]; then
+    echo "[ENTRYPOINT] Waiting for database..."
+    until alembic upgrade head 2>/dev/null; do
+#    until alembic upgrade head; do
+        echo "DB not ready, retrying in 2s..."
+        sleep 2
+    done
+    echo "[ENTRYPOINT] DB ready and migrations applied."
+else
+    echo "[ENTRYPOINT] Skipping wait for DB."
+    alembic upgrade head
+fi
+
+echo "[ENTRYPOINT] Creating default user..."
+python -m src.init_data
 
 exec gunicorn src.main:app \
     -k uvicorn.workers.UvicornWorker \
-    --workers 4 \
+    --workers "${GUNICORN_WORKERS:-4}" \
     --bind 0.0.0.0:8000
