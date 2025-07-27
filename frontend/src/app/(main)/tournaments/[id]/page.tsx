@@ -80,6 +80,7 @@ export default function TournamentPage() {
         setTournament(tournamentData); // separate two api calls
       } catch (error) {
         console.error("Error fetching tournament brackets:", error);
+        setError(t("fetchError"));
       } finally {
         setLoading(false);
       }
@@ -119,7 +120,7 @@ export default function TournamentPage() {
   }, [debouncedSearch, brackets]);
 
   const bracketsByTatami = filteredBrackets.reduce<Record<string, typeof brackets>>((acc, bracket) => {
-    const tatamiKey = bracket.tatami ?? "Unknown";
+    const tatamiKey = bracket.tatami ?? t("unknownTatami");
     if (!acc[tatamiKey]) {
       acc[tatamiKey] = [];
     }
@@ -129,11 +130,11 @@ export default function TournamentPage() {
 
   return (
     <div className="container py-10 mx-auto">
-      <h1 className="text-2xl font-bold mb-10">{tournament ? tournament.name : "Tournament"}</h1>
+      <h1 className="text-2xl font-bold mb-10">{tournament ? tournament.name : t("tournament")}</h1>
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6 sm:mb-10">
         <Input
-          placeholder={"Search brackets or participants..."}
+          placeholder={t("searchPlaceholder")}
           value={search}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
         />
@@ -151,7 +152,9 @@ export default function TournamentPage() {
 
       {Object.entries(bracketsByTatami).map(([tatami, tatamiBrackets]) => (
         <div key={tatami} className="mt-10">
-          <h2 className="text-2xl font-bold mb-2">Tatami {tatami}</h2>
+          <h2 className="text-2xl font-bold mb-2">
+            {t("tatami")} {tatami}
+          </h2>
           <Accordion type="multiple" className="w-full">
             {tatamiBrackets.map((bracket) => {
               // const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
@@ -175,7 +178,9 @@ export default function TournamentPage() {
                         {/* i18n needed*/}
                         <span>{(bracket.start_time && bracket.start_time.slice(0, 5)) || " — "}</span>
                         <span> | </span>
-                        <span>Participants: {bracket.participants.length || " — "}</span>
+                        <span>
+                          {t("participantsCount")}: {bracket.participants.length || " — "}
+                        </span>
                       </div>
                     </div>
                   </AccordionTrigger>
@@ -199,7 +204,7 @@ export default function TournamentPage() {
         </div>
       ))}
 
-      {!loading && brackets.length === 0 && <p className="text-gray-500">No Data</p>}
+      {!loading && brackets.length === 0 && <p className="text-gray-500">{t("noData")}</p>}
     </div>
   );
 }

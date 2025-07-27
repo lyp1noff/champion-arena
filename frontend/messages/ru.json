@@ -1,38 +1,59 @@
 {
-    "Header": {
-        "login": "Войти",
-        "admin": "Администратор"
-    },
-    "Footer": {
-        "rights": "Все права защищены."
-    },
-    "ModeToggle": {
-        "dark": "Тёмный",
-        "light": "Светлый",
-        "system": "Системный"
-    },
-    "Home": {
-        "tournaments": "Турниры"
-    },
-    "Admin": {
-        "title": "Страница администратора",
-        "tournaments": "Турниры",
-        "athletes": "Атлеты"
-    },
-    "AdminTournaments": {
-        "create": "Создать новый турнир",
-        "search": "Поиск турнира..."
-    },
-    "DataTable": {
-        "totalRecords": "Всего записей",
-        "noData": "Нет доступных данных",
-        "of": "из",
-        "rowsSelected": "выбрано строк",
-        "rowsPerPage": "Строк на странице",
-        "page": "Страница",
-        "firstPage": "Перейти на первую страницу",
-        "prevPage": "Перейти на предыдущую страницу",
-        "nextPage": "Перейти на следующую страницу",
-        "lastPage": "Перейти на последнюю страницу"
-    }
+  "Header": {
+    "login": "Войти",
+    "admin": "Админ"
+  },
+  "Footer": {
+    "rights": "Все права защищены."
+  },
+  "ModeToggle": {
+    "dark": "Тёмный",
+    "light": "Светлый",
+    "system": "Системный"
+  },
+  "Home": {
+    "tournaments": "Турниры",
+    "viewDetails": "Посмотреть детали",
+    "loadError": "Не удалось загрузить турниры",
+    "loadErrorDescription": "Попробуйте еще раз или обратитесь в службу поддержки."
+  },
+  "TournamentPage": {
+    "brackets": "Сетки",
+    "participants": "Участники",
+    "searchPlaceholder": "Поиск сеток или участников...",
+    "tatami": "Татами",
+    "participantsCount": "Участники",
+    "noData": "Нет данных",
+    "tournament": "Турнир",
+    "fetchError": "Ошибка загрузки данных турнира",
+    "unknownTatami": "Неизвестно"
+  },
+  "Login": {
+    "title": "Вход",
+    "description": "Введите имя пользователя и пароль для продолжения",
+    "username": "Имя пользователя",
+    "password": "Пароль",
+    "loginButton": "Войти"
+  },
+  "Admin": {
+    "title": "Страница администратора",
+    "tournaments": "Турниры",
+    "athletes": "Атлеты"
+  },
+  "AdminTournaments": {
+    "create": "Создать новый турнир",
+    "search": "Поиск турнира..."
+  },
+  "DataTable": {
+    "totalRecords": "Всего записей",
+    "noData": "Нет доступных данных",
+    "of": "из",
+    "rowsSelected": "выбрано строк",
+    "rowsPerPage": "Строк на странице",
+    "page": "Страница",
+    "firstPage": "Перейти на первую страницу",
+    "prevPage": "Перейти на предыдущую страницу",
+    "nextPage": "Перейти на следующую страницу",
+    "lastPage": "Перейти на последнюю страницу"
+  }
 }

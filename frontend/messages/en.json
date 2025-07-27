@@ -1,42 +1,59 @@
 {
-    "Header": {
-        "login": "Login",
-        "admin": "Admin"
-    },
-    "Footer": {
-        "rights": "All rights reserved."
-    },
-    "ModeToggle": {
-        "dark": "Dark",
-        "light": "Light",
-        "system": "System"
-    },
-    "Home": {
-        "tournaments": "tournaments"
-    },
-    "TournamentPage": {
-        "brackets": "Brackets",
-        "participants": "Participants"
-    },
-    "Admin": {
-        "title": "Admin Page",
-        "tournaments": "Tournaments",
-        "athletes": "Athletes"
-    },
-    "AdminTournaments": {
-        "create": "Create New Tournament",
-        "search": "Search tournament..."
-    },
-    "DataTable": {
-        "totalRecords": "Total records",
-        "noData": "No data available",
-        "of": "of",
-        "rowsSelected": "rows selected",
-        "rowsPerPage": "Rows per page",
-        "page": "Page",
-        "firstPage": "Go to first page",
-        "prevPage": "Go to previous page",
-        "nextPage": "Go to next page",
-        "lastPage": "Go to last page"
-    }
+  "Header": {
+    "login": "Login",
+    "admin": "Admin"
+  },
+  "Footer": {
+    "rights": "All rights reserved."
+  },
+  "ModeToggle": {
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System"
+  },
+  "Home": {
+    "tournaments": "tournaments",
+    "viewDetails": "View details",
+    "loadError": "Failed to load tournaments",
+    "loadErrorDescription": "Please try again or contact support."
+  },
+  "TournamentPage": {
+    "brackets": "Brackets",
+    "participants": "Participants",
+    "searchPlaceholder": "Search brackets or participants...",
+    "tatami": "Tatami",
+    "participantsCount": "Participants",
+    "noData": "No Data",
+    "tournament": "Tournament",
+    "fetchError": "Error fetching tournament data",
+    "unknownTatami": "Unknown"
+  },
+  "Login": {
+    "title": "Login",
+    "description": "Enter your username and password to continue",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Login"
+  },
+  "Admin": {
+    "title": "Admin Page",
+    "tournaments": "Tournaments",
+    "athletes": "Athletes"
+  },
+  "AdminTournaments": {
+    "create": "Create New Tournament",
+    "search": "Search tournament..."
+  },
+  "DataTable": {
+    "totalRecords": "Total records",
+    "noData": "No data available",
+    "of": "of",
+    "rowsSelected": "rows selected",
+    "rowsPerPage": "Rows per page",
+    "page": "Page",
+    "firstPage": "Go to first page",
+    "prevPage": "Go to previous page",
+    "nextPage": "Go to next page",
+    "lastPage": "Go to last page"
+  }
 }
