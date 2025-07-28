@@ -161,7 +161,7 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
                 {filteredAthletes.map((athlete) => (
                   <CommandItem
                     key={athlete.id}
-                    value={athlete.last_name}
+                    value={`${athlete.first_name} ${athlete.last_name}`}
                     onSelect={() => {
                       setSelectedAthlete(athlete);
                       setSelectedCategory(null);
