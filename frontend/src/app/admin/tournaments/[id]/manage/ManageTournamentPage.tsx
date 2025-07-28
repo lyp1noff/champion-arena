@@ -30,6 +30,7 @@ import {
   getCategories,
   createCategory,
   moveParticipant,
+  deleteBracket,
 } from "@/lib/api/brackets";
 import DeleteBracketDialog from "./components/DeleteBracketDialog";
 import DeleteParticipantDialog from "./components/DeleteParticipantDialog";
@@ -95,7 +96,7 @@ export default function ManageTournamentPage({
   });
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [bracketToDelete, setBracketToDelete] = useState<Bracket | null>(null);
-  const [transferTargetId, setTransferTargetId] = useState<number | null>(null);
+  const [bracketToTransfer, setBracketToTransfer] = useState<Bracket | null>(null);
   const [showDeleteParticipantDialog, setShowDeleteParticipantDialog] = useState(false);
   const [participantToDelete, setParticipantToDelete] = useState<Participant | null>(null);
 
@@ -208,8 +209,9 @@ export default function ManageTournamentPage({
       return;
     }
     try {
-      const participantUpdates = participants.map((p, idx) => ({ athlete_id: p.athlete_id, new_seed: idx + 1 }));
-      await reorderParticipants(selectedBracket.id, participantUpdates);
+      const participantUpdates = participants.map((p, idx) => ({ participant_id: p.id, new_seed: idx + 1 }));
+      const participantsData = { bracket_id: selectedBracket.id, participant_updates: participantUpdates };
+      await reorderParticipants(participantsData);
       await regenerateBracket(selectedBracket.id);
       toast.success("Bracket updated and regenerated successfully");
       onBracketsUpdate();
@@ -239,16 +241,17 @@ export default function ManageTournamentPage({
   };
 
   const handleCreateBracket = async () => {
-    if (!newBracket.category_id || !newBracket.tatami) return;
+    if (!newBracket.category_id) return;
     try {
-      await createBracket({
+      const bracketData = {
         tournament_id: tournamentId,
         category_id: Number(newBracket.category_id),
-        group_id: newBracket.group_id,
-        type: newBracket.type,
+        group_id: newBracket.group_id || undefined,
+        type: newBracket.type || undefined,
         start_time: newBracket.start_time || undefined,
-        tatami: Number(newBracket.tatami),
-      });
+        tatami: Number(newBracket.tatami) || undefined,
+      };
+      await createBracket(bracketData);
       toast.success("Bracket created successfully");
       setShowCreateBracket(false);
       setNewBracket({ category_id: "", group_id: 1, type: "single_elimination", start_time: "", tatami: "" });
@@ -286,11 +289,7 @@ export default function ManageTournamentPage({
     }
   };
 
-  // --- Context Menu Handlers ---
-  const handleDeleteBracket = (bracket: Bracket) => {
-    setBracketToDelete(bracket);
-    setShowDeleteDialog(true);
-  };
+  // --- Edit Bracket Handler ---
 
   const handleEditBracket = async (bracket: Bracket) => {
     if (!selectedBracket || selectedBracket.id !== bracket.id) {
@@ -299,24 +298,54 @@ export default function ManageTournamentPage({
     setShowSettings(true);
   };
 
-  const handleConfirmDelete = () => {
-    // TODO: Implement API call for delete/transfer
-    setShowDeleteDialog(false);
-    setBracketToDelete(null);
-    setTransferTargetId(null);
-    toast.success("Bracket deleted (not really, just UI)");
+  // --- Delete Bracket Handler ---
+  const handleDeleteBracket = (bracket: Bracket) => {
+    setBracketToDelete(bracket);
+    setShowDeleteDialog(true);
   };
+
+  const handleConfirmDelete = async () => {
+    if (!bracketToDelete) {
+      toast.error("Bracket not found");
+      return;
+    }
+    try {
+      const bracketDeleteData = bracketToTransfer ? { target_bracket_id: bracketToTransfer.id } : {};
+      await deleteBracket(bracketToDelete.id, bracketDeleteData);
+      if (bracketToTransfer) {
+        await onSelectBracket(bracketToTransfer);
+      }
+      onBracketsUpdate();
+      toast.success("Bracket deleted!");
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        toast.error(e.message);
+      } else {
+        toast.error("Failed to delete bracket");
+      }
+    } finally {
+      setShowDeleteDialog(false);
+      setBracketToDelete(null);
+      setBracketToTransfer(null);
+    }
+  };
+
   const handleCancelDelete = () => {
     setShowDeleteDialog(false);
     setBracketToDelete(null);
-    setTransferTargetId(null);
+    setBracketToTransfer(null);
   };
 
   // --- Move Participant Handler ---
   const handleMoveParticipant = async (participant: Participant, targetBracketId: number) => {
     if (!selectedBracket) return;
     try {
-      await moveParticipant(participant.athlete_id, selectedBracket.id, targetBracketId);
+      const moveData = {
+        participant_id: participant.id,
+        from_bracket_id: selectedBracket.id,
+        to_bracket_id: targetBracketId,
+      };
+      await moveParticipant(moveData);
       const targetBracket = brackets.find((b) => b.id === targetBracketId);
       toast.success(
         <>
@@ -327,16 +356,17 @@ export default function ManageTournamentPage({
       );
       // Update local participants state for immediate feedback
       setParticipants((prev) => prev.filter((p) => p.athlete_id !== participant.athlete_id));
-      await onBracketsUpdate();
+      onBracketsUpdate();
     } catch (e: unknown) {
       if (e instanceof Error) {
-        toast.error(e.message || "Failed to move participant");
+        toast.error(e.message);
       } else {
         toast.error("Failed to move participant");
       }
     }
   };
 
+  // --- Delete Participant Handler ---
   const handleDeleteParticipant = (participant: Participant) => {
     setParticipantToDelete(participant);
     setShowDeleteParticipantDialog(true);
@@ -386,7 +416,7 @@ export default function ManageTournamentPage({
           {selectedBracket ? (
             <>
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">{selectedBracket.display_name || selectedBracket.category}</h2>
+                <h2 className="text-xl font-bold pl-3">{selectedBracket.display_name || selectedBracket.category}</h2>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={handleRegenerate} disabled={loading}>
                     <RefreshCw className="h-4 w-4 mr-1" />
@@ -489,8 +519,8 @@ export default function ManageTournamentPage({
         onClose={handleCancelDelete}
         bracketToDelete={bracketToDelete}
         brackets={brackets}
-        transferTargetId={transferTargetId}
-        setTransferTargetId={setTransferTargetId}
+        bracketToTransfer={bracketToTransfer}
+        setBracketToTransfer={setBracketToTransfer}
         onConfirm={handleConfirmDelete}
       />
       <DeleteParticipantDialog

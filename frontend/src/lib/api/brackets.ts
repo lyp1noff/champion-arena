@@ -1,4 +1,12 @@
-import { Bracket, BracketMatches, BracketUpdate } from "../interfaces";
+import {
+  Bracket,
+  BracketCreate,
+  BracketDelete,
+  BracketMatches,
+  BracketUpdate,
+  ParticipantMove,
+  ParticipantReorder,
+} from "../interfaces";
 import { fetchWithRefresh } from "./api";
 
 const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
@@ -49,52 +57,37 @@ export async function regenerateBracket(bracketId: number) {
   return await response.json();
 }
 
-export async function moveParticipant(athleteId: number, fromBracketId: number, toBracketId: number) {
+export async function moveParticipant(moveData: ParticipantMove) {
   const response = await fetchWithRefresh(`${url}/brackets/participants/move`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      athlete_id: athleteId,
-      from_bracket_id: fromBracketId,
-      to_bracket_id: toBracketId,
-    }),
+    body: JSON.stringify(moveData),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to move participant");
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to move participant");
   }
 
   return await response.json();
 }
 
-export async function reorderParticipants(
-  bracketId: number,
-  participantUpdates: Array<{ athlete_id: number; new_seed: number }>,
-) {
+export async function reorderParticipants(participantsData: ParticipantReorder) {
   const response = await fetchWithRefresh(`${url}/brackets/participants/reorder`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      bracket_id: bracketId,
-      participant_updates: participantUpdates,
-    }),
+    body: JSON.stringify(participantsData),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to reorder participants");
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to reorder participants");
   }
 
   return await response.json();
 }
 
-export async function createBracket(bracketData: {
-  tournament_id: number;
-  category_id: number;
-  group_id?: number;
-  type?: string;
-  start_time?: string;
-  tatami?: number;
-}) {
+export async function createBracket(bracketData: BracketCreate) {
   const response = await fetchWithRefresh(`${url}/brackets/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -103,6 +96,21 @@ export async function createBracket(bracketData: {
 
   if (!response.ok) {
     throw new Error("Failed to create bracket");
+  }
+
+  return await response.json();
+}
+
+export async function deleteBracket(bracketId: number, bracketData: BracketDelete) {
+  const response = await fetchWithRefresh(`${url}/brackets/${bracketId}/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(bracketData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to delete bracket");
   }
 
   return await response.json();

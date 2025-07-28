@@ -194,7 +194,7 @@ class BracketMatchesFull(BracketBase):
 
 
 class ParticipantMoveSchema(BaseModel):
-    athlete_id: int
+    participant_id: int
     from_bracket_id: int
     to_bracket_id: int
 
@@ -203,16 +203,20 @@ class ParticipantReorderSchema(BaseModel):
     bracket_id: int
     participant_updates: List[
         dict[str, int]
-    ]  # List of {athlete_id: int, new_seed: int}
+    ]  # List of {participant_id: int, new_seed: int}
 
 
 class BracketCreateSchema(BaseModel):
     tournament_id: int
     category_id: int
     group_id: int = 1
-    type: str = "single_elimination"
+    type: Optional[str] = "single_elimination"
     start_time: Optional[time] = None
     tatami: Optional[int] = None
+
+
+class BracketDeleteRequest(BaseModel):
+    target_bracket_id: Optional[int] = None
 
 
 class CategoryCreateSchema(BaseModel):

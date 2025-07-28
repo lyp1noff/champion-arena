@@ -12,8 +12,8 @@ interface DeleteBracketDialogProps {
   onClose: () => void;
   bracketToDelete: Bracket | null;
   brackets: Bracket[];
-  transferTargetId: number | null;
-  setTransferTargetId: (id: number | null) => void;
+  bracketToTransfer: Bracket | null;
+  setBracketToTransfer: (id: Bracket | null) => void;
   onConfirm: () => void;
 }
 
@@ -22,12 +22,12 @@ export default function DeleteBracketDialog({
   onClose,
   bracketToDelete,
   brackets,
-  transferTargetId,
-  setTransferTargetId,
+  bracketToTransfer,
+  setBracketToTransfer,
   onConfirm,
 }: DeleteBracketDialogProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const selectedBracket = brackets.find((b) => b.id === transferTargetId) || null;
+  const selectedBracket = brackets.find((b) => b.id === bracketToTransfer?.id) || null;
   const filteredBrackets = bracketToDelete ? brackets.filter((b) => b.id !== bracketToDelete.id) : brackets;
 
   return (
@@ -57,7 +57,7 @@ export default function DeleteBracketDialog({
                             key={bracket.id}
                             value={bracket.display_name || bracket.category}
                             onSelect={() => {
-                              setTransferTargetId(bracket.id);
+                              setBracketToTransfer(bracket);
                               setPopoverOpen(false);
                             }}
                           >
@@ -82,7 +82,7 @@ export default function DeleteBracketDialog({
               </Popover>
             </div>
             <div className="flex gap-2">
-              <Button onClick={onConfirm} disabled={!transferTargetId} variant="destructive" className="flex-1">
+              <Button onClick={onConfirm} disabled={!bracketToTransfer} variant="destructive" className="flex-1">
                 Transfer & Delete
               </Button>
               <Button onClick={onClose} className="flex-1" variant="outline">

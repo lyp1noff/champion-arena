@@ -113,15 +113,14 @@ export interface Category {
 }
 
 export interface ParticipantMove {
-  athlete_id: number;
+  participant_id: number;
   from_bracket_id: number;
   to_bracket_id: number;
-  new_seed: number;
 }
 
 export interface ParticipantReorder {
   bracket_id: number;
-  participant_updates: Array<{ athlete_id: number; new_seed: number }>;
+  participant_updates: Array<{ participant_id: number; new_seed: number }>;
 }
 
 export interface BracketCreate {
@@ -133,11 +132,15 @@ export interface BracketCreate {
   tatami?: number;
 }
 
-export interface CategoryCreate {
-  name: string;
-  age: number;
-  gender: string;
+export interface BracketDelete {
+  target_bracket_id?: number;
 }
+
+// export interface CategoryCreate {
+//   name: string;
+//   age: number;
+//   gender: string;
+// }
 
 // export type BracketWithCategory = {
 //   bracket_id: number;
