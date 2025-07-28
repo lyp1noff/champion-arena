@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from src.dependencies.auth import get_current_user
 from src.models import (
+    ApplicationStatus,
     Bracket,
     BracketMatch,
     BracketParticipant,
@@ -20,6 +21,7 @@ from src.models import (
     Application,
     AthleteCoachLink,
 )
+from src.routers.brackets import regenerate_matches_endpoint
 from src.schemas import (
     BracketMatchesFull,
     BracketResponse,
@@ -367,4 +369,192 @@ async def submit_application(
     )
     session.add(application)
     await session.commit()
+    return {"status": "ok"}
+
+
+@router.post(
+    "/{tournament_id}/applications/{application_id}/approve",
+    dependencies=[Depends(get_current_user)],
+)
+async def add_participant_from_application(
+    tournament_id: int,
+    application_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    # 1. Find the application
+    app = await db.get(Application, application_id)
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    # 2. Find the bracket for this tournament/category
+    bracket = await db.execute(
+        select(Bracket).where(
+            Bracket.tournament_id == app.tournament_id,
+            Bracket.category_id == app.category_id,
+        )
+    )
+    bracket = bracket.scalars().first()
+    if not bracket:
+        # Create bracket if not found
+        bracket = Bracket(
+            tournament_id=app.tournament_id,
+            category_id=app.category_id,
+        )
+        db.add(bracket)
+        await db.commit()
+        await db.refresh(bracket)
+
+    # 3. Check if already in bracket
+    existing = await db.execute(
+        select(BracketParticipant).where(
+            BracketParticipant.bracket_id == bracket.id,
+            BracketParticipant.athlete_id == app.athlete_id,
+        )
+    )
+    if existing.scalars().first():
+        raise HTTPException(status_code=400, detail="Athlete already in bracket")
+
+    # 4. Find max seed
+    result = await db.execute(
+        select(BracketParticipant.seed)
+        .where(BracketParticipant.bracket_id == bracket.id)
+        .order_by(BracketParticipant.seed.desc())
+        .limit(1)
+    )
+    max_seed = result.scalar() or 0
+    new_seed = (max_seed or 0) + 1
+
+    # 5. Add BracketParticipant
+    participant = BracketParticipant(
+        bracket_id=bracket.id,
+        athlete_id=app.athlete_id,
+        seed=new_seed,
+    )
+    db.add(participant)
+
+    # 6. Update Application status
+    app.status = ApplicationStatus.APPROVED.value
+    await db.commit()
+
+    # 7. Regenerate matches
+    await regenerate_matches_endpoint(bracket.id, session=db)
+
+    return {"status": "ok"}
+
+
+@router.post(
+    "/{tournament_id}/applications/approve-all",
+    dependencies=[Depends(get_current_user)],
+)
+async def approve_all_applications(
+    tournament_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    # 1. Find all pending applications for the tournament (and category if provided)
+    query = select(Application).where(Application.tournament_id == tournament_id)
+    query = query.where(Application.status == ApplicationStatus.PENDING.value)
+    result = await db.execute(query)
+    applications = result.scalars().all()
+    if not applications:
+        return {"status": "no applications to approve"}
+
+    # 2. Group by (category_id)
+    from collections import defaultdict
+
+    apps_by_category = defaultdict(list)
+    for app in applications:
+        apps_by_category[app.category_id].append(app)
+
+    updated_bracket_ids = set()
+    for category_id, apps in apps_by_category.items():
+        # Find bracket for this tournament/category
+        bracket = await db.execute(
+            select(Bracket).where(
+                Bracket.tournament_id == tournament_id,
+                Bracket.category_id == category_id,
+            )
+        )
+        bracket = bracket.scalars().first()
+        if not bracket:
+            # Create bracket if not found
+            bracket = Bracket(
+                tournament_id=tournament_id,
+                category_id=category_id,
+            )
+            db.add(bracket)
+            await db.commit()
+            await db.refresh(bracket)
+        # Find max seed
+        result = await db.execute(
+            select(BracketParticipant.seed)
+            .where(BracketParticipant.bracket_id == bracket.id)
+            .order_by(BracketParticipant.seed.desc())
+            .limit(1)
+        )
+        max_seed = result.scalar() or 0
+        # Add each application as participant if not already present
+        for i, app in enumerate(apps):
+            existing = await db.execute(
+                select(BracketParticipant).where(
+                    BracketParticipant.bracket_id == bracket.id,
+                    BracketParticipant.athlete_id == app.athlete_id,
+                )
+            )
+            if existing.scalars().first():
+                continue
+            participant = BracketParticipant(
+                bracket_id=bracket.id,
+                athlete_id=app.athlete_id,
+                seed=max_seed + i + 1,
+            )
+            db.add(participant)
+            app.status = ApplicationStatus.APPROVED.value
+        updated_bracket_ids.add(bracket.id)
+    await db.commit()
+    # Regenerate matches for all updated brackets
+    for bracket_id in updated_bracket_ids:
+        await regenerate_matches_endpoint(bracket_id, session=db)
+    return {"status": "ok", "approved": len(applications)}
+
+
+@router.delete(
+    "/participants/{participant_id}", dependencies=[Depends(get_current_user)]
+)
+async def remove_competitor(
+    participant_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(BracketParticipant)
+        .options(selectinload(BracketParticipant.bracket))
+        .where(BracketParticipant.id == participant_id)
+    )
+    participant = result.scalars().first()
+
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    bracket_id = participant.bracket_id
+    athlete_id = participant.athlete_id
+    tournament_id = participant.bracket.tournament_id if participant.bracket else None
+    category_id = participant.bracket.category_id if participant.bracket else None
+
+    await db.delete(participant)
+
+    if tournament_id and category_id and athlete_id:
+        apps = await db.execute(
+            select(Application).where(
+                Application.tournament_id == tournament_id,
+                Application.category_id == category_id,
+                Application.athlete_id == athlete_id,
+            )
+        )
+        for app in apps.scalars().all():
+            await db.delete(app)
+
+    await db.commit()
+
+    if bracket_id:
+        await regenerate_matches_endpoint(bracket_id, session=db)
+
     return {"status": "ok"}

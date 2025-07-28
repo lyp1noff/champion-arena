@@ -89,9 +89,7 @@ def test_delete_athlete(db_session):
     db_session.add_all([tournament, category])
     db_session.commit()
 
-    bracket = Bracket(
-        tournament_id=tournament.id, category_id=category.id, type="single_elimination"
-    )
+    bracket = Bracket(tournament_id=tournament.id, category_id=category.id)
     db_session.add(bracket)
     db_session.commit()
 
@@ -125,9 +123,7 @@ def test_delete_tournament(db_session):
     db_session.add(category)
     db_session.commit()
 
-    bracket = Bracket(
-        tournament_id=tournament.id, category_id=category.id, type="single_elimination"
-    )
+    bracket = Bracket(tournament_id=tournament.id, category_id=category.id)
     db_session.add(bracket)
     db_session.commit()
 
@@ -166,9 +162,7 @@ def test_create_and_delete_match(db_session):
     db_session.add_all([tournament, category])
     db_session.commit()
 
-    bracket = Bracket(
-        tournament_id=tournament.id, category_id=category.id, type="single_elimination"
-    )
+    bracket = Bracket(tournament_id=tournament.id, category_id=category.id)
     db_session.add(bracket)
     db_session.commit()
 

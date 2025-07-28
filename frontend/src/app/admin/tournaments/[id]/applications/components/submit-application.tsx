@@ -5,11 +5,12 @@ import { Command, CommandInput, CommandList, CommandItem, CommandEmpty } from "@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Coach, Athlete, Category, ApplicationResponse } from "@/lib/interfaces";
-import { getApplications, createApplication } from "@/lib/api/applications";
+import { getApplications, createApplication, approveAllApplications } from "@/lib/api/applications";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import AthleteForm from "@/components/athlete-form";
+import { useTranslations } from "next-intl";
 
 interface Props {
   tournamentId: number;
@@ -32,6 +33,8 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
   const [athletesState, setAthletes] = useState<Athlete[]>(athletes);
   const [athleteDialogOpen, setAthleteDialogOpen] = useState(false);
 
+  const t = useTranslations("AdminTournaments");
+
   // const getAge = (birthDate: string | null) => {
   //   if (!birthDate) return null;
   //   const dob = new Date(birthDate);
@@ -39,18 +42,18 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
   //   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
   // };
 
-  const fetchSubmitted = async () => {
+  const fetchSubmitted = useCallback(async () => {
     try {
       const data = await getApplications(tournamentId);
       setSubmitted(data);
     } catch {
       toast.error("Failed to load submitted applications");
     }
-  };
+  }, [tournamentId]);
 
   useEffect(() => {
     fetchSubmitted();
-  });
+  }, [fetchSubmitted]);
 
   const filteredAthletes = selectedCoach ? athletesState.filter((a) => a.coaches_id?.includes(selectedCoach.id)) : [];
 
@@ -84,21 +87,31 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
     }
   };
 
+  const approveAll = async () => {
+    try {
+      await approveAllApplications(tournamentId);
+      toast.success("All applications approved and added to brackets");
+      fetchSubmitted();
+    } catch {
+      toast.error("Failed to approve all applications");
+    }
+  };
+
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
+    <div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto">
       <div className="flex-1 space-y-4">
         {/* Coach selector */}
         <Popover open={openCoach} onOpenChange={setOpenCoach}>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full text-left min-h-10">
-              {selectedCoach ? `${selectedCoach.last_name}` : "Select coach..."}
+              {selectedCoach ? `${selectedCoach.last_name}` : t("selectCoach")}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
             <Command>
               <CommandInput placeholder="Search coaches..." />
               <CommandList>
-                <CommandEmpty>No coaches found.</CommandEmpty>
+                <CommandEmpty>{t("noCoachesFound")}</CommandEmpty>
                 {coaches.map((coach) => (
                   <CommandItem
                     key={coach.id}
@@ -122,7 +135,7 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
         <Popover open={openAthlete} onOpenChange={setOpenAthlete}>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full text-left min-h-10">
-              {selectedAthlete ? `${selectedAthlete.first_name} ${selectedAthlete.last_name}` : "Select athlete..."}
+              {selectedAthlete ? `${selectedAthlete.first_name} ${selectedAthlete.last_name}` : t("selectAthlete")}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -130,7 +143,7 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
               <CommandInput placeholder="Search athletes..." />
               <CommandList>
                 <CommandEmpty>
-                  No athletes found.
+                  {t("noAthletesFound")}
                   <div className="mt-2">
                     <Button
                       variant="outline"
@@ -140,7 +153,7 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
                         setAthleteDialogOpen(true);
                       }}
                     >
-                      + Create new athlete
+                      {t("createNewAthlete")}
                     </Button>
                   </div>
                 </CommandEmpty>
@@ -167,14 +180,14 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
         <Popover open={openCategory} onOpenChange={setOpenCategory}>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full text-left min-h-10">
-              {selectedCategory ? selectedCategory.name : "Select category..."}
+              {selectedCategory ? selectedCategory.name : t("selectCategory")}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
             <Command>
               <CommandInput placeholder="Search categories..." />
               <CommandList>
-                <CommandEmpty>No categories found.</CommandEmpty>
+                <CommandEmpty>{t("noCategoriesFound")}</CommandEmpty>
                 {filteredCategories.map((cat) => (
                   <CommandItem
                     key={cat.id}
@@ -193,37 +206,41 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
         </Popover>
 
         <Button className="w-full" onClick={submitApplication} disabled={!selectedAthlete || !selectedCategory}>
-          Submit application
+          {t("submitApplication")}
         </Button>
       </div>
 
-      {/* Sidebar with submitted applications */}
-      <Card className="w-full lg:max-w-sm">
-        <CardHeader>
-          <CardTitle>Submitted Applications</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {submitted.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No applications yet.</p>
-          ) : (
-            submitted.map((app) => (
-              <div key={app.id} className="text-sm">
-                {app.athlete.first_name} {app.athlete.last_name} – {app.category.name} ({app.status})
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+      <div className="flex flex-1 flex-col space-y-4">
+        {/* Sidebar with submitted applications */}
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>{t("submittedApplications")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {submitted.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("noApplicationsYet")}</p>
+            ) : (
+              submitted.map((app) => (
+                <div key={app.id} className="text-sm">
+                  {app.athlete.first_name} {app.athlete.last_name} – {app.category.name} ({app.status})
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Button onClick={approveAll}>{t("approveAllApplications")}</Button>
+      </div>
 
       <Dialog open={athleteDialogOpen} onOpenChange={setAthleteDialogOpen}>
         <DialogContent className="max-w-lg">
-          <DialogTitle>Create New Athlete</DialogTitle>
+          <DialogTitle>{t("createNewAthlete")}</DialogTitle>
           <AthleteForm
             onSuccess={(newAthlete: Athlete) => {
               setAthletes((prev) => [...prev, newAthlete]);
               setSelectedAthlete(newAthlete);
               setAthleteDialogOpen(false);
-              toast.success("Athlete created");
+              toast.success(t("athleteCreated"));
             }}
             onCancel={() => setAthleteDialogOpen(false)}
           />

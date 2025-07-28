@@ -134,9 +134,6 @@ async def import_competitors_from_cbr(
             bracket = Bracket(
                 tournament_id=tournament.id,
                 category_id=category.id,
-                type="single_elimination",
-                tatami=1,
-                start_time=time(hour=12),
             )
             db.add(bracket)
             await db.commit()

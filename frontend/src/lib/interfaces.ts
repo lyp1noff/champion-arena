@@ -48,6 +48,7 @@ export interface Category {
 }
 
 export type Participant = {
+  id: number;
   athlete_id: number;
   seed: number;
   last_name: string;

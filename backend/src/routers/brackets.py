@@ -20,18 +20,14 @@ from src.models import (
 from src.schemas import (
     BracketResponse,
     BracketMatchResponse,
-    BracketMatchesFull,
     BracketUpdateSchema,
     ParticipantMoveSchema,
     ParticipantReorderSchema,
     BracketCreateSchema,
-    CategoryCreateSchema,
-    CategoryResponse,
 )
 from src.services.serialize import (
     serialize_bracket,
     serialize_bracket_match,
-    serialize_bracket_matches_full,
 )
 from src.services.brackets import (
     regenerate_bracket_matches,

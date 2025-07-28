@@ -23,13 +23,13 @@ router = APIRouter(
 
 @router.get("", response_model=PaginatedAthletesResponse)
 async def get_athletes(
-        page: int = Query(1, alias="page", ge=1),
-        limit: int = Query(10, alias="limit", ge=1, le=100),
-        order_by: str = Query("id", alias="order_by"),
-        order: str = Query("asc", alias="order"),
-        search: str = Query(None, alias="search"),
-        coach_search: str = Query(None, alias="coach_search"),
-        db: AsyncSession = Depends(get_db),
+    page: int = Query(1, alias="page", ge=1),
+    limit: int = Query(10, alias="limit", ge=1, le=100),
+    order_by: str = Query("id", alias="order_by"),
+    order: str = Query("asc", alias="order"),
+    search: str = Query(None, alias="search"),
+    coach_search: str = Query(None, alias="coach_search"),
+    db: AsyncSession = Depends(get_db),
 ):
     offset = (page - 1) * limit
 
@@ -72,9 +72,7 @@ async def get_athletes(
             stmt = stmt.outerjoin(Coach, AthleteCoachLink.coach_id == Coach.id)
         # Group by athlete to avoid duplicates and sort by the first coach's last name
         stmt = stmt.group_by(Athlete.id)
-        order_column = func.min(
-            Coach.last_name
-        )
+        order_column = func.min(Coach.last_name)
         stmt = stmt.order_by(
             desc(order_column) if order.lower() == "desc" else asc(order_column)
         )
@@ -91,6 +89,9 @@ async def get_athletes(
 
     athlete_responses = []
     for athlete in athletes:
+        coaches_id = [
+            link.coach.id for link in athlete.coach_links if link.coach is not None
+        ]
         coaches_last_name = [
             link.coach.last_name
             for link in athlete.coach_links
@@ -111,6 +112,7 @@ async def get_athletes(
                 gender=athlete.gender,
                 birth_date=athlete.birth_date,
                 coaches_last_name=coaches_last_name,
+                coaches_id=coaches_id,
                 age=age,
             )
         )
@@ -146,7 +148,7 @@ async def get_athletes(
 
 @router.get("/all", response_model=List[AthleteResponse])
 async def get_all_athletes(
-        db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     stmt = select(Athlete).options(
         selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach)
@@ -156,6 +158,9 @@ async def get_all_athletes(
 
     athletes = []
     for athlete in athletes_db:
+        coaches_id = [
+            link.coach.id for link in athlete.coach_links if link.coach is not None
+        ]
         coaches_last_name = [
             link.coach.last_name
             for link in athlete.coach_links
@@ -176,6 +181,7 @@ async def get_all_athletes(
                 gender=athlete.gender,
                 birth_date=athlete.birth_date,
                 coaches_last_name=coaches_last_name,
+                coaches_id=coaches_id,
                 age=age,
             )
         )
@@ -196,6 +202,10 @@ async def get_athlete(id: int, db: AsyncSession = Depends(get_db)):
     if not athlete:
         raise HTTPException(status_code=404, detail="Athlete not found")
 
+    coaches_id = [
+        link.coach.id for link in athlete.coach_links if link.coach is not None
+    ]
+
     coaches_last_name = [
         link.coach.last_name for link in athlete.coach_links if link.coach is not None
     ]
@@ -213,6 +223,7 @@ async def get_athlete(id: int, db: AsyncSession = Depends(get_db)):
         gender=athlete.gender,
         birth_date=athlete.birth_date,
         coaches_last_name=coaches_last_name,
+        coaches_id=coaches_id,
         age=age,
     )
 
@@ -249,6 +260,10 @@ async def create_athlete(athlete: AthleteCreate, db: AsyncSession = Depends(get_
         link.coach.last_name for link in athlete.coach_links if link.coach is not None
     ]
 
+    coaches_id = [
+        link.coach.id for link in athlete.coach_links if link.coach is not None
+    ]
+
     return AthleteResponse(
         id=athlete.id,
         first_name=athlete.first_name,
@@ -256,12 +271,13 @@ async def create_athlete(athlete: AthleteCreate, db: AsyncSession = Depends(get_
         gender=athlete.gender,
         birth_date=athlete.birth_date,
         coaches_last_name=coaches_last_name,
+        coaches_id=coaches_id,
     )
 
 
 @router.put("/{id}", response_model=AthleteResponse)
 async def update_athlete(
-        id: int, athlete_update: AthleteUpdate, db: AsyncSession = Depends(get_db)
+    id: int, athlete_update: AthleteUpdate, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(Athlete).where(Athlete.id == id))
     athlete = result.scalar_one_or_none()
@@ -296,6 +312,10 @@ async def update_athlete(
         link.coach.last_name for link in athlete.coach_links if link.coach is not None
     ]
 
+    coaches_id = [
+        link.coach.id for link in athlete.coach_links if link.coach is not None
+    ]
+
     return AthleteResponse(
         id=athlete.id,
         first_name=athlete.first_name,
@@ -303,6 +323,7 @@ async def update_athlete(
         gender=athlete.gender,
         birth_date=athlete.birth_date,
         coaches_last_name=coaches_last_name,
+        coaches_id=coaches_id,
     )
 
 

@@ -34,7 +34,7 @@ export default function TournamentsPage() {
     };
 
     fetchTournaments();
-  }, []);
+  }, [t]);
 
   return (
     <div className="container py-10">

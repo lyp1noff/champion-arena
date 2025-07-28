@@ -16,6 +16,7 @@ import { Tournament } from "@/lib/interfaces";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { TournamentForm } from "@/components/tournament-form";
+import { useTranslations } from "next-intl";
 
 interface DataTableRowActionsProps {
   row: Row<Tournament>;
@@ -24,7 +25,9 @@ interface DataTableRowActionsProps {
 
 export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const router = useRouter();
+  const t = useTranslations("AdminTournaments");
 
   const handleDelete = async () => {
     try {
@@ -34,6 +37,7 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
     } catch (err) {
       toast.error(`Error deleting tournament: ${err}`);
     }
+    setIsDeleteDialogOpen(false);
   };
 
   const handleOpen = () => {
@@ -44,6 +48,10 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
 
   const handleManage = () => {
     router.push(`/admin/tournaments/${row.original.id}/manage`);
+  };
+
+  const handleApplications = () => {
+    router.push(`/admin/tournaments/${row.original.id}/applications`);
   };
 
   const exportFile = async () => {
@@ -70,12 +78,15 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[160px]">
-          <DropdownMenuItem onClick={handleOpen}>Open</DropdownMenuItem>
-          <DropdownMenuItem onClick={handleEdit}>Edit</DropdownMenuItem>
-          <DropdownMenuItem onClick={handleManage}>Manage</DropdownMenuItem>
-          <DropdownMenuItem onClick={exportFile}>Export to File</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleOpen}>{t("open")}</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleDelete}>Delete</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleEdit}>{t("edit")}</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleApplications}>{t("applications")}</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleManage}>{t("manage")}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={exportFile}>{t("exportToFile")}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>{t("delete")}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -89,6 +100,21 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
               onDataChanged?.();
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogTitle>{t("deleteConfirmTitle")}</DialogTitle>
+          <p>{t("deleteConfirmText")}</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              {t("deleteConfirmCancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              {t("deleteConfirmDelete")}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

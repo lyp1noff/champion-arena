@@ -8,6 +8,7 @@ interface ParticipantsListProps {
   draggedParticipant?: { participant: Participant; bracketId: number } | null;
   eligibleBrackets?: Bracket[];
   onMoveParticipant?: (participant: Participant, targetBracketId: number) => void;
+  onDeleteParticipant?: (participant: Participant) => void;
 }
 
 export default function ParticipantsList({
@@ -15,6 +16,7 @@ export default function ParticipantsList({
   bracketId,
   eligibleBrackets = [],
   onMoveParticipant,
+  onDeleteParticipant,
 }: ParticipantsListProps) {
   return (
     <SortableContext items={participants.map((p) => `${bracketId}-${p.seed}`)} strategy={verticalListSortingStrategy}>
@@ -26,6 +28,7 @@ export default function ParticipantsList({
             bracketId={bracketId}
             eligibleBrackets={eligibleBrackets}
             onMoveParticipant={onMoveParticipant}
+            onDeleteParticipant={onDeleteParticipant}
           />
         ))}
       </div>

@@ -32,6 +32,7 @@ import {
   moveParticipant,
 } from "@/lib/api/brackets";
 import DeleteBracketDialog from "./components/DeleteBracketDialog";
+import DeleteParticipantDialog from "./components/DeleteParticipantDialog";
 
 interface Props {
   tournamentId: number;
@@ -95,6 +96,8 @@ export default function ManageTournamentPage({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [bracketToDelete, setBracketToDelete] = useState<Bracket | null>(null);
   const [transferTargetId, setTransferTargetId] = useState<number | null>(null);
+  const [showDeleteParticipantDialog, setShowDeleteParticipantDialog] = useState(false);
+  const [participantToDelete, setParticipantToDelete] = useState<Participant | null>(null);
 
   // --- Effects ---
   useEffect(() => {
@@ -334,6 +337,15 @@ export default function ManageTournamentPage({
     }
   };
 
+  const handleDeleteParticipant = (participant: Participant) => {
+    setParticipantToDelete(participant);
+    setShowDeleteParticipantDialog(true);
+  };
+
+  const handleParticipantDeleteSuccess = () => {
+    onBracketsUpdate();
+  };
+
   // --- Render ---
   return (
     <DndContext
@@ -428,6 +440,7 @@ export default function ManageTournamentPage({
                     bracketId={selectedBracket.id}
                     eligibleBrackets={brackets}
                     onMoveParticipant={handleMoveParticipant}
+                    onDeleteParticipant={handleDeleteParticipant}
                   />
                 </CardContent>
               </Card>
@@ -479,6 +492,12 @@ export default function ManageTournamentPage({
         transferTargetId={transferTargetId}
         setTransferTargetId={setTransferTargetId}
         onConfirm={handleConfirmDelete}
+      />
+      <DeleteParticipantDialog
+        open={showDeleteParticipantDialog}
+        onClose={() => setShowDeleteParticipantDialog(false)}
+        participantToDelete={participantToDelete}
+        onSuccess={handleParticipantDeleteSuccess}
       />
     </DndContext>
   );

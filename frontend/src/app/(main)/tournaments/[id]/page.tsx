@@ -87,7 +87,7 @@ export default function TournamentPage() {
     };
 
     fetchData();
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     if (!brackets.length) return;

@@ -23,3 +23,16 @@ export async function createApplication(data: Application): Promise<ApplicationR
 
   return res.json();
 }
+
+export async function approveAllApplications(tournamentId: number, categoryId?: number) {
+  const res = await fetchWithRefresh(`${url}/tournaments/${tournamentId}/applications/approve-all`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tournament_id: tournamentId, ...(categoryId ? { category_id: categoryId } : {}) }),
+  });
+  if (!res.ok) {
+    const msg = (await res.json())?.detail || "Failed to approve applications";
+    throw new Error(msg);
+  }
+  return res.json();
+}

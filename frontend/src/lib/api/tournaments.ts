@@ -104,3 +104,15 @@ export async function importCbrFile(tournamentId: number, file: File): Promise<v
     throw new Error("Failed to upload cbr file");
   }
 }
+
+export async function deleteParticipant(participant_id: number): Promise<void> {
+  const response = await fetchWithRefresh(`${url}/tournaments/participants/${participant_id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete participant");
+  }
+
+  return await response.json();
+}

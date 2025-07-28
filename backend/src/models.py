@@ -14,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship, declared_attr
 from src.database import Base
 import enum
+from datetime import time
 
 
 class Gender(enum.Enum):
@@ -222,9 +223,11 @@ class Bracket(Base, TimestampMixin):
         index=True,
     )
     group_id = Column(Integer, nullable=False, default=1)
-    type = Column(String(50), nullable=False)
-    start_time = Column(Time, nullable=True)
-    tatami = Column(Integer, nullable=True)
+    type = Column(
+        String(50), nullable=False, default=BracketType.SINGLE_ELIMINATION.value
+    )
+    start_time = Column(Time, nullable=False, default=lambda: time(9, 0))
+    tatami = Column(Integer, nullable=False, default=1)
 
     tournament = relationship("Tournament", back_populates="brackets")
     category = relationship("Category", back_populates="brackets")

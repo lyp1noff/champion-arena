@@ -23,7 +23,6 @@ class AthleteBase(CustomBaseModel):
     first_name: str
     gender: str
     birth_date: Optional[date] = None
-    # coaches_id: List[int] = []
 
 
 class AthleteCreate(AthleteBase):
@@ -31,9 +30,10 @@ class AthleteCreate(AthleteBase):
 
 
 class AthleteResponse(AthleteBase):
-    id: int
+    coaches_id: List[int] = []
     coaches_last_name: List[str] = []
     age: Optional[int] = None
+    id: int
 
 
 class AthleteUpdate(AthleteBase):
@@ -140,6 +140,7 @@ class BracketBase(CustomBaseModel):
 
 
 class BracketParticipantSchema(CustomBaseModel):
+    id: int
     athlete_id: int
     seed: int
     last_name: str

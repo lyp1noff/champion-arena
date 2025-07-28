@@ -21,6 +21,7 @@ interface DraggableParticipantProps {
   isDragging?: boolean;
   eligibleBrackets?: Bracket[];
   onMoveParticipant?: (participant: Participant, targetBracketId: number) => void;
+  onDeleteParticipant?: (participant: Participant) => void;
 }
 
 export default function DraggableParticipant({
@@ -29,6 +30,7 @@ export default function DraggableParticipant({
   isDragging = false,
   eligibleBrackets = [],
   onMoveParticipant,
+  onDeleteParticipant,
 }: DraggableParticipantProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: `${bracketId}-${participant.seed}`,
@@ -128,6 +130,20 @@ export default function DraggableParticipant({
             }}
           >
             Move
+          </Button>
+        </div>
+        <div className="flex items-center gap-2 px-2 pb-2">
+          <Button
+            size="sm"
+            variant="destructive"
+            className="px-3 py-1 w-full"
+            onClick={() => {
+              if (onDeleteParticipant) {
+                onDeleteParticipant(participant);
+              }
+            }}
+          >
+            Delete
           </Button>
         </div>
       </ContextMenuContent>
