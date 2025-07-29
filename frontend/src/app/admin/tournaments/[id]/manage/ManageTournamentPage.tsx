@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Bracket, BracketMatches, BracketType, Category, Participant } from "@/lib/interfaces";
 import { BracketView } from "@/components/bracket-view";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ interface Props {
   selectedBracket: Bracket | null;
   bracketMatches?: BracketMatches;
   loading: boolean;
-  onSelectBracket: (bracket: Bracket) => Promise<void>;
+  onSelectBracket: (bracket: Bracket | null) => Promise<void>;
   onSaveBracket: (updated: {
     id: number;
     type: BracketType;
@@ -50,7 +50,6 @@ interface Props {
     group_id: number;
     category_id?: number;
   }) => Promise<void>;
-  onBracketsUpdate: () => void;
 }
 
 export default function ManageTournamentPage({
@@ -61,7 +60,7 @@ export default function ManageTournamentPage({
   loading,
   onSelectBracket,
   onSaveBracket,
-  onBracketsUpdate,
+  // onBracketsUpdate,
 }: Props) {
   // --- State ---
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -74,7 +73,6 @@ export default function ManageTournamentPage({
   const [draggedParticipant, setDraggedParticipant] = useState<{ participant: Participant; bracketId: number } | null>(
     null,
   );
-  const originalParticipantsRef = useRef<Participant[]>([]);
   const [settingsForm, setSettingsForm] = useState({
     type: "single_elimination" as BracketType,
     start_time: "",
@@ -104,7 +102,6 @@ export default function ManageTournamentPage({
   useEffect(() => {
     if (selectedBracket) {
       setParticipants(selectedBracket.participants);
-      originalParticipantsRef.current = selectedBracket.participants;
       setSettingsForm({
         type: selectedBracket.type || "single_elimination",
         start_time: selectedBracket.start_time || "",
@@ -114,7 +111,6 @@ export default function ManageTournamentPage({
       });
     } else {
       setParticipants([]);
-      originalParticipantsRef.current = [];
       setSettingsForm({
         type: "single_elimination",
         start_time: "",
@@ -173,12 +169,8 @@ export default function ManageTournamentPage({
 
   // --- Unsaved Changes ---
   const hasPendingChanges = () => {
-    if (participants.length !== originalParticipantsRef.current.length) return true;
-    for (let i = 0; i < participants.length; i++) {
-      if (participants[i].athlete_id !== originalParticipantsRef.current[i].athlete_id) return true;
-      if (participants[i].seed !== originalParticipantsRef.current[i].seed) return true;
-    }
-    return false;
+    if (!selectedBracket) return false;
+    return JSON.stringify(participants) !== JSON.stringify(selectedBracket.participants);
   };
 
   const handleBracketSelect = async (bracket: Bracket) => {
@@ -214,8 +206,7 @@ export default function ManageTournamentPage({
       await reorderParticipants(participantsData);
       await regenerateBracket(selectedBracket.id);
       toast.success("Bracket updated and regenerated successfully");
-      onBracketsUpdate();
-      originalParticipantsRef.current = [...participants];
+      onSelectBracket(selectedBracket);
     } catch {
       toast.error("Failed to save bracket");
     }
@@ -237,7 +228,7 @@ export default function ManageTournamentPage({
       category_id: settingsForm.category_id,
     });
     setShowSettings(false);
-    onBracketsUpdate();
+    onSelectBracket(selectedBracket);
   };
 
   const handleCreateBracket = async () => {
@@ -251,11 +242,11 @@ export default function ManageTournamentPage({
         start_time: newBracket.start_time || undefined,
         tatami: Number(newBracket.tatami) || undefined,
       };
-      await createBracket(bracketData);
+      const newBracketObj = await createBracket(bracketData); // TO-DO: Refactor names
       toast.success("Bracket created successfully");
       setShowCreateBracket(false);
       setNewBracket({ category_id: "", group_id: 1, type: "single_elimination", start_time: "", tatami: "" });
-      onBracketsUpdate();
+      onSelectBracket(newBracketObj);
     } catch {
       toast.error("Failed to create bracket");
     }
@@ -283,7 +274,7 @@ export default function ManageTournamentPage({
     try {
       await regenerateBracket(selectedBracket.id);
       toast.success("Bracket regenerated successfully");
-      onBracketsUpdate();
+      await onSelectBracket(selectedBracket);
     } catch {
       toast.error("Failed to regenerate bracket");
     }
@@ -309,22 +300,17 @@ export default function ManageTournamentPage({
       toast.error("Bracket not found");
       return;
     }
+
+    setShowDeleteDialog(false);
+
     try {
-      const bracketDeleteData = bracketToTransfer ? { target_bracket_id: bracketToTransfer.id } : {};
-      await deleteBracket(bracketToDelete.id, bracketDeleteData);
-      if (bracketToTransfer) {
-        await onSelectBracket(bracketToTransfer);
-      }
-      onBracketsUpdate();
-      toast.success("Bracket deleted!");
+      await deleteBracket(bracketToDelete.id, bracketToTransfer ? { target_bracket_id: bracketToTransfer.id } : {});
+      toast.success("Bracket deleted");
+
+      await onSelectBracket(bracketToTransfer ?? null);
     } catch (e: unknown) {
-      if (e instanceof Error) {
-        toast.error(e.message);
-      } else {
-        toast.error("Failed to delete bracket");
-      }
+      toast.error(e instanceof Error ? e.message : "Failed to delete bracket");
     } finally {
-      setShowDeleteDialog(false);
       setBracketToDelete(null);
       setBracketToTransfer(null);
     }
@@ -354,9 +340,7 @@ export default function ManageTournamentPage({
           {targetBracket?.display_name || targetBracket?.category || targetBracketId.toString()}
         </>,
       );
-      // Update local participants state for immediate feedback
-      setParticipants((prev) => prev.filter((p) => p.athlete_id !== participant.athlete_id));
-      onBracketsUpdate();
+      onSelectBracket(selectedBracket);
     } catch (e: unknown) {
       if (e instanceof Error) {
         toast.error(e.message);
@@ -373,7 +357,7 @@ export default function ManageTournamentPage({
   };
 
   const handleParticipantDeleteSuccess = () => {
-    onBracketsUpdate();
+    onSelectBracket(selectedBracket);
   };
 
   // --- Render ---

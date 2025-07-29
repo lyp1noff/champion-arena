@@ -33,7 +33,10 @@ from src.schemas import (
     ApplicationResponse,
 )
 from src.database import get_db
-from src.services.brackets import regenerate_tournament_brackets
+from src.services.brackets import (
+    regenerate_tournament_brackets,
+    reorder_seeds_and_get_next,
+)
 from src.services.export_file import generate_pdf
 from src.services.import_competitors import import_competitors_from_cbr
 from src.services.serialize import serialize_bracket, serialize_bracket_matches_full
@@ -541,11 +544,13 @@ async def remove_competitor(
 
     await db.delete(participant)
 
+    await reorder_seeds_and_get_next(db, participant.bracket_id)
+
     if tournament_id and category_id and athlete_id:
         apps = await db.execute(
+            # TO-DO: Fix by adding BracketParticipant id to Application after approval
             select(Application).where(
                 Application.tournament_id == tournament_id,
-                Application.category_id == category_id,
                 Application.athlete_id == athlete_id,
             )
         )

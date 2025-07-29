@@ -296,13 +296,16 @@ async def regenerate_tournament_brackets(session: AsyncSession, tournament_id: i
     await session.commit()
 
 
-async def get_max_seed_in_target_bracket(
-    session: AsyncSession, target_bracket_id: int
-) -> int:
+async def reorder_seeds_and_get_next(session: AsyncSession, bracket_id: int) -> int:
     result = await session.execute(
-        select(func.max(BracketParticipant.seed)).where(
-            BracketParticipant.bracket_id == target_bracket_id
-        )
+        select(BracketParticipant)
+        .where(BracketParticipant.bracket_id == bracket_id)
+        .order_by(BracketParticipant.seed)
     )
-    max_seed = result.scalar()
-    return max_seed + 1 if max_seed is not None else 0
+    participants = result.scalars().all()
+
+    for index, participant in enumerate(participants, start=1):
+        participant.seed = index
+
+    await session.commit()
+    return len(participants) + 1

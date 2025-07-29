@@ -31,7 +31,7 @@ from src.services.serialize import (
     serialize_bracket_match,
 )
 from src.services.brackets import (
-    get_max_seed_in_target_bracket,
+    reorder_seeds_and_get_next,
     regenerate_bracket_matches,
     regenerate_round_bracket_matches,
 )
@@ -77,9 +77,9 @@ async def get_bracket(bracket_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.put("/{bracket_id}", dependencies=[Depends(get_current_user)])
 async def update_bracket(
-        bracket_id: int,
-        update_data: BracketUpdateSchema,
-        db: AsyncSession = Depends(get_db),
+    bracket_id: int,
+    update_data: BracketUpdateSchema,
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Bracket).where(Bracket.id == bracket_id))
     bracket = result.scalars().first()
@@ -156,8 +156,8 @@ async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db
 
 @router.post("/{bracket_id}/regenerate", dependencies=[Depends(get_current_user)])
 async def regenerate_matches_endpoint(
-        bracket_id: int,
-        session: AsyncSession = Depends(get_db),
+    bracket_id: int,
+    session: AsyncSession = Depends(get_db),
 ):
     try:
         result = await session.execute(
@@ -181,8 +181,8 @@ async def regenerate_matches_endpoint(
 
 @router.post("/participants/move", dependencies=[Depends(get_current_user)])
 async def move_participant(
-        move_data: ParticipantMoveSchema,
-        db: AsyncSession = Depends(get_db),
+    move_data: ParticipantMoveSchema,
+    db: AsyncSession = Depends(get_db),
 ):
     participant: BracketParticipant | None = await db.get(
         BracketParticipant, move_data.participant_id
@@ -205,7 +205,7 @@ async def move_participant(
     await db.delete(participant)
     await db.flush()  # Release id
 
-    new_seed = await get_max_seed_in_target_bracket(db, move_data.to_bracket_id)
+    new_seed = await reorder_seeds_and_get_next(db, move_data.to_bracket_id)
 
     new_participant = BracketParticipant(
         bracket_id=move_data.to_bracket_id,
@@ -225,8 +225,8 @@ async def move_participant(
 
 @router.post("/participants/reorder", dependencies=[Depends(get_current_user)])
 async def reorder_participants(
-        reorder_data: ParticipantReorderSchema,
-        db: AsyncSession = Depends(get_db),
+    reorder_data: ParticipantReorderSchema,
+    db: AsyncSession = Depends(get_db),
 ):
     for upd in reorder_data.participant_updates:
         await db.execute(
@@ -244,8 +244,8 @@ async def reorder_participants(
 
 @router.post("/create", dependencies=[Depends(get_current_user)])
 async def create_bracket(
-        bracket_data: BracketCreateSchema,
-        db: AsyncSession = Depends(get_db),
+    bracket_data: BracketCreateSchema,
+    db: AsyncSession = Depends(get_db),
 ):
     # Check if tournament exists
     tournament = await db.get(Tournament, bracket_data.tournament_id)
@@ -301,9 +301,9 @@ async def create_bracket(
 
 @router.post("/{bracket_id}/delete", dependencies=[Depends(get_current_user)])
 async def delete_bracket(
-        bracket_id: int,
-        data: BracketDeleteRequest,
-        db: AsyncSession = Depends(get_db),
+    bracket_id: int,
+    data: BracketDeleteRequest,
+    db: AsyncSession = Depends(get_db),
 ):
     bracket = await db.get(Bracket, bracket_id)
     if not bracket:
@@ -333,7 +333,7 @@ async def delete_bracket(
                     detail=f"Athlete {p.id} already in target bracket",
                 )
 
-            new_seed = await get_max_seed_in_target_bracket(db, data.target_bracket_id)
+            new_seed = await reorder_seeds_and_get_next(db, data.target_bracket_id)
 
             p.bracket_id = data.target_bracket_id
             p.seed = new_seed

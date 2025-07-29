@@ -39,9 +39,26 @@ export default function Page() {
     }
   };
 
-  const handleSelect = async (bracket: Bracket) => {
-    setSelectedBracket(bracket);
-    await fetchMatches(bracket.id);
+  const refreshBracketsAndSelect = async (bracketId: number | null) => {
+    const refreshed = await getTournamentBracketsById(tournamentId);
+    setBrackets(refreshed);
+
+    if (bracketId !== null) {
+      const updated = refreshed.find((b) => b.id === bracketId) ?? null;
+      setSelectedBracket(updated);
+      if (updated) {
+        await fetchMatches(updated.id);
+      } else {
+        setBracketMatches(undefined);
+      }
+    } else {
+      setSelectedBracket(null);
+      setBracketMatches(undefined);
+    }
+  };
+
+  const handleSelect = async (bracket: Bracket | null) => {
+    await refreshBracketsAndSelect(bracket?.id ?? null);
   };
 
   const handleSave = async (updated: { id: number; type: BracketType; start_time: string; tatami: number }) => {
@@ -54,32 +71,11 @@ export default function Page() {
       await updateBracket(updated.id, formatted);
       toast.success("Bracket saved");
 
-      const refreshed = await getTournamentBracketsById(tournamentId);
-      setBrackets(refreshed);
-      const newSelected = refreshed.find((b) => b.id === updated.id);
-      if (newSelected) setSelectedBracket(newSelected);
-      await fetchMatches(updated.id);
+      await refreshBracketsAndSelect(updated.id);
     } catch {
       toast.error("Failed to save bracket");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleBracketsUpdate = async () => {
-    try {
-      const refreshed = await getTournamentBracketsById(tournamentId);
-      setBrackets(refreshed);
-      if (selectedBracket) {
-        const newSelected = refreshed.find((b) => b.id === selectedBracket.id);
-        if (newSelected) {
-          setSelectedBracket(newSelected);
-          await fetchMatches(newSelected.id);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to refresh brackets:", error);
-      toast.error("Failed to refresh brackets");
     }
   };
 
@@ -92,7 +88,6 @@ export default function Page() {
       loading={loading}
       onSelectBracket={handleSelect}
       onSaveBracket={handleSave}
-      onBracketsUpdate={handleBracketsUpdate}
     />
   );
 }
