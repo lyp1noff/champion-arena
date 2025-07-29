@@ -4,6 +4,7 @@ import {
   BracketDelete,
   BracketMatches,
   BracketUpdate,
+  CategoryCreate,
   ParticipantMove,
   ParticipantReorder,
 } from "../interfaces";
@@ -126,7 +127,7 @@ export async function getCategories() {
   return await response.json();
 }
 
-export async function createCategory(categoryData: { name: string; age: number; gender: string }) {
+export async function createCategory(categoryData: CategoryCreate) {
   const response = await fetchWithRefresh(`${url}/categories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

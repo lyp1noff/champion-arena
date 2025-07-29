@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies.auth import get_current_user
 from src.models import Category
-from src.schemas import CategoryResponse
+from src.schemas import CategoryCreate, CategoryResponse
 from src.database import get_db
 
 router = APIRouter(
@@ -17,3 +17,14 @@ router = APIRouter(
 async def get_categories(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Category))
     return result.scalars().all()
+
+
+@router.post("", response_model=CategoryResponse)
+async def create_category(
+    category_data: CategoryCreate, db: AsyncSession = Depends(get_db)
+):
+    new_category = Category(**category_data.model_dump())
+    db.add(new_category)
+    await db.commit()
+    await db.refresh(new_category)
+    return new_category

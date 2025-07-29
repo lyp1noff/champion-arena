@@ -19,8 +19,6 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { toast } from "sonner";
 import BracketCard from "./components/BracketCard";
 import ParticipantsList from "./components/ParticipantsList";
-import SettingsDialog from "./components/SettingsDialog";
-import CreateBracketDialog from "./components/CreateBracketDialog";
 import CreateCategoryDialog from "./components/CreateCategoryDialog";
 import UnsavedChangesDialog from "./components/UnsavedChangesDialog";
 import {
@@ -34,6 +32,12 @@ import {
 } from "@/lib/api/brackets";
 import DeleteBracketDialog from "./components/DeleteBracketDialog";
 import DeleteParticipantDialog from "./components/DeleteParticipantDialog";
+import { deleteParticipant } from "@/lib/api/tournaments";
+import {
+  CreateBracketSchema,
+  defaultBracketValues,
+} from "@/app/admin/tournaments/[id]/manage/components/bracketSchema";
+import BracketFormDialog from "@/app/admin/tournaments/[id]/manage/components/BracketFormDialog";
 
 interface Props {
   tournamentId: number;
@@ -48,7 +52,7 @@ interface Props {
     start_time: string;
     tatami: number;
     group_id: number;
-    category_id?: number;
+    category_id?: string;
   }) => Promise<void>;
 }
 
@@ -60,7 +64,6 @@ export default function ManageTournamentPage({
   loading,
   onSelectBracket,
   onSaveBracket,
-  // onBracketsUpdate,
 }: Props) {
   // --- State ---
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -73,53 +76,35 @@ export default function ManageTournamentPage({
   const [draggedParticipant, setDraggedParticipant] = useState<{ participant: Participant; bracketId: number } | null>(
     null,
   );
-  const [settingsForm, setSettingsForm] = useState({
-    type: "single_elimination" as BracketType,
-    start_time: "",
-    tatami: "" as number | "",
-    group_id: 1,
-    category_id: 0,
-  });
-  const [newBracket, setNewBracket] = useState({
-    category_id: "",
-    group_id: 1,
-    type: "single_elimination" as BracketType,
-    start_time: "",
-    tatami: "",
-  });
-  const [newCategory, setNewCategory] = useState({
-    name: "",
-    age: "",
-    gender: "male",
+  const [settingsForm, setSettingsForm] = useState<Partial<CreateBracketSchema>>({
+    ...defaultBracketValues,
   });
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [bracketToDelete, setBracketToDelete] = useState<Bracket | null>(null);
   const [bracketToTransfer, setBracketToTransfer] = useState<Bracket | null>(null);
   const [showDeleteParticipantDialog, setShowDeleteParticipantDialog] = useState(false);
   const [participantToDelete, setParticipantToDelete] = useState<Participant | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // --- Effects ---
   useEffect(() => {
-    if (selectedBracket) {
-      setParticipants(selectedBracket.participants);
-      setSettingsForm({
-        type: selectedBracket.type || "single_elimination",
-        start_time: selectedBracket.start_time || "",
-        tatami: selectedBracket.tatami ?? "",
-        group_id: selectedBracket.group_id ?? 1,
-        category_id: categories.find((c) => c.name === selectedBracket.category)?.id ?? 0,
-      });
-    } else {
+    if (!selectedBracket) {
       setParticipants([]);
       setSettingsForm({
-        type: "single_elimination",
-        start_time: "",
-        tatami: "",
-        group_id: 1,
-        category_id: 0,
+        ...defaultBracketValues,
       });
+      return;
     }
-  }, [selectedBracket, categories]);
+
+    const matchedCategory = categories.find((c) => c.name === selectedBracket.category);
+
+    setParticipants(selectedBracket.participants);
+
+    setSettingsForm({
+      ...defaultBracketValues,
+      category_id: matchedCategory?.id.toString() ?? "",
+    });
+  }, [categories, selectedBracket]);
 
   useEffect(() => {
     loadCategories();
@@ -206,66 +191,28 @@ export default function ManageTournamentPage({
       await reorderParticipants(participantsData);
       await regenerateBracket(selectedBracket.id);
       toast.success("Bracket updated and regenerated successfully");
-      onSelectBracket(selectedBracket);
+      await onSelectBracket(selectedBracket);
     } catch {
       toast.error("Failed to save bracket");
     }
   };
 
   // --- Dialog Handlers ---
-  const handleSettingsSave = async () => {
-    if (!selectedBracket) return;
-    if (settingsForm.tatami === "" || !settingsForm.category_id) {
-      toast.error("Tatami and category are required.");
-      return;
-    }
-    await onSaveBracket({
-      id: selectedBracket.id,
-      type: settingsForm.type,
-      start_time: settingsForm.start_time,
-      tatami: Number(settingsForm.tatami),
-      group_id: settingsForm.group_id,
-      category_id: settingsForm.category_id,
-    });
-    setShowSettings(false);
-    onSelectBracket(selectedBracket);
-  };
-
-  const handleCreateBracket = async () => {
-    if (!newBracket.category_id) return;
+  const handleCreateBracket = async (data: CreateBracketSchema) => {
     try {
       const bracketData = {
         tournament_id: tournamentId,
-        category_id: Number(newBracket.category_id),
-        group_id: newBracket.group_id || undefined,
-        type: newBracket.type || undefined,
-        start_time: newBracket.start_time || undefined,
-        tatami: Number(newBracket.tatami) || undefined,
+        category_id: Number(data.category_id),
+        group_id: data.group_id,
+        type: data.type,
+        start_time: data.start_time,
+        tatami: data.tatami,
       };
-      const newBracketObj = await createBracket(bracketData); // TO-DO: Refactor names
+      const newBracketObj = await createBracket(bracketData);
       toast.success("Bracket created successfully");
-      setShowCreateBracket(false);
-      setNewBracket({ category_id: "", group_id: 1, type: "single_elimination", start_time: "", tatami: "" });
-      onSelectBracket(newBracketObj);
+      await onSelectBracket(newBracketObj);
     } catch {
       toast.error("Failed to create bracket");
-    }
-  };
-
-  const handleCreateCategory = async () => {
-    if (!newCategory.name || !newCategory.age) return;
-    try {
-      await createCategory({
-        name: newCategory.name,
-        age: Number(newCategory.age),
-        gender: newCategory.gender,
-      });
-      toast.success("Category created successfully");
-      setShowCreateCategory(false);
-      setNewCategory({ name: "", age: "", gender: "male" });
-      loadCategories();
-    } catch {
-      toast.error("Failed to create category");
     }
   };
 
@@ -281,7 +228,6 @@ export default function ManageTournamentPage({
   };
 
   // --- Edit Bracket Handler ---
-
   const handleEditBracket = async (bracket: Bracket) => {
     if (!selectedBracket || selectedBracket.id !== bracket.id) {
       await onSelectBracket(bracket);
@@ -295,7 +241,7 @@ export default function ManageTournamentPage({
     setShowDeleteDialog(true);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleBracketConfirmDelete = async () => {
     if (!bracketToDelete) {
       toast.error("Bracket not found");
       return;
@@ -340,7 +286,7 @@ export default function ManageTournamentPage({
           {targetBracket?.display_name || targetBracket?.category || targetBracketId.toString()}
         </>,
       );
-      onSelectBracket(selectedBracket);
+      await onSelectBracket(selectedBracket);
     } catch (e: unknown) {
       if (e instanceof Error) {
         toast.error(e.message);
@@ -356,8 +302,19 @@ export default function ManageTournamentPage({
     setShowDeleteParticipantDialog(true);
   };
 
-  const handleParticipantDeleteSuccess = () => {
-    onSelectBracket(selectedBracket);
+  const handleCompetitorConfirmDelete = async () => {
+    if (!participantToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteParticipant(participantToDelete.id);
+      toast.success("Participant deleted successfully");
+      setShowDeleteParticipantDialog(false);
+      await onSelectBracket(selectedBracket);
+    } catch {
+      toast.error("Failed to delete participant");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // --- Render ---
@@ -472,30 +429,33 @@ export default function ManageTournamentPage({
         )}
       </DragOverlay>
       {/* Dialogs */}
-      <SettingsDialog
-        open={showSettings}
-        onClose={() => setShowSettings(false)}
-        settingsForm={settingsForm}
-        setSettingsForm={setSettingsForm}
-        onSave={handleSettingsSave}
-        categories={categories}
-        selectedBracket={selectedBracket}
-      />
-      <CreateBracketDialog
+      <BracketFormDialog
         open={showCreateBracket}
         onClose={() => setShowCreateBracket(false)}
-        newBracket={newBracket}
-        setNewBracket={setNewBracket}
-        onCreate={handleCreateBracket}
+        onSubmit={handleCreateBracket}
         categories={categories}
-        onShowCreateCategory={() => setShowCreateCategory(true)}
+        loadCategories={() => loadCategories()}
+      />
+      <BracketFormDialog
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        mode="edit"
+        categories={categories}
+        initialValues={settingsForm}
+        onSubmit={async (data) => {
+          if (!selectedBracket) return;
+          await onSaveBracket({ id: selectedBracket.id, ...data });
+        }}
+        loadCategories={() => loadCategories()}
       />
       <CreateCategoryDialog
         open={showCreateCategory}
         onClose={() => setShowCreateCategory(false)}
-        newCategory={newCategory}
-        setNewCategory={setNewCategory}
-        onCreate={handleCreateCategory}
+        onCreate={async (data) => {
+          await createCategory(data);
+          toast.success("Category created");
+          setCategories(await getCategories());
+        }}
       />
       <UnsavedChangesDialog open={showUnsavedDialog} onDiscard={confirmSwitch} onCancel={cancelSwitch} />
       <DeleteBracketDialog
@@ -505,13 +465,14 @@ export default function ManageTournamentPage({
         brackets={brackets}
         bracketToTransfer={bracketToTransfer}
         setBracketToTransfer={setBracketToTransfer}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleBracketConfirmDelete}
       />
       <DeleteParticipantDialog
         open={showDeleteParticipantDialog}
         onClose={() => setShowDeleteParticipantDialog(false)}
         participantToDelete={participantToDelete}
-        onSuccess={handleParticipantDeleteSuccess}
+        isLoading={isDeleting}
+        onConfirm={handleCompetitorConfirmDelete}
       />
     </DndContext>
   );

@@ -66,7 +66,8 @@ class CoachResponse(CoachBase):
 
 class CategoryBase(CustomBaseModel):
     name: str
-    age: int
+    min_age: int
+    max_age: int
     gender: str
 
 

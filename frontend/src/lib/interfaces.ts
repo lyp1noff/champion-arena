@@ -40,13 +40,6 @@ export interface ApplicationResponse extends Application {
   category: Category;
 }
 
-export interface Category {
-  id: number;
-  name: string;
-  age: number;
-  gender: string; //"male" | "female" | "any";
-}
-
 export type Participant = {
   id: number;
   athlete_id: number;
@@ -108,9 +101,12 @@ export type BracketMatches = BracketMatch[];
 export interface Category {
   id: number;
   name: string;
-  age: number;
-  gender: string;
+  min_age: number;
+  max_age: number;
+  gender: "male" | "female" | "any";
 }
+
+export type CategoryCreate = Omit<Category, "id">;
 
 export interface ParticipantMove {
   participant_id: number;

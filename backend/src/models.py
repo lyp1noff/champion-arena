@@ -137,7 +137,8 @@ class Category(Base, TimestampMixin):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), index=True, nullable=False)
-    age = Column(Integer, nullable=False)
+    min_age = Column(Integer, nullable=False)
+    max_age = Column(Integer, nullable=False)
     gender = Column(String(10), nullable=False)
 
     brackets = relationship("Bracket", back_populates="category")

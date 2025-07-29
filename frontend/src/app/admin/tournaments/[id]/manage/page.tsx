@@ -61,16 +61,23 @@ export default function Page() {
     await refreshBracketsAndSelect(bracket?.id ?? null);
   };
 
-  const handleSave = async (updated: { id: number; type: BracketType; start_time: string; tatami: number }) => {
+  const handleSave = async (updated: {
+    id: number;
+    type: BracketType;
+    start_time: string;
+    tatami: number;
+    group_id: number;
+    category_id?: string;
+  }) => {
     setLoading(true);
     try {
       const formatted = {
         ...updated,
         start_time: formatTimeToISO(updated.start_time),
+        category_id: updated.category_id ? parseInt(updated.category_id) : undefined,
       };
       await updateBracket(updated.id, formatted);
       toast.success("Bracket saved");
-
       await refreshBracketsAndSelect(updated.id);
     } catch {
       toast.error("Failed to save bracket");

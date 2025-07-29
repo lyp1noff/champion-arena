@@ -1,78 +1,113 @@
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogTitle, DialogFooter, DialogHeader } from "@/components/ui/dialog";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { createCategorySchema, CreateCategorySchema } from "./categorySchema";
 
-type NewCategory = {
-  name: string;
-  age: string;
-  gender: string;
-};
-
-interface CreateCategoryDialogProps {
+interface Props {
   open: boolean;
   onClose: () => void;
-  newCategory: NewCategory;
-  setNewCategory: React.Dispatch<React.SetStateAction<NewCategory>>;
-  onCreate: () => void;
+  onCreate: (data: CreateCategorySchema) => void;
 }
 
-export default function CreateCategoryDialog({
-  open,
-  onClose,
-  newCategory,
-  setNewCategory,
-  onCreate,
-}: CreateCategoryDialogProps) {
+export default function CreateCategoryDialog({ open, onClose, onCreate }: Props) {
+  const form = useForm<CreateCategorySchema>({
+    resolver: zodResolver(createCategorySchema),
+    defaultValues: {
+      name: "",
+      min_age: 1,
+      max_age: 99,
+      gender: "male",
+    },
+  });
+
+  const handleSubmit = (data: CreateCategorySchema) => {
+    onCreate(data);
+    form.reset();
+    onClose();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
-        <DialogTitle>Create New Category</DialogTitle>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Name</Label>
-            <Input
-              value={newCategory.name}
-              onChange={(e) => setNewCategory((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="e.g., Men 18-25"
+        <DialogHeader>
+          <DialogTitle>Create New Category</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Men 18–25" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Age</Label>
-            <Input
-              type="number"
-              value={newCategory.age}
-              onChange={(e) => setNewCategory((prev) => ({ ...prev, age: e.target.value }))}
-              placeholder="e.g., 25"
+            <div className="flex gap-4">
+              <FormField
+                control={form.control}
+                name="min_age"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel>Min Age</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={1} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="max_age"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel>Max Age</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={1} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="gender"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Gender</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Gender</Label>
-            <Select
-              value={newCategory.gender}
-              onValueChange={(val) => setNewCategory((prev) => ({ ...prev, gender: val }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
-                <SelectItem value="any">Any</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={onCreate} className="flex-1">
-              Create
-            </Button>
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancel
-            </Button>
-          </div>
-        </div>
+            <DialogFooter>
+              <Button type="submit">Create</Button>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
