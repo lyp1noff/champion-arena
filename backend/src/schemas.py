@@ -2,6 +2,8 @@ from pydantic import BaseModel, ConfigDict
 from datetime import date, time, datetime
 from typing import List, Optional
 
+from src.models import BracketType
+
 
 class LoginRequest(BaseModel):
     username: str
@@ -95,6 +97,7 @@ class TournamentCreate(TournamentBase):
 
 class TournamentResponse(TournamentBase):
     id: int
+    status: str
 
 
 class PaginatedTournamentResponse(CustomBaseModel):
@@ -152,6 +155,7 @@ class BracketParticipantSchema(CustomBaseModel):
 class BracketResponse(BracketBase):
     id: int
     tournament_id: int
+    status: str
     participants: List[BracketParticipantSchema]
 
 
@@ -178,7 +182,9 @@ class MatchSchema(CustomBaseModel):
     winner: Optional[BracketMatchAthlete]
     score_athlete1: Optional[int] = None
     score_athlete2: Optional[int] = None
-    is_finished: bool
+    status: str
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
 
 
 class BracketMatchResponse(CustomBaseModel):
@@ -211,7 +217,7 @@ class BracketCreateSchema(BaseModel):
     tournament_id: int
     category_id: int
     group_id: int = 1
-    type: Optional[str] = "single_elimination"
+    type: Optional[str] = BracketType.SINGLE_ELIMINATION.value
     start_time: Optional[time] = None
     tatami: Optional[int] = None
 

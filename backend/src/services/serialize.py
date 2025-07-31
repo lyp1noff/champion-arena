@@ -38,7 +38,9 @@ def serialize_match(match: Optional[Match]) -> Optional[MatchSchema]:
         winner=serialize_athlete(match.winner),
         score_athlete1=match.score_athlete1,
         score_athlete2=match.score_athlete2,
-        is_finished=match.is_finished,
+        status=match.status,
+        started_at=match.started_at,
+        ended_at=match.ended_at,
     )
 
 
@@ -72,6 +74,7 @@ def serialize_bracket_matches_full(bracket: Bracket) -> BracketMatchesFull:
         tatami=bracket.tatami,
         group_id=bracket.group_id,
         display_name=bracket.get_display_name(),
+        status=bracket.status,
         matches=matches,
     )
 
@@ -86,6 +89,7 @@ def serialize_bracket(bracket: Bracket) -> BracketResponse:
         tatami=bracket.tatami,
         group_id=bracket.group_id,
         display_name=bracket.get_display_name(),
+        status=bracket.status,
         participants=[
             BracketParticipantSchema(
                 id=p.id,

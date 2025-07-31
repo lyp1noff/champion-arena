@@ -17,28 +17,44 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
   // return <div className="border border-dashed border-gray-500 rounded-md opacity-30" style={{ width, height }} />;
 
   return (
-    <div className="overflow-hidden rounded-md border" style={{ width, height }}>
-      <PlayerSlotWithContextMenu
-        player={bracketMatch.match.athlete1}
-        score={bracketMatch.match.score_athlete1}
-        isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete1?.id}
-        isFirstRound={bracketMatch.round_number === 1}
-        isTop={true}
-        height={calculatedHeight}
-        width={width}
-        fontSize={calculatedFontSize}
-      />
-      <div className="h-px" />
-      <PlayerSlotWithContextMenu
-        player={bracketMatch.match.athlete2}
-        score={bracketMatch.match.score_athlete2}
-        isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete2?.id}
-        isFirstRound={bracketMatch.round_number === 1}
-        isTop={false}
-        height={calculatedHeight}
-        width={width}
-        fontSize={calculatedFontSize}
-      />
+    <div className="relative" style={{ width }}>
+      {/* Works only with 60px height */}
+      {bracketMatch.match.status === "started" && (
+        <div
+          className="absolute right-3 pl-1 pr-2 pt-0.5 rounded-t-lg text-xs font-bold z-10 flex items-center gap-1 dark:bg-secondary bg-stone-300"
+          style={{ bottom: `${height}px` }}
+        >
+          <span className="relative flex h-2 w-2 ml-0.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-600"></span>
+          </span>
+          Live
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-md border" style={{ width, height }}>
+        <PlayerSlotWithContextMenu
+          player={bracketMatch.match.athlete1}
+          score={bracketMatch.match.score_athlete1}
+          isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete1?.id}
+          isFirstRound={bracketMatch.round_number === 1}
+          isTop={true}
+          height={calculatedHeight}
+          width={width}
+          fontSize={calculatedFontSize}
+        />
+        <div className="h-px" />
+        <PlayerSlotWithContextMenu
+          player={bracketMatch.match.athlete2}
+          score={bracketMatch.match.score_athlete2}
+          isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete2?.id}
+          isFirstRound={bracketMatch.round_number === 1}
+          isTop={false}
+          height={calculatedHeight}
+          width={width}
+          fontSize={calculatedFontSize}
+        />
+      </div>
     </div>
   );
 }

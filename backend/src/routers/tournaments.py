@@ -1,7 +1,7 @@
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import List
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, Body
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import asc, desc, select, func, distinct
 from sqlalchemy.exc import IntegrityError
@@ -20,6 +20,7 @@ from src.models import (
     Coach,
     Application,
     AthleteCoachLink,
+    TournamentStatus,
 )
 from src.routers.brackets import regenerate_matches_endpoint
 from src.schemas import (
@@ -331,6 +332,44 @@ async def import_competitors(
     return await import_competitors_from_cbr(db, tournament_id, content)
 
 
+@router.get("/tournaments/{id}/status")
+async def get_tournament_status(id: int, db: AsyncSession = Depends(get_db)):
+    tournament = await db.get(Tournament, id)
+    if not tournament:
+        raise HTTPException(404, "Tournament not found")
+    return {"status": tournament.status}
+
+
+@router.patch("/tournaments/{id}/status", dependencies=[Depends(get_current_user)])
+async def update_tournament_status(
+    id: int,
+    status: str = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+):
+    tournament = await db.get(Tournament, id)
+    if not tournament:
+        raise HTTPException(404, "Tournament not found")
+    if status not in [s.value for s in TournamentStatus]:
+        raise HTTPException(400, f"Invalid status: {status}")
+    tournament.status = status
+    await db.commit()
+    await db.refresh(tournament)
+    return tournament
+
+
+@router.post("/tournaments/{id}/start", dependencies=[Depends(get_current_user)])
+async def start_tournament(id: int, db: AsyncSession = Depends(get_db)):
+    tournament = await db.get(Tournament, id)
+    if not tournament:
+        raise HTTPException(404, "Tournament not found")
+    if tournament.status != TournamentStatus.UPCOMING.value:
+        raise HTTPException(400, "Tournament already started or finished")
+
+    tournament.status = TournamentStatus.STARTED.value
+    await db.commit()
+    return {"status": "ok"}
+
+
 @router.get("/{tournament_id}/applications", response_model=List[ApplicationResponse])
 async def get_applications(
     tournament_id: int,
@@ -348,7 +387,7 @@ async def get_applications(
     return result.scalars().all()
 
 
-@router.post("/{tournament_id}/applications")
+@router.post("/{tournament_id}/applications", response_model=List[ApplicationResponse])
 async def submit_application(
     tournament_id: int,
     data: ApplicationCreate,

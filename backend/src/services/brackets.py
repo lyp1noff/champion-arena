@@ -3,7 +3,15 @@ from datetime import datetime, UTC
 from typing import Optional
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.models import Bracket, BracketParticipant, BracketMatch, Match, Tournament
+from src.models import (
+    Bracket,
+    BracketParticipant,
+    BracketMatch,
+    BracketType,
+    Match,
+    MatchStatus,
+    Tournament,
+)
 
 
 def get_round_type(round_index: int, total_rounds: int) -> str:
@@ -55,15 +63,17 @@ async def generate_first_round(
     matches = []
 
     for position, (a1, a2) in enumerate(pairs, start=1):
+        bye = (a1 is None) != (a2 is None)
+        winner_id = a1 or a2 if bye else None
+
         match = Match(
             athlete1_id=a1,
             athlete2_id=a2,
+            winner_id=winner_id,
             round_type=get_round_type(0, total_rounds),
+            status=MatchStatus.FINISHED.value if bye else MatchStatus.NOT_STARTED.value,
+            ended_at=datetime.now(UTC) if bye else None,
         )
-        if (a1 is None) != (a2 is None):
-            match.winner_id = a1 or a2
-            match.is_finished = True
-
         session.add(match)
         await session.flush()
 
@@ -87,7 +97,10 @@ async def generate_following_rounds(
     for round_num in range(2, total_rounds + 1):
         num_matches = 2 ** (total_rounds - round_num)
         for pos in range(1, num_matches + 1):
-            match = Match(round_type=get_round_type(round_num - 1, total_rounds))
+            match = Match(
+                round_type=get_round_type(round_num - 1, total_rounds),
+                status=MatchStatus.NOT_STARTED.value,
+            )
             session.add(match)
             await session.flush()
 
@@ -112,7 +125,12 @@ async def advance_auto_winners(
 
         for bm in current_round:
             match = await session.get(Match, bm.match_id)
-            if not (match and match.is_finished and match.winner_id):
+
+            if (
+                not match
+                or match.status != MatchStatus.FINISHED.value
+                or not match.winner_id
+            ):
                 continue
 
             next_position = (bm.position + 1) // 2
@@ -278,11 +296,11 @@ async def regenerate_tournament_brackets(session: AsyncSession, tournament_id: i
     brackets = result.all()
 
     for bracket_id, bracket_type in brackets:
-        if bracket_type == "round_robin":
+        if bracket_type == BracketType.ROUND_ROBIN:
             await regenerate_round_bracket_matches(
                 session, bracket_id, tournament_id, commit=False
             )
-        elif bracket_type == "single_elimination":
+        elif bracket_type == BracketType.SINGLE_ELIMINATION.value:
             await regenerate_bracket_matches(
                 session, bracket_id, tournament_id, commit=False
             )

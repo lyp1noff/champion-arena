@@ -9,8 +9,16 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
-import { deleteTournament, downloadTournamentDocx } from "@/lib/api/tournaments";
+import {
+  deleteTournament,
+  downloadTournamentDocx,
+  updateTournamentStatus,
+  startTournament,
+} from "@/lib/api/tournaments";
 import { toast } from "sonner";
 import { Tournament } from "@/lib/interfaces";
 import { useRouter } from "next/navigation";
@@ -28,6 +36,7 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const router = useRouter();
   const t = useTranslations("AdminTournaments");
+  const tournament = row.original;
 
   const handleDelete = async () => {
     try {
@@ -52,6 +61,28 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
 
   const handleApplications = () => {
     router.push(`/admin/tournaments/${row.original.id}/applications`);
+  };
+
+  const handleStartTournament = async () => {
+    if (!tournament) return;
+    try {
+      await startTournament(tournament.id);
+      toast.success("Tournament started successfully");
+      onDataChanged?.();
+    } catch {
+      toast.error("Failed to start tournament");
+    }
+  };
+
+  const handleUpdateStatus = async (newStatus: string) => {
+    if (!tournament) return;
+    try {
+      await updateTournamentStatus(tournament.id, newStatus);
+      toast.success(`Tournament status updated to ${newStatus}`);
+      onDataChanged?.();
+    } catch {
+      toast.error("Failed to update tournament status");
+    }
   };
 
   const exportFile = async () => {
@@ -83,6 +114,19 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
           <DropdownMenuItem onClick={handleEdit}>{t("edit")}</DropdownMenuItem>
           <DropdownMenuItem onClick={handleApplications}>{t("applications")}</DropdownMenuItem>
           <DropdownMenuItem onClick={handleManage}>{t("manage")}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem onClick={() => handleUpdateStatus("draft")}>Set to Draft</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleUpdateStatus("upcoming")}>Set to Upcoming</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleUpdateStatus("started")}>Set to Started</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleUpdateStatus("finished")}>Set to Finished</DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          {tournament.status === "upcoming" && (
+            <DropdownMenuItem onClick={handleStartTournament}>Start Tournament</DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={exportFile}>{t("exportToFile")}</DropdownMenuItem>
           <DropdownMenuSeparator />

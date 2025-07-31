@@ -3,6 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import DataTableColumnHeader from "@/components/data-table-column-header";
 import { DataTableRowActions } from "./row-actions";
 import { Tournament } from "@/lib/interfaces";
+import { Badge } from "@/components/ui/badge";
 
 export function columns(onDataChanged: () => void): ColumnDef<Tournament>[] {
   return [
@@ -49,7 +50,24 @@ export function columns(onDataChanged: () => void): ColumnDef<Tournament>[] {
     {
       accessorKey: "status",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-      cell: ({ row }) => <div>{row.getValue("status")}</div>,
+      cell: ({ row }) => {
+        const status = row.getValue("status") as string;
+        const getStatusVariant = (status: string) => {
+          switch (status) {
+            case "draft":
+              return "secondary";
+            case "upcoming":
+              return "default";
+            case "started":
+              return "destructive";
+            case "finished":
+              return "outline";
+            default:
+              return "secondary";
+          }
+        };
+        return <Badge variant={getStatusVariant(status)}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
+      },
       size: 200,
     },
     {

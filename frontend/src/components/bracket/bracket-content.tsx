@@ -1,6 +1,7 @@
 import { BracketMatches } from "@/lib/interfaces";
 import MatchCard from "../match-card";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { getBracketDimensions } from "@/lib/utils";
 
 interface BracketCardProps {
   bracketMatches: BracketMatches;
@@ -15,10 +16,16 @@ export default function BracketContent({
   matchCardWidth,
   containerHeight,
 }: BracketCardProps) {
-  const cardHeight = matchCardHeight;
-  const cardWidth = matchCardWidth ?? cardHeight * 4;
-  const roundTitleHeight = cardHeight / 3;
-  const columnGap = (cardHeight / 8) * 2;
+  const {
+    cardHeight: fallbackCardHeight,
+    cardWidth: fallbackCardWidth,
+    roundTitleHeight,
+    columnGap,
+    rowGap,
+  } = getBracketDimensions(matchCardHeight, matchCardWidth);
+
+  const cardHeight = matchCardHeight || fallbackCardHeight;
+  const cardWidth = matchCardWidth || fallbackCardWidth;
 
   const groupedRounds = bracketMatches.reduce(
     (acc, bracketMatch) => {
@@ -41,14 +48,14 @@ export default function BracketContent({
   const content = (
     <ScrollArea className="flex-1 overflow-auto">
       {/* Blurred background */}
-      <div
+      {/* <div
         className="absolute top-0 left-0 w-full bg-background"
         style={{
           height: roundTitleHeight,
           zIndex: 5,
           pointerEvents: "none",
         }}
-      />
+      /> */}
 
       {/* Bracket */}
       <div className="flex items-start justify-center" style={{ columnGap }}>
@@ -60,7 +67,7 @@ export default function BracketContent({
               key={round}
               className="flex flex-col items-stretch relative"
               style={{
-                height: maxMatchesInRound * (cardHeight + columnGap) + roundTitleHeight,
+                height: maxMatchesInRound * (cardHeight + rowGap) + roundTitleHeight,
               }}
             >
               <li
@@ -73,7 +80,7 @@ export default function BracketContent({
                 className="flex items-center justify-center"
               >
                 <h2
-                  className="text-sm font-semibold text-center leading-none"
+                  className="font-semibold text-center leading-none absolute top-0"
                   style={{ fontSize: `calc(${roundTitleHeight}px * 0.8)` }}
                 >
                   {label}
@@ -88,10 +95,10 @@ export default function BracketContent({
                 const isMatchOdd = bracketMatch.position % 2 === 1;
 
                 const connectorX = -columnGap / 2 - lineWidth / 2;
-                const connectorY = (maxMatchesInRound / bracketMatches.length / 2) * (cardHeight + columnGap);
+                const connectorY = (maxMatchesInRound / bracketMatches.length / 2) * (cardHeight + rowGap);
                 const horizontalYOffset = cardHeight / 4;
                 const totalYOffset =
-                  (maxMatchesInRound / bracketMatches.length) * (cardHeight + columnGap) - horizontalYOffset - 0.5;
+                  (maxMatchesInRound / bracketMatches.length) * (cardHeight + rowGap) - horizontalYOffset - 0.5;
 
                 return (
                   <li

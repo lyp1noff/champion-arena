@@ -116,3 +116,29 @@ export async function deleteParticipant(participant_id: number): Promise<void> {
 
   return await response.json();
 }
+
+export async function updateTournamentStatus(tournamentId: number, status: string) {
+  const response = await fetchWithRefresh(`${url}/tournaments/${tournamentId}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update tournament status");
+  }
+
+  return await response.json();
+}
+
+export async function startTournament(tournamentId: number) {
+  const response = await fetchWithRefresh(`${url}/tournaments/${tournamentId}/start`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to start tournament");
+  }
+
+  return await response.json();
+}

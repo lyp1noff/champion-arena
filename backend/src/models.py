@@ -4,7 +4,6 @@ from sqlalchemy import (
     String,
     Date,
     ForeignKey,
-    Boolean,
     DateTime,
     Time,
     func,
@@ -27,6 +26,13 @@ class UserRole(enum.Enum):
     USER = "user"
 
 
+class TournamentStatus(enum.Enum):
+    DRAFT = "draft"
+    UPCOMING = "upcoming"
+    STARTED = "started"
+    FINISHED = "finished"
+
+
 class ApplicationStatus(enum.Enum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -35,18 +41,29 @@ class ApplicationStatus(enum.Enum):
 
 class BracketType(enum.Enum):
     SINGLE_ELIMINATION = "single_elimination"
-    DOUBLE_ELIMINATION = "double_elimination"
     ROUND_ROBIN = "round_robin"
+
+
+class BracketStatus(enum.Enum):
+    PENDING = "pending"
+    STARTED = "started"
+    FINISHED = "finished"
+
+
+class MatchStatus(enum.Enum):
+    NOT_STARTED = "not_started"
+    STARTED = "started"
+    FINISHED = "finished"
 
 
 class TimestampMixin:
     @declared_attr
     def created_at(cls):
-        return Column(DateTime, default=func.now())
+        return Column(DateTime(timezone=True), default=func.now())
 
     @declared_attr
     def updated_at(cls):
-        return Column(DateTime, default=func.now(), onupdate=func.now())
+        return Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
 
 
 class User(Base, TimestampMixin):
@@ -153,6 +170,7 @@ class Tournament(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), index=True, nullable=False)
     location = Column(String(255), nullable=False)
+    status = Column(String(20), default=TournamentStatus.DRAFT.value, nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     registration_start_date = Column(Date, nullable=True)
@@ -229,6 +247,7 @@ class Bracket(Base, TimestampMixin):
     )
     start_time = Column(Time, nullable=False, default=lambda: time(9, 0))
     tatami = Column(Integer, nullable=False, default=1)
+    status = Column(String(20), default=BracketStatus.PENDING.value, nullable=False)
 
     tournament = relationship("Tournament", back_populates="brackets")
     category = relationship("Category", back_populates="brackets")
@@ -324,8 +343,12 @@ class Match(Base, TimestampMixin):
     )
     score_athlete1 = Column(Integer, nullable=True)
     score_athlete2 = Column(Integer, nullable=True)
-    is_finished = Column(Boolean, default=False)
     round_type = Column(String(50), nullable=True)
+
+    status = Column(String(20), default=MatchStatus.NOT_STARTED.value, nullable=False)
+
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
 
     athlete1 = relationship("Athlete", foreign_keys=[athlete1_id])
     athlete2 = relationship("Athlete", foreign_keys=[athlete2_id])

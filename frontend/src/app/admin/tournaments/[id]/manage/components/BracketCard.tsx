@@ -46,9 +46,18 @@ export default function BracketCard({
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <Badge variant={bracket.type === "single_elimination" ? "default" : "secondary"}>
-              {bracket.type === "single_elimination" ? "Single Elimination" : "Round Robin"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={bracket.type === "single_elimination" ? "default" : "secondary"}>
+                {bracket.type === "single_elimination" ? "Single Elimination" : "Round Robin"}
+              </Badge>
+              <Badge
+                variant={
+                  bracket.status === "pending" ? "secondary" : bracket.status === "started" ? "destructive" : "outline"
+                }
+              >
+                {bracket.status.charAt(0).toUpperCase() + bracket.status.slice(1)}
+              </Badge>
+            </div>
           </CardContent>
         </Card>
       </ContextMenuTrigger>

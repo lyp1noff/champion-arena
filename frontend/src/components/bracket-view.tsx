@@ -44,9 +44,8 @@ function calculateOptimalHeight(
     return undefined;
   }
 
-  const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
-  const estimatedHeight =
-    getInitialMatchCount(bracket.participants.length) * (cardHeight + columnGap) + roundTitleHeight;
+  const { cardHeight, roundTitleHeight, rowGap } = getBracketDimensions(matchCardHeight);
+  const estimatedHeight = getInitialMatchCount(bracket.participants.length) * (cardHeight + rowGap) + roundTitleHeight;
 
   return Math.min(estimatedHeight, maxHeight);
 }

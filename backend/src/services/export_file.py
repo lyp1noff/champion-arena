@@ -6,6 +6,7 @@ from tempfile import NamedTemporaryFile
 import cairosvg
 from PyPDF2 import PdfMerger
 
+from src.models import BracketType, MatchStatus
 from src.utils import sanitize_filename
 
 SVG_TEMPLATE_PATH = "assets/template.svg"
@@ -15,7 +16,7 @@ HIDE_FINISHED_MATCHES = True
 
 
 def build_entry(
-        matches, bracket, offset, position_offset, start_time_tatami, tournament_title
+    matches, bracket, offset, position_offset, start_time_tatami, tournament_title
 ):
     entry = {
         "tournament_name": tournament_title,
@@ -30,7 +31,10 @@ def build_entry(
     for match in matches:
         rnd = match.round_number + offset
 
-        if HIDE_FINISHED_MATCHES and getattr(match.match, "is_finished", True):
+        if (
+            HIDE_FINISHED_MATCHES
+            and getattr(match.match, "status", "finished") == MatchStatus.FINISHED.value
+        ):
             continue
 
         round_key = f"type_round{rnd}"
@@ -121,7 +125,7 @@ def build_entries(data, tournament_title):
         if not matches:
             continue
 
-        if bracket.type == "round_robin":
+        if bracket.type == BracketType.ROUND_ROBIN.value:
             entry = build_round_robin_entry(
                 matches=matches,
                 category=(
@@ -132,7 +136,7 @@ def build_entries(data, tournament_title):
                 start_time_tatami=start_time_tatami,
                 tournament_title=tournament_title,
             )
-            entry["_template"] = "round_robin"
+            entry["_template"] = BracketType.ROUND_ROBIN.value
             all_entries.append(entry)
             continue
 
@@ -173,7 +177,7 @@ def generate_pdf(data, tournament_title=None):
 
     for entry in entries:
         template_type = entry.get("_template", "elimination")
-        if template_type == "round_robin":
+        if template_type == BracketType.ROUND_ROBIN.value:
             svg_template = round_template
         else:
             svg_template = elimination_template

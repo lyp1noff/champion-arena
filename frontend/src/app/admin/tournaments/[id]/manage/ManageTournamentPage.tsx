@@ -101,8 +101,11 @@ export default function ManageTournamentPage({
     setParticipants(selectedBracket.participants);
 
     setSettingsForm({
-      ...defaultBracketValues,
-      category_id: matchedCategory?.id.toString() ?? "",
+      category_id: matchedCategory?.id?.toString() ?? defaultBracketValues.category_id,
+      group_id: selectedBracket.group_id ?? defaultBracketValues.group_id,
+      type: selectedBracket.type ?? defaultBracketValues.type,
+      start_time: selectedBracket.start_time ?? defaultBracketValues.start_time,
+      tatami: selectedBracket.tatami ?? defaultBracketValues.tatami,
     });
   }, [categories, selectedBracket]);
 

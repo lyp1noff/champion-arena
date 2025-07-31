@@ -140,3 +140,29 @@ export async function createCategory(categoryData: CategoryCreate) {
 
   return await response.json();
 }
+
+export async function updateBracketStatus(bracketId: number, status: string) {
+  const response = await fetchWithRefresh(`${url}/brackets/${bracketId}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update bracket status");
+  }
+
+  return await response.json();
+}
+
+export async function startBracket(bracketId: number) {
+  const response = await fetchWithRefresh(`${url}/brackets/${bracketId}/start`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to start bracket");
+  }
+
+  return await response.json();
+}

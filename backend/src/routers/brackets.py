@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
@@ -11,6 +11,8 @@ from src.models import (
     Bracket,
     BracketMatch,
     BracketParticipant,
+    BracketStatus,
+    BracketType,
     Match,
     Athlete,
     AthleteCoachLink,
@@ -58,7 +60,7 @@ async def get_all_brackets(db: AsyncSession = Depends(get_db)):
 async def get_bracket(bracket_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Bracket)
-        .filter_by(id=bracket_id)
+        .where(id=bracket_id)
         .options(
             selectinload(Bracket.category),
             selectinload(Bracket.participants)
@@ -168,9 +170,9 @@ async def regenerate_matches_endpoint(
             raise HTTPException(status_code=404, detail="Bracket not found")
 
         bracket_type, tournament_id = bracket_data
-        if bracket_type == "round_robin":
+        if bracket_type == BracketType.ROUND_ROBIN.value:
             await regenerate_round_bracket_matches(session, bracket_id, tournament_id)
-        elif bracket_type == "single_elimination":
+        elif bracket_type == BracketType.SINGLE_ELIMINATION.value:
             await regenerate_bracket_matches(session, bracket_id, tournament_id)
         else:
             print(f"Warning! Bracket type: {bracket_type} not supported")
@@ -344,4 +346,42 @@ async def delete_bracket(
     if data.target_bracket_id:
         await regenerate_matches_endpoint(data.target_bracket_id, session=db)
 
+    return {"status": "ok"}
+
+
+@router.get("/brackets/{id}/status")
+async def get_bracket_status(id: int, db: AsyncSession = Depends(get_db)):
+    bracket = await db.get(Bracket, id)
+    if not bracket:
+        raise HTTPException(404, "Bracket not found")
+    return {"status": bracket.status}
+
+
+@router.patch("/{id}/status", dependencies=[Depends(get_current_user)])
+async def update_bracket_status(
+    id: int,
+    status: str = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+):
+    bracket = await db.get(Bracket, id)
+    if not bracket:
+        raise HTTPException(404, "Bracket not found")
+    if status not in [s.value for s in BracketStatus]:
+        raise HTTPException(400, f"Invalid status: {status}")
+    bracket.status = status
+    await db.commit()
+    await db.refresh(bracket)
+    return bracket
+
+
+@router.post("/brackets/{id}/start", dependencies=[Depends(get_current_user)])
+async def start_bracket(id: int, db: AsyncSession = Depends(get_db)):
+    bracket = await db.get(Bracket, id)
+    if not bracket:
+        raise HTTPException(404, "Bracket not found")
+    if bracket.status != BracketStatus.PENDING.value:
+        raise HTTPException(400, "Bracket already started or finished")
+
+    bracket.status = BracketStatus.STARTED.value
+    await db.commit()
     return {"status": "ok"}

@@ -16,7 +16,7 @@ export interface Tournament {
   id: number;
   name: string;
   location: string;
-  // status: string;
+  status: "draft" | "upcoming" | "started" | "finished";
   start_date: string;
   end_date: string;
   registration_start_date: string;
@@ -59,6 +59,7 @@ export type Bracket = {
   tatami: number;
   group_id?: number;
   display_name?: string;
+  status: "pending" | "started" | "finished";
   participants: Participant[];
 };
 export type BracketUpdate = Partial<Bracket>;
@@ -86,7 +87,9 @@ export type Match = {
   winner: BracketMatchAthlete | null;
   score_athlete1: number | null;
   score_athlete2: number | null;
-  is_finished: boolean;
+  status: "not_started" | "started" | "finished";
+  started_at?: string | null;
+  ended_at?: string | null;
 };
 
 export type BracketMatch = {
