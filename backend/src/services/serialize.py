@@ -1,12 +1,13 @@
 from typing import Optional
-from src.models import Athlete, Match, Bracket, BracketMatch
+
+from src.models import Athlete, Bracket, BracketMatch, Match
 from src.schemas import (
     BracketMatchAthlete,
-    MatchSchema,
-    BracketResponse,
-    BracketParticipantSchema,
-    BracketMatchResponse,
     BracketMatchesFull,
+    BracketMatchResponse,
+    BracketParticipantSchema,
+    BracketResponse,
+    MatchSchema,
 )
 
 
@@ -15,9 +16,7 @@ def serialize_athlete(athlete: Optional[Athlete]) -> Optional[BracketMatchAthlet
         return None
 
     # Get coach names from the many-to-many relationship
-    coaches_last_name = [
-        link.coach.last_name for link in athlete.coach_links if link.coach is not None
-    ]
+    coaches_last_name = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
 
     return BracketMatchAthlete(
         id=athlete.id,
@@ -97,11 +96,7 @@ def serialize_bracket(bracket: Bracket) -> BracketResponse:
                 seed=p.seed,
                 first_name=p.athlete.first_name,
                 last_name=p.athlete.last_name,
-                coaches_last_name=[
-                    link.coach.last_name
-                    for link in p.athlete.coach_links
-                    if link.coach is not None
-                ],
+                coaches_last_name=[link.coach.last_name for link in p.athlete.coach_links if link.coach is not None],
             )
             for p in sorted(bracket.participants, key=lambda x: x.seed)
             if p.athlete

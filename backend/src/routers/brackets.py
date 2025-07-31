@@ -1,41 +1,42 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Body
+
+from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload, joinedload
-from sqlalchemy import delete, func, update
+from sqlalchemy.orm import joinedload, selectinload
 
 from src.database import get_db
 from src.dependencies.auth import get_current_user
 from src.models import (
+    Athlete,
+    AthleteCoachLink,
     Bracket,
     BracketMatch,
     BracketParticipant,
     BracketStatus,
     BracketType,
-    Match,
-    Athlete,
-    AthleteCoachLink,
     Category,
+    Match,
     Tournament,
 )
 from src.schemas import (
+    BracketCreateSchema,
     BracketDeleteRequest,
-    BracketResponse,
     BracketMatchResponse,
+    BracketResponse,
     BracketUpdateSchema,
     ParticipantMoveSchema,
     ParticipantReorderSchema,
-    BracketCreateSchema,
+)
+from src.services.brackets import (
+    regenerate_bracket_matches,
+    regenerate_round_bracket_matches,
+    reorder_seeds_and_get_next,
 )
 from src.services.serialize import (
     serialize_bracket,
     serialize_bracket_match,
-)
-from src.services.brackets import (
-    reorder_seeds_and_get_next,
-    regenerate_bracket_matches,
-    regenerate_round_bracket_matches,
 )
 
 router = APIRouter(prefix="/brackets", tags=["Brackets"])
@@ -93,17 +94,9 @@ async def update_bracket(
 
     # TODO: Prbly remove uniqueness constraint
     # If category_id, group_id, or tournament_id are being updated, check uniqueness constraint
-    new_category_id = (
-        update_data.category_id
-        if update_data.category_id is not None
-        else bracket.category_id
-    )
-    new_group_id = (
-        update_data.group_id if update_data.group_id is not None else bracket.group_id
-    )
-    new_tournament_id = (
-        bracket.tournament_id
-    )  # tournament_id is not updatable, but included for completeness
+    new_category_id = update_data.category_id if update_data.category_id is not None else bracket.category_id
+    new_group_id = update_data.group_id if update_data.group_id is not None else bracket.group_id
+    new_tournament_id = bracket.tournament_id  # tournament_id is not updatable, but included for completeness
     if update_data.category_id is not None or update_data.group_id is not None:
         existing = await db.execute(
             select(Bracket).where(
@@ -162,9 +155,7 @@ async def regenerate_matches_endpoint(
     session: AsyncSession = Depends(get_db),
 ):
     try:
-        result = await session.execute(
-            select(Bracket.type, Bracket.tournament_id).where(Bracket.id == bracket_id)
-        )
+        result = await session.execute(select(Bracket.type, Bracket.tournament_id).where(Bracket.id == bracket_id))
         bracket_data = result.first()
         if not bracket_data:
             raise HTTPException(status_code=404, detail="Bracket not found")
@@ -186,9 +177,7 @@ async def move_participant(
     move_data: ParticipantMoveSchema,
     db: AsyncSession = Depends(get_db),
 ):
-    participant: BracketParticipant | None = await db.get(
-        BracketParticipant, move_data.participant_id
-    )
+    participant: BracketParticipant | None = await db.get(BracketParticipant, move_data.participant_id)
     if not participant:
         raise HTTPException(status_code=404, detail="Participant not found")
 
@@ -268,9 +257,7 @@ async def create_bracket(
         )
     )
     if existing_bracket.scalar_one_or_none():
-        raise HTTPException(
-            status_code=400, detail="Bracket already exists for this category and group"
-        )
+        raise HTTPException(status_code=400, detail="Bracket already exists for this category and group")
 
     new_bracket = Bracket(
         tournament_id=bracket_data.tournament_id,
@@ -311,15 +298,11 @@ async def delete_bracket(
     if not bracket:
         raise HTTPException(status_code=404, detail="Bracket not found")
 
-    result = await db.execute(
-        select(BracketParticipant).where(BracketParticipant.bracket_id == bracket_id)
-    )
+    result = await db.execute(select(BracketParticipant).where(BracketParticipant.bracket_id == bracket_id))
     participants = result.scalars().all()
 
     if participants and not data.target_bracket_id:
-        raise HTTPException(
-            status_code=400, detail="Bracket has participants; target bracket required"
-        )
+        raise HTTPException(status_code=400, detail="Bracket has participants; target bracket required")
 
     if data.target_bracket_id:
         for p in participants:

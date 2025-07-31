@@ -1,18 +1,20 @@
+from datetime import date
+
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-from datetime import date
+
 from src.database import Base
 from src.models import (
     Athlete,
-    Coach,
     AthleteCoachLink,
-    Tournament,
     Bracket,
-    BracketParticipant,
     BracketMatch,
+    BracketParticipant,
     Category,
+    Coach,
     Match,
+    Tournament,
 )
 
 # Создаём тестовую БД в памяти (SQLite)
@@ -49,9 +51,7 @@ def test_create_athlete_and_coach(db_session):
     db_session.add(coach)
     db_session.commit()
 
-    athlete = Athlete(
-        first_name="Mike", last_name="Tyson", gender="M", birth_date=date(1966, 6, 30)
-    )
+    athlete = Athlete(first_name="Mike", last_name="Tyson", gender="M", birth_date=date(1966, 6, 30))
     db_session.add(athlete)
     db_session.commit()
 
@@ -93,9 +93,7 @@ def test_delete_athlete(db_session):
     db_session.add(bracket)
     db_session.commit()
 
-    participant = BracketParticipant(
-        bracket_id=bracket.id, athlete_id=athlete.id, seed=1
-    )
+    participant = BracketParticipant(bracket_id=bracket.id, athlete_id=athlete.id, seed=1)
     db_session.add(participant)
     db_session.commit()
 
@@ -172,9 +170,7 @@ def test_create_and_delete_match(db_session):
     db_session.commit()
 
     # Create BracketMatch referencing the Match
-    bracket_match = BracketMatch(
-        bracket_id=bracket.id, round_number=1, position=1, match_id=match.id
-    )
+    bracket_match = BracketMatch(bracket_id=bracket.id, round_number=1, position=1, match_id=match.id)
     db_session.add(bracket_match)
     db_session.commit()
 

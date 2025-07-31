@@ -1,19 +1,21 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Date,
-    ForeignKey,
-    DateTime,
-    Time,
-    func,
-    UniqueConstraint,
-    CheckConstraint,
-)
-from sqlalchemy.orm import relationship, declared_attr
-from src.database import Base
 import enum
 from datetime import time
+
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Time,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.orm import declared_attr, relationship
+
+from src.database import Base
 
 
 class Gender(enum.Enum):
@@ -127,9 +129,7 @@ class Coach(Base, TimestampMixin):
 
 class AthleteCoachLink(Base, TimestampMixin):
     __tablename__ = "athlete_coach_links"
-    __table_args__ = (
-        UniqueConstraint("athlete_id", "coach_id", name="uix_athlete_coach"),
-    )
+    __table_args__ = (UniqueConstraint("athlete_id", "coach_id", name="uix_athlete_coach"),)
 
     id = Column(Integer, primary_key=True)
     athlete_id = Column(
@@ -163,9 +163,7 @@ class Category(Base, TimestampMixin):
 
 class Tournament(Base, TimestampMixin):
     __tablename__ = "tournaments"
-    __table_args__ = (
-        CheckConstraint("end_date >= start_date", name="check_tournament_dates"),
-    )
+    __table_args__ = (CheckConstraint("end_date >= start_date", name="check_tournament_dates"),)
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), index=True, nullable=False)
@@ -178,18 +176,12 @@ class Tournament(Base, TimestampMixin):
     image_url = Column(String(500), nullable=True)
     export_last_updated_at = Column(DateTime(timezone=True), nullable=True)
 
-    brackets = relationship(
-        "Bracket", back_populates="tournament", cascade="all, delete-orphan"
-    )
+    brackets = relationship("Bracket", back_populates="tournament", cascade="all, delete-orphan")
 
 
 class Application(Base, TimestampMixin):
     __tablename__ = "applications"
-    __table_args__ = (
-        UniqueConstraint(
-            "athlete_id", "category_id", "tournament_id", name="uix_application_unique"
-        ),
-    )
+    __table_args__ = (UniqueConstraint("athlete_id", "category_id", "tournament_id", name="uix_application_unique"),)
 
     id = Column(Integer, primary_key=True)
     tournament_id = Column(
@@ -242,21 +234,15 @@ class Bracket(Base, TimestampMixin):
         index=True,
     )
     group_id = Column(Integer, nullable=False, default=1)
-    type = Column(
-        String(50), nullable=False, default=BracketType.SINGLE_ELIMINATION.value
-    )
+    type = Column(String(50), nullable=False, default=BracketType.SINGLE_ELIMINATION.value)
     start_time = Column(Time, nullable=False, default=lambda: time(9, 0))
     tatami = Column(Integer, nullable=False, default=1)
     status = Column(String(20), default=BracketStatus.PENDING.value, nullable=False)
 
     tournament = relationship("Tournament", back_populates="brackets")
     category = relationship("Category", back_populates="brackets")
-    matches = relationship(
-        "BracketMatch", back_populates="bracket", cascade="all, delete-orphan"
-    )
-    participants = relationship(
-        "BracketParticipant", back_populates="bracket", cascade="all, delete-orphan"
-    )
+    matches = relationship("BracketMatch", back_populates="bracket", cascade="all, delete-orphan")
+    participants = relationship("BracketParticipant", back_populates="bracket", cascade="all, delete-orphan")
 
     def get_display_name(self) -> str:
         """Generate display name combining category name and group number"""

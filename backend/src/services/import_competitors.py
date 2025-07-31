@@ -1,22 +1,20 @@
 import json
-from datetime import time
+
 from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import (
-    BracketMatch,
-    Tournament,
-    Coach,
-    Category,
+from src.models import (  # TournamentParticipant,
     Athlete,
     AthleteCoachLink,
-    # TournamentParticipant,
     Bracket,
+    BracketMatch,
     BracketParticipant,
+    Category,
+    Coach,
+    Tournament,
 )
 from src.services.brackets import regenerate_tournament_brackets
-
 
 # def random_date(start_year=2005, end_year=2017):
 #     start_date = datetime(start_year, 1, 1)
@@ -25,9 +23,7 @@ from src.services.brackets import regenerate_tournament_brackets
 #     return (start_date + timedelta(days=random_days)).date()
 
 
-async def import_competitors_from_cbr(
-    db: AsyncSession, tournament_id: int, content: bytes
-):
+async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, content: bytes):
     try:
         data = json.loads(content)
     except json.JSONDecodeError:
@@ -39,19 +35,11 @@ async def import_competitors_from_cbr(
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
-    brackets = await db.execute(
-        select(Bracket).where(Bracket.tournament_id == tournament_id)
-    )
+    brackets = await db.execute(select(Bracket).where(Bracket.tournament_id == tournament_id))
     brackets = brackets.scalars().all()
     for bracket in brackets:
-        await db.execute(
-            delete(BracketParticipant).where(
-                BracketParticipant.bracket_id == bracket.id
-            )
-        )
-        await db.execute(
-            delete(BracketMatch).where(BracketMatch.bracket_id == bracket.id)
-        )
+        await db.execute(delete(BracketParticipant).where(BracketParticipant.bracket_id == bracket.id))
+        await db.execute(delete(BracketMatch).where(BracketMatch.bracket_id == bracket.id))
     # await db.execute(delete(Bracket).where(Bracket.tournament_id == tournament_id))
     await db.commit()
 
@@ -89,9 +77,7 @@ async def import_competitors_from_cbr(
         category = categories_cache[category_name]
 
         # Athlete
-        result = await db.execute(
-            select(Athlete).filter_by(first_name=first_name, last_name=last_name)
-        )
+        result = await db.execute(select(Athlete).filter_by(first_name=first_name, last_name=last_name))
         athlete = result.scalars().first()
         if not athlete:
             # birth_date = random_date()
@@ -124,11 +110,7 @@ async def import_competitors_from_cbr(
         #     await db.commit()
 
         # Bracket
-        result = await db.execute(
-            select(Bracket).filter_by(
-                tournament_id=tournament.id, category_id=category.id
-            )
-        )
+        result = await db.execute(select(Bracket).filter_by(tournament_id=tournament.id, category_id=category.id))
         bracket = result.scalars().first()
         if not bracket:
             bracket = Bracket(

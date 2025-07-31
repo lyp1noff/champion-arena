@@ -1,14 +1,13 @@
 import os
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
+from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
 
 from src.config import DEV_MODE
+from src.database import Base, engine
 from src.middleware import add_cors_middleware
-from src.database import SessionLocal, engine, Base
 from src.routers import routers
-from src.services.auth import create_default_user
 
 
 @asynccontextmanager

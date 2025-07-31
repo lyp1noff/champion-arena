@@ -1,6 +1,7 @@
-from pydantic import BaseModel, ConfigDict
-from datetime import date, time, datetime
+from datetime import date, datetime, time
 from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict
 
 from src.models import BracketType
 
@@ -208,9 +209,7 @@ class ParticipantMoveSchema(BaseModel):
 
 class ParticipantReorderSchema(BaseModel):
     bracket_id: int
-    participant_updates: List[
-        dict[str, int]
-    ]  # List of {participant_id: int, new_seed: int}
+    participant_updates: List[dict[str, int]]  # List of {participant_id: int, new_seed: int}
 
 
 class BracketCreateSchema(BaseModel):

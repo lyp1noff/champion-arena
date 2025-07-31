@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Response, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.schemas import LoginRequest, TokenResponse
-from src.services.auth import authenticate_user, create_token, create_refresh_token
-from src.database import get_db
+
 from src.config import DEV_MODE, JWT_SECRET
-from jose import jwt, JWTError
+from src.database import get_db
+from src.schemas import LoginRequest, TokenResponse
+from src.services.auth import authenticate_user, create_refresh_token, create_token
 
 ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 30  # 30 minutes
 REFRESH_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 7  # 7 days
@@ -15,8 +16,8 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/token", response_model=TokenResponse)
 async def get_bearer_token(
-        data: LoginRequest,
-        db: AsyncSession = Depends(get_db),
+    data: LoginRequest,
+    db: AsyncSession = Depends(get_db),
 ):
     user = await authenticate_user(db, data.username, data.password)
     if not user:
@@ -28,8 +29,8 @@ async def get_bearer_token(
 
 @router.post("/login")
 async def login(
-        data: LoginRequest,
-        db: AsyncSession = Depends(get_db),
+    data: LoginRequest,
+    db: AsyncSession = Depends(get_db),
 ):
     user = await authenticate_user(db, data.username, data.password)
     if not user:

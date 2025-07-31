@@ -1,11 +1,11 @@
 from . import (
-    coaches,
     athletes,
-    tournaments,
-    categories,
-    brackets,
-    upload,
     auth,
+    brackets,
+    categories,
+    coaches,
+    tournaments,
+    upload,
 )
 
 routers = [

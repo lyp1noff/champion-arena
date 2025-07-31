@@ -27,11 +27,7 @@ function AthletesTableWrapper() {
   return (
     <div className="container h-full flex-1 flex-col p-8 md:flex">
       <div className="flex gap-4 mb-4">
-        <Input
-          placeholder="Search athlete..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value.trim())}
-        />
+        <Input placeholder="Search athlete..." value={search} onChange={(e) => setSearch(e.target.value.trim())} />
         <Input
           placeholder="Search coach..."
           value={coachSearch}

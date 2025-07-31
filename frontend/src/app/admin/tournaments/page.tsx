@@ -31,9 +31,7 @@ function TournamentTableWrapper() {
         <Input
           placeholder={t("search")}
           value={search}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setSearch(e.target.value.trim())
-          }
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value.trim())}
         />
         <Link href="/admin/tournaments/create">
           <Button variant="outline">{t("create")}</Button>

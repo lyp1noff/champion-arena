@@ -1,5 +1,6 @@
 import asyncio
-from src.database import engine, Base, SessionLocal
+
+from src.database import SessionLocal
 from src.services.auth import create_default_user
 
 

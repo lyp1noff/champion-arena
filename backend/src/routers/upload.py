@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, Form, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+
 from src.dependencies.auth import get_current_user
 from src.services.storage import upload_file_to_r2
 
-router = APIRouter(
-    prefix="/upload", tags=["Upload"], dependencies=[Depends(get_current_user)]
-)
+router = APIRouter(prefix="/upload", tags=["Upload"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("/photo")

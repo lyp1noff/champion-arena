@@ -15,26 +15,17 @@ SVG_ROUND_TEMPLATE_PATH = "assets/round_template.svg"
 HIDE_FINISHED_MATCHES = True
 
 
-def build_entry(
-    matches, bracket, offset, position_offset, start_time_tatami, tournament_title
-):
+def build_entry(matches, bracket, offset, position_offset, start_time_tatami, tournament_title):
     entry = {
         "tournament_name": tournament_title,
-        "category": (
-            bracket.get_display_name()
-            if hasattr(bracket, "get_display_name")
-            else bracket.category.name
-        ),
+        "category": (bracket.get_display_name() if hasattr(bracket, "get_display_name") else bracket.category.name),
         "start_time_tatami": start_time_tatami,
     }
 
     for match in matches:
         rnd = match.round_number + offset
 
-        if (
-            HIDE_FINISHED_MATCHES
-            and getattr(match.match, "status", "finished") == MatchStatus.FINISHED.value
-        ):
+        if HIDE_FINISHED_MATCHES and getattr(match.match, "status", "finished") == MatchStatus.FINISHED.value:
             continue
 
         round_key = f"type_round{rnd}"
@@ -53,27 +44,15 @@ def build_entry(
 
         if a1:
             # Get coach names from the many-to-many relationship
-            coach_names = [
-                link.coach.last_name
-                for link in a1.coach_links
-                if link.coach is not None
-            ]
+            coach_names = [link.coach.last_name for link in a1.coach_links if link.coach is not None]
             coach_str = ", ".join(coach_names) if coach_names else ""
-            entry[f"round{rnd}_position{norm_pos}_athlete1"] = (
-                f"{a1.last_name} {a1.first_name} ({coach_str})"
-            )
+            entry[f"round{rnd}_position{norm_pos}_athlete1"] = f"{a1.last_name} {a1.first_name} ({coach_str})"
 
         if a2:
             # Get coach names from the many-to-many relationship
-            coach_names = [
-                link.coach.last_name
-                for link in a2.coach_links
-                if link.coach is not None
-            ]
+            coach_names = [link.coach.last_name for link in a2.coach_links if link.coach is not None]
             coach_str = ", ".join(coach_names) if coach_names else ""
-            entry[f"round{rnd}_position{norm_pos}_athlete2"] = (
-                f"{a2.last_name} {a2.first_name} ({coach_str})"
-            )
+            entry[f"round{rnd}_position{norm_pos}_athlete2"] = f"{a2.last_name} {a2.first_name} ({coach_str})"
 
     return entry
 
@@ -85,20 +64,12 @@ def build_round_robin_entry(matches, category, start_time_tatami, tournament_tit
         a2 = match.match.athlete2
         if a1:
             # Get coach names from the many-to-many relationship
-            coach_names = [
-                link.coach.last_name
-                for link in a1.coach_links
-                if link.coach is not None
-            ]
+            coach_names = [link.coach.last_name for link in a1.coach_links if link.coach is not None]
             coach_str = ", ".join(coach_names) if coach_names else ""
             athletes_map[a1.id] = f"{a1.last_name} {a1.first_name} ({coach_str})"
         if a2:
             # Get coach names from the many-to-many relationship
-            coach_names = [
-                link.coach.last_name
-                for link in a2.coach_links
-                if link.coach is not None
-            ]
+            coach_names = [link.coach.last_name for link in a2.coach_links if link.coach is not None]
             coach_str = ", ".join(coach_names) if coach_names else ""
             athletes_map[a2.id] = f"{a2.last_name} {a2.first_name} ({coach_str})"
 
@@ -129,9 +100,7 @@ def build_entries(data, tournament_title):
             entry = build_round_robin_entry(
                 matches=matches,
                 category=(
-                    bracket.get_display_name()
-                    if hasattr(bracket, "get_display_name")
-                    else bracket.category.name
+                    bracket.get_display_name() if hasattr(bracket, "get_display_name") else bracket.category.name
                 ),
                 start_time_tatami=start_time_tatami,
                 tournament_title=tournament_title,
@@ -142,9 +111,7 @@ def build_entries(data, tournament_title):
 
         max_round = min(4, max(m.round_number for m in matches))
 
-        round1_matches = sorted(
-            [m for m in matches if m.round_number == 1], key=lambda m: m.position
-        )
+        round1_matches = sorted([m for m in matches if m.round_number == 1], key=lambda m: m.position)
 
         chunk_size = 8
         for i in range(0, len(round1_matches), chunk_size):

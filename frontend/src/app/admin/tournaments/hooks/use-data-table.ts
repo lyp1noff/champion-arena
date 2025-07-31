@@ -68,7 +68,7 @@ export default function useDataTable() {
         setData(data);
         setTotalRecords(total);
         setTotalPages(Math.ceil(total / limit));
-      }
+      },
     );
   }, [pagination, sorting, debouncedSearch]);
 

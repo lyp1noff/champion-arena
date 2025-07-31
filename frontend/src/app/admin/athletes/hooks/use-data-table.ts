@@ -68,25 +68,24 @@ export default function useDataTable() {
   const fetchData = useCallback(() => {
     const sortField = sorting.length > 0 ? sorting[0].id : "last_name";
     const sortOrder = sorting.length > 0 && sorting[0].desc ? "desc" : "asc";
-  
+
     getAthletes(
       pagination.pageIndex + 1,
       pagination.pageSize,
       sortField,
       sortOrder,
       debouncedSearch,
-      debouncedCoachSearch
+      debouncedCoachSearch,
     ).then(({ data, total, limit }) => {
       setData(data);
       setTotalRecords(total);
       setTotalPages(Math.ceil(total / limit));
     });
   }, [pagination, sorting, debouncedSearch, debouncedCoachSearch]);
-  
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-  
 
   return {
     data,
@@ -100,6 +99,6 @@ export default function useDataTable() {
     setSearch,
     coachSearch,
     setCoachSearch,
-    columns: columns(fetchData)
+    columns: columns(fetchData),
   };
 }

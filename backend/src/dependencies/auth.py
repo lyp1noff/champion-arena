@@ -1,6 +1,8 @@
-from fastapi import Request, HTTPException
-from jose import jwt, JWTError
 from datetime import datetime, timezone
+
+from fastapi import HTTPException, Request
+from jose import JWTError, jwt
+
 from src.config import JWT_SECRET
 
 
@@ -18,9 +20,7 @@ def get_current_user(request: Request):
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         exp = payload.get("exp")
-        if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(
-            timezone.utc
-        ):
+        if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
             raise HTTPException(status_code=401, detail="Token expired")
         return payload
     except JWTError:

@@ -8,9 +8,9 @@ Create Date: 2025-07-30 16:24:06.121126
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "3ec4fbe1c99b"
@@ -27,16 +27,10 @@ def upgrade() -> None:
     op.add_column("matches", sa.Column("status", sa.String(length=20), nullable=True))
     op.execute("UPDATE matches SET status = 'not_started'")
     op.alter_column("matches", "status", nullable=False)
-    op.add_column(
-        "matches", sa.Column("started_at", sa.DateTime(timezone=True), nullable=True)
-    )
-    op.add_column(
-        "matches", sa.Column("ended_at", sa.DateTime(timezone=True), nullable=True)
-    )
+    op.add_column("matches", sa.Column("started_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column("matches", sa.Column("ended_at", sa.DateTime(timezone=True), nullable=True))
     op.drop_column("matches", "is_finished")
-    op.add_column(
-        "tournaments", sa.Column("status", sa.String(length=20), nullable=True)
-    )
+    op.add_column("tournaments", sa.Column("status", sa.String(length=20), nullable=True))
     op.execute("UPDATE tournaments SET status = 'draft'")
     op.alter_column("tournaments", "status", nullable=False)
 

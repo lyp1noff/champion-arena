@@ -1,12 +1,14 @@
 import math
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Optional
-from sqlalchemy import delete, func, select
+
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.models import (
     Bracket,
-    BracketParticipant,
     BracketMatch,
+    BracketParticipant,
     BracketType,
     Match,
     MatchStatus,
@@ -56,9 +58,7 @@ def distribute_byes_safely(
     return pairs
 
 
-async def generate_first_round(
-    session: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
-):
+async def generate_first_round(session: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int):
     pairs = distribute_byes_safely(athlete_ids)
     matches = []
 
@@ -89,9 +89,7 @@ async def generate_first_round(
     return matches
 
 
-async def generate_following_rounds(
-    session: AsyncSession, bracket_id: int, total_rounds: int
-):
+async def generate_following_rounds(session: AsyncSession, bracket_id: int, total_rounds: int):
     match_matrix = [[] for _ in range(total_rounds)]
 
     for round_num in range(2, total_rounds + 1):
@@ -116,9 +114,7 @@ async def generate_following_rounds(
     return match_matrix
 
 
-async def advance_auto_winners(
-    session: AsyncSession, match_matrix: list[list[BracketMatch]]
-):
+async def advance_auto_winners(session: AsyncSession, match_matrix: list[list[BracketMatch]]):
     for round_index in range(len(match_matrix) - 1):
         current_round = match_matrix[round_index]
         next_round = match_matrix[round_index + 1]
@@ -126,11 +122,7 @@ async def advance_auto_winners(
         for bm in current_round:
             match = await session.get(Match, bm.match_id)
 
-            if (
-                not match
-                or match.status != MatchStatus.FINISHED.value
-                or not match.winner_id
-            ):
+            if not match or match.status != MatchStatus.FINISHED.value or not match.winner_id:
                 continue
 
             next_position = (bm.position + 1) // 2
@@ -154,22 +146,12 @@ async def regenerate_bracket_matches(
 ):
     # Удалим все BracketMatch + Match
     await session.execute(
-        delete(Match).where(
-            Match.id.in_(
-                select(BracketMatch.match_id).where(
-                    BracketMatch.bracket_id == bracket_id
-                )
-            )
-        )
+        delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
     )
-    await session.execute(
-        delete(BracketMatch).where(BracketMatch.bracket_id == bracket_id)
-    )
+    await session.execute(delete(BracketMatch).where(BracketMatch.bracket_id == bracket_id))
 
     result = await session.execute(
-        select(BracketParticipant)
-        .filter_by(bracket_id=bracket_id)
-        .order_by(BracketParticipant.seed)
+        select(BracketParticipant).filter_by(bracket_id=bracket_id).order_by(BracketParticipant.seed)
     )
     participants = result.scalars().all()
     athlete_ids = [p.athlete_id for p in participants if p.athlete_id is not None]
@@ -186,9 +168,7 @@ async def regenerate_bracket_matches(
     match_matrix = [[] for _ in range(total_rounds)]
 
     if not skip_first_round:
-        match_matrix[0] = await generate_first_round(
-            session, bracket_id, athlete_ids, total_rounds
-        )
+        match_matrix[0] = await generate_first_round(session, bracket_id, athlete_ids, total_rounds)
 
     later_rounds = await generate_following_rounds(session, bracket_id, total_rounds)
     for i in range(1, total_rounds):
@@ -235,22 +215,12 @@ async def regenerate_round_bracket_matches(
     commit: bool = True,
 ):
     await session.execute(
-        delete(Match).where(
-            Match.id.in_(
-                select(BracketMatch.match_id).where(
-                    BracketMatch.bracket_id == bracket_id
-                )
-            )
-        )
+        delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
     )
-    await session.execute(
-        delete(BracketMatch).where(BracketMatch.bracket_id == bracket_id)
-    )
+    await session.execute(delete(BracketMatch).where(BracketMatch.bracket_id == bracket_id))
 
     result = await session.execute(
-        select(BracketParticipant)
-        .filter_by(bracket_id=bracket_id)
-        .order_by(BracketParticipant.seed)
+        select(BracketParticipant).filter_by(bracket_id=bracket_id).order_by(BracketParticipant.seed)
     )
     participants = result.scalars().all()
 
@@ -290,20 +260,14 @@ async def regenerate_round_bracket_matches(
 
 
 async def regenerate_tournament_brackets(session: AsyncSession, tournament_id: int):
-    result = await session.execute(
-        select(Bracket.id, Bracket.type).where(Bracket.tournament_id == tournament_id)
-    )
+    result = await session.execute(select(Bracket.id, Bracket.type).where(Bracket.tournament_id == tournament_id))
     brackets = result.all()
 
     for bracket_id, bracket_type in brackets:
         if bracket_type == BracketType.ROUND_ROBIN:
-            await regenerate_round_bracket_matches(
-                session, bracket_id, tournament_id, commit=False
-            )
+            await regenerate_round_bracket_matches(session, bracket_id, tournament_id, commit=False)
         elif bracket_type == BracketType.SINGLE_ELIMINATION.value:
-            await regenerate_bracket_matches(
-                session, bracket_id, tournament_id, commit=False
-            )
+            await regenerate_bracket_matches(session, bracket_id, tournament_id, commit=False)
         else:
             print(f"Warning! Bracket type: {bracket_type} not supported")
 
@@ -316,9 +280,7 @@ async def regenerate_tournament_brackets(session: AsyncSession, tournament_id: i
 
 async def reorder_seeds_and_get_next(session: AsyncSession, bracket_id: int) -> int:
     result = await session.execute(
-        select(BracketParticipant)
-        .where(BracketParticipant.bracket_id == bracket_id)
-        .order_by(BracketParticipant.seed)
+        select(BracketParticipant).where(BracketParticipant.bracket_id == bracket_id).order_by(BracketParticipant.seed)
     )
     participants = result.scalars().all()
 

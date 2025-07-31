@@ -1,39 +1,40 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import List
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, Body
+
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import asc, desc, select, func, distinct
+from sqlalchemy import asc, desc, distinct, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.database import get_db
 from src.dependencies.auth import get_current_user
 from src.models import (
+    Application,
     ApplicationStatus,
+    Athlete,
+    AthleteCoachLink,
     Bracket,
     BracketMatch,
     BracketParticipant,
+    Coach,
     Match,
     Tournament,
-    Athlete,
-    Coach,
-    Application,
-    AthleteCoachLink,
     TournamentStatus,
 )
 from src.routers.brackets import regenerate_matches_endpoint
 from src.schemas import (
-    BracketMatchesFull,
-    BracketResponse,
-    TournamentResponse,
-    TournamentCreate,
-    PaginatedTournamentResponse,
-    TournamentUpdate,
     ApplicationCreate,
     ApplicationResponse,
+    BracketMatchesFull,
+    BracketResponse,
+    PaginatedTournamentResponse,
+    TournamentCreate,
+    TournamentResponse,
+    TournamentUpdate,
 )
-from src.database import get_db
 from src.services.brackets import (
     regenerate_tournament_brackets,
     reorder_seeds_and_get_next,
@@ -62,9 +63,7 @@ async def get_tournaments(
     order_by = order_by if order_by in valid_order_fields else "id"
 
     order_column = (
-        desc(getattr(Tournament, order_by))
-        if order.lower() == "desc"
-        else asc(getattr(Tournament, order_by))
+        desc(getattr(Tournament, order_by)) if order.lower() == "desc" else asc(getattr(Tournament, order_by))
     )
     offset = (page - 1) * limit
 
@@ -72,13 +71,7 @@ async def get_tournaments(
 
     total = await db.scalar(select(func.count(Tournament.id)).where(*filters))
 
-    result = await db.execute(
-        select(Tournament)
-        .where(*filters)
-        .order_by(order_column)
-        .offset(offset)
-        .limit(limit)
-    )
+    result = await db.execute(select(Tournament).where(*filters).order_by(order_column).offset(offset).limit(limit))
 
     return {
         "data": result.scalars().all(),
@@ -98,12 +91,8 @@ async def get_tournament(id: int, db: AsyncSession = Depends(get_db)):
     return tournament
 
 
-@router.post(
-    "", response_model=TournamentResponse, dependencies=[Depends(get_current_user)]
-)
-async def create_tournament(
-    tournament: TournamentCreate, db: AsyncSession = Depends(get_db)
-):
+@router.post("", response_model=TournamentResponse, dependencies=[Depends(get_current_user)])
+async def create_tournament(tournament: TournamentCreate, db: AsyncSession = Depends(get_db)):
     try:
         new_tournament = Tournament(**tournament.model_dump())
         db.add(new_tournament)
@@ -111,19 +100,13 @@ async def create_tournament(
         await db.refresh(new_tournament)
         return new_tournament
     except IntegrityError:
-        raise HTTPException(
-            status_code=400, detail="Tournament with these details already exists"
-        )
+        raise HTTPException(status_code=400, detail="Tournament with these details already exists")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put(
-    "/{id}", response_model=TournamentResponse, dependencies=[Depends(get_current_user)]
-)
-async def update_tournament(
-    id: int, tournament_update: TournamentUpdate, db: AsyncSession = Depends(get_db)
-):
+@router.put("/{id}", response_model=TournamentResponse, dependencies=[Depends(get_current_user)])
+async def update_tournament(id: int, tournament_update: TournamentUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Tournament).filter(Tournament.id == id))
     tournament = result.scalars().first()
 
@@ -163,9 +146,7 @@ async def get_all_brackets(tournament_id: int, db: AsyncSession = Depends(get_db
             .selectinload(Athlete.coach_links)
             .joinedload(AthleteCoachLink.coach),
         )
-        .order_by(
-            Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast()
-        )
+        .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
     )
     brackets = result.scalars().all()
     return [serialize_bracket(b) for b in brackets]
@@ -173,9 +154,7 @@ async def get_all_brackets(tournament_id: int, db: AsyncSession = Depends(get_db
 
 # CLI ONLY
 @router.get("/{tournament_id}/coaches/participants")
-async def get_participant_count_per_coach(
-    tournament_id: int, db: AsyncSession = Depends(get_db)
-):
+async def get_participant_count_per_coach(tournament_id: int, db: AsyncSession = Depends(get_db)):
     subquery = (
         select(
             distinct(Athlete.id).label("athlete_id"),
@@ -218,9 +197,7 @@ async def get_participant_count_per_coach(
     response_model=List[BracketMatchesFull],
     dependencies=[Depends(get_current_user)],
 )
-async def get_matches_for_tournament_full(
-    tournament_id: int, db: AsyncSession = Depends(get_db)
-):
+async def get_matches_for_tournament_full(tournament_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Bracket)
         .filter(Bracket.tournament_id == tournament_id)
@@ -242,18 +219,14 @@ async def get_matches_for_tournament_full(
             .selectinload(Athlete.coach_links)
             .joinedload(AthleteCoachLink.coach),
         )
-        .order_by(
-            Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast()
-        )
+        .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
     )
 
     brackets = result.scalars().all()
     return [serialize_bracket_matches_full(bracket) for bracket in brackets]
 
 
-async def get_matches_for_tournament_raw(
-    tournament_id: int, db: AsyncSession = Depends(get_db)
-):
+async def get_matches_for_tournament_raw(tournament_id: int, db: AsyncSession = Depends(get_db)):
     """Get raw SQLAlchemy objects for export functionality"""
     result = await db.execute(
         select(Bracket)
@@ -276,18 +249,14 @@ async def get_matches_for_tournament_raw(
             .selectinload(Athlete.coach_links)
             .joinedload(AthleteCoachLink.coach),
         )
-        .order_by(
-            Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast()
-        )
+        .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
     )
 
     return result.scalars().all()
 
 
 @router.post("/{tournament_id}/regenerate", dependencies=[Depends(get_current_user)])
-async def regenerate_tournament(
-    tournament_id: int, session: AsyncSession = Depends(get_db)
-):
+async def regenerate_tournament(tournament_id: int, session: AsyncSession = Depends(get_db)):
     try:
         await regenerate_tournament_brackets(session, tournament_id)
         return {"status": "ok"}
@@ -296,13 +265,9 @@ async def regenerate_tournament(
 
 
 @router.get("/{tournament_id}/export_file", dependencies=[Depends(get_current_user)])
-async def generate_brackets_export_file(
-    tournament_id: int, session: AsyncSession = Depends(get_db)
-):
+async def generate_brackets_export_file(tournament_id: int, session: AsyncSession = Depends(get_db)):
     tournament = await get_tournament(tournament_id, session)
-    tournament_title = (
-        f"{tournament.name} - {tournament.start_date.strftime('%d.%m.%Y')}"
-    )
+    tournament_title = f"{tournament.name} - {tournament.start_date.strftime('%d.%m.%Y')}"
     final_filename = f"{sanitize_filename(tournament_title)}.pdf"
     final_path = Path("pdf_storage") / final_filename
 
@@ -559,9 +524,7 @@ async def approve_all_applications(
     return {"status": "ok", "approved": len(applications)}
 
 
-@router.delete(
-    "/participants/{participant_id}", dependencies=[Depends(get_current_user)]
-)
+@router.delete("/participants/{participant_id}", dependencies=[Depends(get_current_user)])
 async def remove_competitor(
     participant_id: int,
     db: AsyncSession = Depends(get_db),

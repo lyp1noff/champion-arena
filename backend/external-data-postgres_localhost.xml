@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<data>
-  <object-set>
-    <schema path="tournament_db.public">
-      <view name="tournament_bm" query="SELECT bm.*&#xa;FROM bracket_matches bm&#xa;JOIN brackets b ON bm.bracket_id = b.id&#xa;WHERE b.tournament_id = 3;"/>
-      <view name="tournament_bp" query="SELECT bp.*&#xa;FROM bracket_participants bp&#xa;JOIN brackets b ON bp.bracket_id = b.id&#xa;WHERE b.tournament_id = 3;"/>
-    </schema>
-  </object-set>
-</data>
