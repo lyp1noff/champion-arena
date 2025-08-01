@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import asc, delete, desc, func, or_, select
@@ -28,7 +27,7 @@ async def get_athletes(
     search: str = Query(None, alias="search"),
     coach_search: str = Query(None, alias="coach_search"),
     db: AsyncSession = Depends(get_db),
-):
+) -> PaginatedAthletesResponse:
     offset = (page - 1) * limit
 
     stmt = select(Athlete).options(selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach))
@@ -124,10 +123,10 @@ async def get_athletes(
     )
 
 
-@router.get("/all", response_model=List[AthleteResponse])
+@router.get("/all", response_model=list[AthleteResponse])
 async def get_all_athletes(
     db: AsyncSession = Depends(get_db),
-):
+) -> list[AthleteResponse]:
     stmt = select(Athlete).options(selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach))
     result = await db.execute(stmt)
     athletes_db = result.scalars().all()
@@ -156,7 +155,7 @@ async def get_all_athletes(
 
 
 @router.get("/{id}", response_model=AthleteResponse)
-async def get_athlete(id: int, db: AsyncSession = Depends(get_db)):
+async def get_athlete(id: int, db: AsyncSession = Depends(get_db)) -> AthleteResponse:
     stmt = (
         select(Athlete)
         .where(Athlete.id == id)
@@ -187,18 +186,18 @@ async def get_athlete(id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", response_model=AthleteResponse)
-async def create_athlete(athlete: AthleteCreate, db: AsyncSession = Depends(get_db)):
+async def create_athlete(athlete_data: AthleteCreate, db: AsyncSession = Depends(get_db)) -> AthleteResponse:
     new_athlete = Athlete(
-        first_name=athlete.first_name,
-        last_name=athlete.last_name,
-        gender=athlete.gender,
-        birth_date=athlete.birth_date,
+        first_name=athlete_data.first_name,
+        last_name=athlete_data.last_name,
+        gender=athlete_data.gender,
+        birth_date=athlete_data.birth_date,
     )
     db.add(new_athlete)
     await db.flush()
 
-    if athlete.coaches_id:
-        links = [AthleteCoachLink(athlete_id=new_athlete.id, coach_id=coach_id) for coach_id in athlete.coaches_id]
+    if athlete_data.coaches_id:
+        links = [AthleteCoachLink(athlete_id=new_athlete.id, coach_id=coach_id) for coach_id in athlete_data.coaches_id]
         db.add_all(links)
 
     await db.commit()
@@ -212,7 +211,6 @@ async def create_athlete(athlete: AthleteCreate, db: AsyncSession = Depends(get_
     athlete = result.scalar_one()
 
     coaches_last_name = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
-
     coaches_id = [link.coach.id for link in athlete.coach_links if link.coach is not None]
 
     return AthleteResponse(
@@ -227,7 +225,7 @@ async def create_athlete(athlete: AthleteCreate, db: AsyncSession = Depends(get_
 
 
 @router.put("/{id}", response_model=AthleteResponse)
-async def update_athlete(id: int, athlete_update: AthleteUpdate, db: AsyncSession = Depends(get_db)):
+async def update_athlete(id: int, athlete_update: AthleteUpdate, db: AsyncSession = Depends(get_db)) -> AthleteResponse:
     result = await db.execute(select(Athlete).where(Athlete.id == id))
     athlete = result.scalar_one_or_none()
 
@@ -268,7 +266,7 @@ async def update_athlete(id: int, athlete_update: AthleteUpdate, db: AsyncSessio
 
 
 @router.delete("/{id}", status_code=204)
-async def delete_athlete(id: int, db: AsyncSession = Depends(get_db)):
+async def delete_athlete(id: int, db: AsyncSession = Depends(get_db)) -> None:
     result = await db.execute(select(Athlete).filter(Athlete.id == id))
     athlete = result.scalars().first()
 
@@ -277,3 +275,4 @@ async def delete_athlete(id: int, db: AsyncSession = Depends(get_db)):
 
     await db.delete(athlete)
     await db.commit()
+    # No response body for 204 No Content

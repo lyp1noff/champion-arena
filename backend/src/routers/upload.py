@@ -7,7 +7,7 @@ router = APIRouter(prefix="/upload", tags=["Upload"], dependencies=[Depends(get_
 
 
 @router.post("/photo")
-async def upload_photo(file: UploadFile = File(...), path: str = Form(...)):
+async def upload_photo(file: UploadFile = File(...), path: str = Form(...)) -> dict[str, str]:
     file_content = await file.read()
 
     if not file_content:

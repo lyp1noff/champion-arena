@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from jose import jwt
 from passlib.context import CryptContext
@@ -11,15 +12,15 @@ from src.models import User
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
-def hash_password(password: str) -> str:
+def hash_password(password: str) -> Any:
     return pwd_context.hash(password)
 
 
-def verify_password(plain: str, hashed: str) -> bool:
+def verify_password(plain: str, hashed: str) -> Any:
     return pwd_context.verify(plain, hashed)
 
 
-def create_token(username: str, role: str, expires_in: int) -> str:
+def create_token(username: str, role: str, expires_in: int) -> Any:
     expire = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
     return jwt.encode(
         {"sub": username, "role": role, "exp": expire},
@@ -28,7 +29,7 @@ def create_token(username: str, role: str, expires_in: int) -> str:
     )
 
 
-def create_refresh_token(username: str, expires_in: int) -> str:
+def create_refresh_token(username: str, expires_in: int) -> Any:
     expire = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
     return jwt.encode(
         {"sub": username, "exp": expire},
@@ -45,7 +46,7 @@ async def authenticate_user(db: AsyncSession, username: str, password: str) -> U
     return user
 
 
-async def create_default_user(db: AsyncSession):
+async def create_default_user(db: AsyncSession) -> None:
     result = await db.execute(select(User).where(User.username == "qwe"))  # CHANGE THIS
     user = result.scalar_one_or_none()
 

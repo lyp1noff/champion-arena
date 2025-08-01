@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -29,25 +29,26 @@ class AthleteBase(CustomBaseModel):
 
 
 class AthleteCreate(AthleteBase):
-    coaches_id: List[int] = []
+    coaches_id: list[int] = []
 
 
 class AthleteResponse(AthleteBase):
-    coaches_id: List[int] = []
-    coaches_last_name: List[str] = []
+    coaches_id: list[int] = []
+    coaches_last_name: list[str] = []
     age: Optional[int] = None
     id: int
 
 
-class AthleteUpdate(AthleteBase):
+class AthleteUpdate(BaseModel):
     last_name: Optional[str] = None
     first_name: Optional[str] = None
     gender: Optional[str] = None
     birth_date: Optional[date] = None
+    coaches_id: list[int] = []
 
 
 class PaginatedAthletesResponse(CustomBaseModel):
-    data: List[AthleteResponse]
+    data: list[AthleteResponse]
     total: int
     page: int
     limit: int
@@ -102,19 +103,20 @@ class TournamentResponse(TournamentBase):
 
 
 class PaginatedTournamentResponse(CustomBaseModel):
-    data: List[TournamentResponse]
+    data: list[TournamentResponse]
     total: int
     page: int
     limit: int
 
 
-class TournamentUpdate(TournamentBase):
+class TournamentUpdate(BaseModel):
     name: Optional[str] = None
     location: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     registration_start_date: Optional[date] = None
     registration_end_date: Optional[date] = None
+    image_url: Optional[str] = None
 
 
 class ApplicationResponse(BaseModel):
@@ -123,9 +125,12 @@ class ApplicationResponse(BaseModel):
     athlete_id: int
     category_id: int
     status: str
+    comment: Optional[str] = None
     athlete: AthleteResponse
     category: CategoryResponse
-    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class ApplicationCreate(BaseModel):
@@ -142,6 +147,7 @@ class BracketBase(CustomBaseModel):
     tatami: Optional[int] = None
     group_id: Optional[int] = 1
     display_name: Optional[str] = None
+    status: str
 
 
 class BracketParticipantSchema(CustomBaseModel):
@@ -150,14 +156,21 @@ class BracketParticipantSchema(CustomBaseModel):
     seed: int
     last_name: str
     first_name: str
-    coaches_last_name: List[str] = []
+    coaches_last_name: list[str] = []
+
+
+class BracketInfoResponse(BracketBase):
+    id: int
+    tournament_id: int
+
+    class Config:
+        from_attributes = True
 
 
 class BracketResponse(BracketBase):
     id: int
     tournament_id: int
-    status: str
-    participants: List[BracketParticipantSchema]
+    participants: list[BracketParticipantSchema]
 
 
 class BracketUpdateSchema(CustomBaseModel):
@@ -172,7 +185,7 @@ class BracketMatchAthlete(CustomBaseModel):
     id: int
     first_name: str
     last_name: str
-    coaches_last_name: List[str] = []
+    coaches_last_name: list[str] = []
 
 
 class MatchSchema(CustomBaseModel):
@@ -188,6 +201,10 @@ class MatchSchema(CustomBaseModel):
     ended_at: Optional[datetime] = None
 
 
+class MatchResponse(MatchSchema):
+    pass
+
+
 class BracketMatchResponse(CustomBaseModel):
     id: int
     round_number: int
@@ -198,7 +215,7 @@ class BracketMatchResponse(CustomBaseModel):
 
 class BracketMatchesFull(BracketBase):
     bracket_id: int
-    matches: List[BracketMatchResponse]
+    matches: list[BracketMatchResponse]
 
 
 class ParticipantMoveSchema(BaseModel):
@@ -209,7 +226,7 @@ class ParticipantMoveSchema(BaseModel):
 
 class ParticipantReorderSchema(BaseModel):
     bracket_id: int
-    participant_updates: List[dict[str, int]]  # List of {participant_id: int, new_seed: int}
+    participant_updates: list[dict[str, int]]  # list of {participant_id: int, new_seed: int}
 
 
 class BracketCreateSchema(BaseModel):

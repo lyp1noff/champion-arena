@@ -6,7 +6,7 @@ from tempfile import NamedTemporaryFile
 import cairosvg
 from PyPDF2 import PdfMerger
 
-from src.models import BracketType, MatchStatus
+from src.models import Bracket, BracketMatch, BracketType, MatchStatus
 from src.utils import sanitize_filename
 
 SVG_TEMPLATE_PATH = "assets/template.svg"
@@ -15,7 +15,14 @@ SVG_ROUND_TEMPLATE_PATH = "assets/round_template.svg"
 HIDE_FINISHED_MATCHES = True
 
 
-def build_entry(matches, bracket, offset, position_offset, start_time_tatami, tournament_title):
+def build_entry(
+    matches: list[BracketMatch],
+    bracket: Bracket,
+    offset: int,
+    position_offset: int,
+    start_time_tatami: str,
+    tournament_title: str,
+) -> dict[str, str]:
     entry = {
         "tournament_name": tournament_title,
         "category": (bracket.get_display_name() if hasattr(bracket, "get_display_name") else bracket.category.name),
@@ -57,7 +64,9 @@ def build_entry(matches, bracket, offset, position_offset, start_time_tatami, to
     return entry
 
 
-def build_round_robin_entry(matches, category, start_time_tatami, tournament_title):
+def build_round_robin_entry(
+    matches: list[BracketMatch], category: str, start_time_tatami: str, tournament_title: str
+) -> dict[str, str]:
     athletes_map = {}
     for match in matches:
         a1 = match.match.athlete1
@@ -87,7 +96,7 @@ def build_round_robin_entry(matches, category, start_time_tatami, tournament_tit
     return entry
 
 
-def build_entries(data, tournament_title):
+def build_entries(data: list[Bracket], tournament_title: str) -> list[dict[str, str]]:
     all_entries = []
 
     for bracket in data:
@@ -131,7 +140,7 @@ def build_entries(data, tournament_title):
     return all_entries
 
 
-def generate_pdf(data, tournament_title=None):
+def generate_pdf(data: list[Bracket], tournament_title: str) -> str | dict[str, str]:
     entries = build_entries(data, tournament_title)
     if not entries:
         return {"detail": "Нет данных для генерации."}

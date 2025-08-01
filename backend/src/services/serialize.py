@@ -1,7 +1,6 @@
-from typing import Optional
-
 from src.models import Athlete, Bracket, BracketMatch, Match
 from src.schemas import (
+    BracketInfoResponse,
     BracketMatchAthlete,
     BracketMatchesFull,
     BracketMatchResponse,
@@ -11,10 +10,7 @@ from src.schemas import (
 )
 
 
-def serialize_athlete(athlete: Optional[Athlete]) -> Optional[BracketMatchAthlete]:
-    if not athlete:
-        return None
-
+def serialize_athlete(athlete: Athlete) -> BracketMatchAthlete:
     # Get coach names from the many-to-many relationship
     coaches_last_name = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
 
@@ -26,15 +22,13 @@ def serialize_athlete(athlete: Optional[Athlete]) -> Optional[BracketMatchAthlet
     )
 
 
-def serialize_match(match: Optional[Match]) -> Optional[MatchSchema]:
-    if not match:
-        return None
+def serialize_match(match: Match) -> MatchSchema:
     return MatchSchema(
         id=match.id,
         round_type=match.round_type,
-        athlete1=serialize_athlete(match.athlete1),
-        athlete2=serialize_athlete(match.athlete2),
-        winner=serialize_athlete(match.winner),
+        athlete1=serialize_athlete(match.athlete1) if match.athlete1 else None,
+        athlete2=serialize_athlete(match.athlete2) if match.athlete2 else None,
+        winner=serialize_athlete(match.winner) if match.winner else None,
         score_athlete1=match.score_athlete1,
         score_athlete2=match.score_athlete2,
         status=match.status,
@@ -67,7 +61,7 @@ def serialize_bracket_matches_full(bracket: Bracket) -> BracketMatchesFull:
 
     return BracketMatchesFull(
         bracket_id=bracket.id,
-        category=bracket.category.name if bracket.category else None,
+        category=bracket.category.name if bracket.category else "",
         type=bracket.type,
         start_time=bracket.start_time,
         tatami=bracket.tatami,
@@ -101,4 +95,18 @@ def serialize_bracket(bracket: Bracket) -> BracketResponse:
             for p in sorted(bracket.participants, key=lambda x: x.seed)
             if p.athlete
         ],
+    )
+
+
+def serialize_bracket_info(bracket: Bracket) -> BracketInfoResponse:
+    return BracketInfoResponse(
+        id=bracket.id,
+        tournament_id=bracket.tournament_id,
+        category=bracket.category.name if bracket.category else "",
+        type=bracket.type,
+        start_time=bracket.start_time,
+        tatami=bracket.tatami,
+        group_id=bracket.group_id,
+        display_name=bracket.get_display_name(),
+        status=bracket.status,
     )

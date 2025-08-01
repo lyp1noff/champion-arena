@@ -28,9 +28,11 @@ dev-front:
 db:
 	docker compose --env-file .env up db
 
+dev-docker:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up --build
 
 # Combined
 format: format-front format-back
-lint: lint-front #lint-back
+lint: lint-front lint-back
 test: test-back
 commit: format lint

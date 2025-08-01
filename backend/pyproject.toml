@@ -62,3 +62,5 @@ python_version = "3.12"
 strict = true
 ignore_missing_imports = true
 show_error_codes = true
+plugins = ["sqlalchemy.ext.mypy.plugin"]
+exclude = ["tests", "scripts", "alembic"]

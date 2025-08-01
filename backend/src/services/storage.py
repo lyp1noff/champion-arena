@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
@@ -14,7 +15,7 @@ s3_client = boto3.client(
 )
 
 
-async def upload_file_to_r2(file_data: bytes, upload_path: str) -> str:
+async def upload_file_to_r2(file_data: bytes, upload_path: str) -> Optional[str]:
     try:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         file_key = f"{upload_path}/{timestamp}".strip("/")

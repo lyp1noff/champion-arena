@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +21,7 @@ from src.models import (
 from src.schemas import (
     BracketCreateSchema,
     BracketDeleteRequest,
+    BracketInfoResponse,
     BracketMatchResponse,
     BracketResponse,
     BracketUpdateSchema,
@@ -34,16 +33,13 @@ from src.services.brackets import (
     regenerate_round_bracket_matches,
     reorder_seeds_and_get_next,
 )
-from src.services.serialize import (
-    serialize_bracket,
-    serialize_bracket_match,
-)
+from src.services.serialize import serialize_bracket, serialize_bracket_info, serialize_bracket_match
 
 router = APIRouter(prefix="/brackets", tags=["Brackets"])
 
 
-@router.get("", response_model=List[BracketResponse])
-async def get_all_brackets(db: AsyncSession = Depends(get_db)):
+@router.get("", response_model=list[BracketResponse])
+async def get_all_brackets(db: AsyncSession = Depends(get_db)) -> list[BracketResponse]:
     result = await db.execute(
         select(Bracket).options(
             selectinload(Bracket.category),
@@ -58,10 +54,10 @@ async def get_all_brackets(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{bracket_id}", response_model=BracketResponse)
-async def get_bracket(bracket_id: int, db: AsyncSession = Depends(get_db)):
+async def get_bracket(bracket_id: int, db: AsyncSession = Depends(get_db)) -> BracketResponse:
     result = await db.execute(
         select(Bracket)
-        .where(id=bracket_id)
+        .where(Bracket.id == bracket_id)
         .options(
             selectinload(Bracket.category),
             selectinload(Bracket.participants)
@@ -83,8 +79,8 @@ async def update_bracket(
     bracket_id: int,
     update_data: BracketUpdateSchema,
     db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(select(Bracket).where(Bracket.id == bracket_id))
+) -> BracketInfoResponse:
+    result = await db.execute(select(Bracket).where(Bracket.id == bracket_id).options(selectinload(Bracket.category)))
     bracket = result.scalars().first()
 
     if not bracket:
@@ -119,13 +115,13 @@ async def update_bracket(
     await db.refresh(bracket)
 
     if update_data.type and update_data.type != old_type:
-        await regenerate_matches_endpoint(bracket_id, session=db)
+        await regenerate_matches_endpoint(bracket_id, db)
 
-    return bracket
+    return serialize_bracket_info(bracket)
 
 
-@router.get("/{bracket_id}/matches", response_model=List[BracketMatchResponse])
-async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db)):
+@router.get("/{bracket_id}/matches", response_model=list[BracketMatchResponse])
+async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db)) -> list[BracketMatchResponse]:
     result = await db.execute(
         select(BracketMatch)
         .filter_by(bracket_id=bracket_id)
@@ -152,19 +148,19 @@ async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db
 @router.post("/{bracket_id}/regenerate", dependencies=[Depends(get_current_user)])
 async def regenerate_matches_endpoint(
     bracket_id: int,
-    session: AsyncSession = Depends(get_db),
-):
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
     try:
-        result = await session.execute(select(Bracket.type, Bracket.tournament_id).where(Bracket.id == bracket_id))
+        result = await db.execute(select(Bracket.type, Bracket.tournament_id).where(Bracket.id == bracket_id))
         bracket_data = result.first()
         if not bracket_data:
             raise HTTPException(status_code=404, detail="Bracket not found")
 
         bracket_type, tournament_id = bracket_data
         if bracket_type == BracketType.ROUND_ROBIN.value:
-            await regenerate_round_bracket_matches(session, bracket_id, tournament_id)
+            await regenerate_round_bracket_matches(db, bracket_id, tournament_id)
         elif bracket_type == BracketType.SINGLE_ELIMINATION.value:
-            await regenerate_bracket_matches(session, bracket_id, tournament_id)
+            await regenerate_bracket_matches(db, bracket_id, tournament_id)
         else:
             print(f"Warning! Bracket type: {bracket_type} not supported")
         return {"status": "ok"}
@@ -176,7 +172,7 @@ async def regenerate_matches_endpoint(
 async def move_participant(
     move_data: ParticipantMoveSchema,
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, str]:
     participant: BracketParticipant | None = await db.get(BracketParticipant, move_data.participant_id)
     if not participant:
         raise HTTPException(status_code=404, detail="Participant not found")
@@ -208,8 +204,8 @@ async def move_participant(
     await db.commit()
 
     # Regenerate matches for both brackets
-    await regenerate_matches_endpoint(move_data.from_bracket_id, session=db)
-    await regenerate_matches_endpoint(move_data.to_bracket_id, session=db)
+    await regenerate_matches_endpoint(move_data.from_bracket_id, db)
+    await regenerate_matches_endpoint(move_data.to_bracket_id, db)
 
     return {"status": "ok"}
 
@@ -218,7 +214,7 @@ async def move_participant(
 async def reorder_participants(
     reorder_data: ParticipantReorderSchema,
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, str]:
     for upd in reorder_data.participant_updates:
         await db.execute(
             update(BracketParticipant)
@@ -237,7 +233,7 @@ async def reorder_participants(
 async def create_bracket(
     bracket_data: BracketCreateSchema,
     db: AsyncSession = Depends(get_db),
-):
+) -> BracketResponse:
     # Check if tournament exists
     tournament = await db.get(Tournament, bracket_data.tournament_id)
     if not tournament:
@@ -293,7 +289,7 @@ async def delete_bracket(
     bracket_id: int,
     data: BracketDeleteRequest,
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, str]:
     bracket = await db.get(Bracket, bracket_id)
     if not bracket:
         raise HTTPException(status_code=404, detail="Bracket not found")
@@ -327,13 +323,13 @@ async def delete_bracket(
     await db.commit()
 
     if data.target_bracket_id:
-        await regenerate_matches_endpoint(data.target_bracket_id, session=db)
+        await regenerate_matches_endpoint(data.target_bracket_id, db)
 
     return {"status": "ok"}
 
 
 @router.get("/brackets/{id}/status")
-async def get_bracket_status(id: int, db: AsyncSession = Depends(get_db)):
+async def get_bracket_status(id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     bracket = await db.get(Bracket, id)
     if not bracket:
         raise HTTPException(404, "Bracket not found")
@@ -345,8 +341,19 @@ async def update_bracket_status(
     id: int,
     status: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
-):
-    bracket = await db.get(Bracket, id)
+) -> BracketResponse:
+    result = await db.execute(
+        select(Bracket)
+        .where(Bracket.id == id)
+        .options(
+            selectinload(Bracket.category),
+            selectinload(Bracket.participants)
+            .selectinload(BracketParticipant.athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
+        )
+    )
+    bracket = result.scalar_one_or_none()
     if not bracket:
         raise HTTPException(404, "Bracket not found")
     if status not in [s.value for s in BracketStatus]:
@@ -354,11 +361,11 @@ async def update_bracket_status(
     bracket.status = status
     await db.commit()
     await db.refresh(bracket)
-    return bracket
+    return serialize_bracket(bracket)
 
 
 @router.post("/brackets/{id}/start", dependencies=[Depends(get_current_user)])
-async def start_bracket(id: int, db: AsyncSession = Depends(get_db)):
+async def start_bracket(id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     bracket = await db.get(Bracket, id)
     if not bracket:
         raise HTTPException(404, "Bracket not found")

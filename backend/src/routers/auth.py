@@ -18,7 +18,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 async def get_bearer_token(
     data: LoginRequest,
     db: AsyncSession = Depends(get_db),
-):
+) -> TokenResponse:
     user = await authenticate_user(db, data.username, data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -31,7 +31,7 @@ async def get_bearer_token(
 async def login(
     data: LoginRequest,
     db: AsyncSession = Depends(get_db),
-):
+) -> Response:
     user = await authenticate_user(db, data.username, data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -67,7 +67,7 @@ async def login(
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(request: Request):
+async def refresh_token(request: Request) -> Response:
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token provided")
@@ -100,7 +100,7 @@ async def refresh_token(request: Request):
 
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(response: Response) -> dict[str, str]:
     response.delete_cookie("token", path="/")
     response.delete_cookie("refresh_token", path="/")
     return {"message": "Logged out"}

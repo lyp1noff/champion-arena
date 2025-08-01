@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Body, Depends, HTTPException
-
-# from sqlalchemy import select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
@@ -9,6 +8,7 @@ from src.models import (  # BracketMatch,
     Match,
     MatchStatus,
 )
+from src.schemas import MatchResponse
 
 router = APIRouter(prefix="/matches", tags=["Matches"], dependencies=[Depends(get_current_user)])
 
@@ -60,8 +60,9 @@ async def update_match_status(
     id: int,
     status: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
-):
-    match = await db.get(Match, id)
+) -> MatchResponse:
+    result = await db.execute(select(Match).where(Match.id == id))
+    match = result.scalar_one_or_none()
     if not match:
         raise HTTPException(404, "Match not found")
     if status not in [s.value for s in MatchStatus]:
@@ -69,4 +70,4 @@ async def update_match_status(
     match.status = status
     await db.commit()
     await db.refresh(match)
-    return match
+    return MatchResponse.model_validate(match)

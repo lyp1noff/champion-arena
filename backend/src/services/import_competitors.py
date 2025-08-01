@@ -23,7 +23,7 @@ from src.services.brackets import regenerate_tournament_brackets
 #     return (start_date + timedelta(days=random_days)).date()
 
 
-async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, content: bytes):
+async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, content: bytes) -> dict[str, str]:
     try:
         data = json.loads(content)
     except json.JSONDecodeError:
@@ -35,11 +35,11 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
-    brackets = await db.execute(select(Bracket).where(Bracket.tournament_id == tournament_id))
-    brackets = brackets.scalars().all()
-    for bracket in brackets:
-        await db.execute(delete(BracketParticipant).where(BracketParticipant.bracket_id == bracket.id))
-        await db.execute(delete(BracketMatch).where(BracketMatch.bracket_id == bracket.id))
+    brackets_result = await db.execute(select(Bracket).where(Bracket.tournament_id == tournament_id))
+    brackets = brackets_result.scalars().all()
+    for br in brackets:
+        await db.execute(delete(BracketParticipant).where(BracketParticipant.bracket_id == br.id))
+        await db.execute(delete(BracketMatch).where(BracketMatch.bracket_id == br.id))
     # await db.execute(delete(Bracket).where(Bracket.tournament_id == tournament_id))
     await db.commit()
 
@@ -54,8 +54,8 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
 
         # Coach
         if coach_name not in coaches_cache:
-            result = await db.execute(select(Coach).filter_by(last_name=coach_name))
-            coach = result.scalars().first()
+            coach_result = await db.execute(select(Coach).filter_by(last_name=coach_name))
+            coach = coach_result.scalars().first()
             if not coach:
                 coach = Coach(last_name=coach_name, first_name="")
                 db.add(coach)
@@ -66,8 +66,8 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
 
         # Category
         if category_name not in categories_cache:
-            result = await db.execute(select(Category).filter_by(name=category_name))
-            category = result.scalars().first()
+            category_result = await db.execute(select(Category).filter_by(name=category_name))
+            category = category_result.scalars().first()
             if not category:
                 category = Category(name=category_name, age=0, gender="Unknown")
                 db.add(category)
@@ -77,8 +77,8 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
         category = categories_cache[category_name]
 
         # Athlete
-        result = await db.execute(select(Athlete).filter_by(first_name=first_name, last_name=last_name))
-        athlete = result.scalars().first()
+        athlete_result = await db.execute(select(Athlete).filter_by(first_name=first_name, last_name=last_name))
+        athlete = athlete_result.scalars().first()
         if not athlete:
             # birth_date = random_date()
             athlete = Athlete(
@@ -110,8 +110,10 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
         #     await db.commit()
 
         # Bracket
-        result = await db.execute(select(Bracket).filter_by(tournament_id=tournament.id, category_id=category.id))
-        bracket = result.scalars().first()
+        bracket_result = await db.execute(
+            select(Bracket).filter_by(tournament_id=tournament.id, category_id=category.id)
+        )
+        bracket = bracket_result.scalar_one_or_none()
         if not bracket:
             bracket = Bracket(
                 tournament_id=tournament.id,
