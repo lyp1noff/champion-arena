@@ -4,6 +4,7 @@ from . import (
     brackets,
     categories,
     coaches,
+    matches,
     tournaments,
     upload,
 )
@@ -14,6 +15,7 @@ routers = [
     tournaments.router,
     categories.router,
     brackets.router,
+    matches.router,
     upload.router,
     auth.router,
 ]

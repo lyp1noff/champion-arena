@@ -328,7 +328,7 @@ async def delete_bracket(
     return {"status": "ok"}
 
 
-@router.get("/brackets/{id}/status")
+@router.get("/{id}/status")
 async def get_bracket_status(id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     bracket = await db.get(Bracket, id)
     if not bracket:
@@ -364,7 +364,7 @@ async def update_bracket_status(
     return serialize_bracket(bracket)
 
 
-@router.post("/brackets/{id}/start", dependencies=[Depends(get_current_user)])
+@router.post("/{id}/start", dependencies=[Depends(get_current_user)])
 async def start_bracket(id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     bracket = await db.get(Bracket, id)
     if not bracket:

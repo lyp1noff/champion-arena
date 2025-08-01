@@ -1,4 +1,4 @@
-from src.models import Athlete, Bracket, BracketMatch, Match
+from src.models import Athlete, Bracket, BracketMatch, Match, MatchStatus
 from src.schemas import (
     BracketInfoResponse,
     BracketMatchAthlete,
@@ -11,7 +11,6 @@ from src.schemas import (
 
 
 def serialize_athlete(athlete: Athlete) -> BracketMatchAthlete:
-    # Get coach names from the many-to-many relationship
     coaches_last_name = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
 
     return BracketMatchAthlete(
@@ -31,7 +30,7 @@ def serialize_match(match: Match) -> MatchSchema:
         winner=serialize_athlete(match.winner) if match.winner else None,
         score_athlete1=match.score_athlete1,
         score_athlete2=match.score_athlete2,
-        status=match.status,
+        status=MatchStatus(match.status),
         started_at=match.started_at,
         ended_at=match.ended_at,
     )

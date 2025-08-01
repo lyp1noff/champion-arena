@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from src.models import BracketType
+from src.models import BracketType, MatchStatus
 
 
 class LoginRequest(BaseModel):
@@ -196,13 +196,20 @@ class MatchSchema(CustomBaseModel):
     winner: Optional[BracketMatchAthlete]
     score_athlete1: Optional[int] = None
     score_athlete2: Optional[int] = None
-    status: str
+    status: MatchStatus
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
 
 
-class MatchResponse(MatchSchema):
-    pass
+class MatchScoreUpdate(BaseModel):
+    score_athlete1: Optional[int] = None
+    score_athlete2: Optional[int] = None
+
+
+class MatchFinishRequest(BaseModel):
+    score_athlete1: int
+    score_athlete2: int
+    winner_id: int
 
 
 class BracketMatchResponse(CustomBaseModel):
