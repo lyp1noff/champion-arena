@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, datetime, time
 from typing import Optional
 
@@ -189,7 +190,7 @@ class BracketMatchAthlete(CustomBaseModel):
 
 
 class MatchSchema(CustomBaseModel):
-    id: int
+    id: uuid.UUID
     round_type: Optional[str] = None
     athlete1: Optional[BracketMatchAthlete]
     athlete2: Optional[BracketMatchAthlete]
@@ -213,7 +214,7 @@ class MatchFinishRequest(BaseModel):
 
 
 class BracketMatchResponse(CustomBaseModel):
-    id: int
+    id: uuid.UUID
     round_number: int
     position: int
     match: MatchSchema

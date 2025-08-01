@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/matches", tags=["Matches"], dependencies=[Depends(ge
 
 @router.post("/{id}/start")
 async def start_match(
-    id: int,
+    id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ) -> MatchSchema:
     stmt = (
@@ -57,7 +58,7 @@ async def start_match(
 
 @router.post("/{id}/finish")
 async def finish_match(
-    id: int,
+    id: uuid.UUID,
     result: MatchFinishRequest,
     db: AsyncSession = Depends(get_db),
 ) -> MatchSchema:
@@ -115,7 +116,7 @@ async def finish_match(
 
 @router.patch("/{id}/scores")
 async def update_match_scores(
-    id: int,
+    id: uuid.UUID,
     scores: MatchScoreUpdate,
     db: AsyncSession = Depends(get_db),
 ) -> MatchSchema:
@@ -151,7 +152,7 @@ async def update_match_scores(
 # TODO: only for admin
 @router.patch("/{id}/status")
 async def update_match_status(
-    id: int,
+    id: uuid.UUID,
     status: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
 ) -> MatchSchema:

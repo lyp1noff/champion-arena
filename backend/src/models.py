@@ -1,4 +1,5 @@
 import enum
+import uuid
 from datetime import date, datetime, time
 from typing import Optional
 
@@ -12,6 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -219,11 +221,11 @@ class BracketParticipant(Base):
 class BracketMatch(Base):
     __tablename__ = "bracket_matches"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     bracket_id: Mapped[int] = mapped_column(ForeignKey("brackets.id", ondelete="CASCADE"), index=True)
     round_number: Mapped[int] = mapped_column()
     position: Mapped[int] = mapped_column()
-    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), index=True)
+    match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), index=True)
     next_slot: Mapped[Optional[int]] = mapped_column(nullable=True)
 
     bracket: Mapped["Bracket"] = relationship(back_populates="matches")
@@ -233,7 +235,7 @@ class BracketMatch(Base):
 class Match(Base, TimestampMixin):
     __tablename__ = "matches"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     athlete1_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
     )

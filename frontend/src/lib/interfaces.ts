@@ -80,7 +80,7 @@ export type BracketMatchAthlete = {
 export type RoundType = "final" | "semifinal" | "quarterfinal" | "";
 
 export type Match = {
-  id: number;
+  id: string;
   round_type: RoundType;
   athlete1: BracketMatchAthlete | null;
   athlete2: BracketMatchAthlete | null;
@@ -93,7 +93,7 @@ export type Match = {
 };
 
 export type BracketMatch = {
-  id: number;
+  id: string;
   round_number: number;
   position: number;
   match: Match;
