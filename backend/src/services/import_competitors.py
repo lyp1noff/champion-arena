@@ -69,7 +69,7 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
             category_result = await db.execute(select(Category).filter_by(name=category_name))
             category = category_result.scalars().first()
             if not category:
-                category = Category(name=category_name, age=0, gender="Unknown")
+                category = Category(name=category_name, min_age=1, max_age=99, gender="male-or-female")
                 db.add(category)
                 await db.commit()
             categories_cache[category_name] = category
