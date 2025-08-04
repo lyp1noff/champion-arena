@@ -18,6 +18,7 @@ class TokenResponse(BaseModel):
     refresh_token: Optional[str] = None
 
 
+# TODO: ensure that all models are using this base model
 class CustomBaseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

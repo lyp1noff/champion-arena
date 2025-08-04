@@ -21,6 +21,27 @@ from src.services.serialize import serialize_match
 router = APIRouter(prefix="/matches", tags=["Matches"], dependencies=[Depends(get_current_user)])
 
 
+@router.get("/{id}")
+async def get_match(
+    id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> MatchSchema:
+    stmt = (
+        select(Match)
+        .options(
+            selectinload(Match.athlete1).selectinload(Athlete.coach_links).selectinload(AthleteCoachLink.coach),
+            selectinload(Match.athlete2).selectinload(Athlete.coach_links).selectinload(AthleteCoachLink.coach),
+            selectinload(Match.winner).selectinload(Athlete.coach_links).selectinload(AthleteCoachLink.coach),
+        )
+        .where(Match.id == id)
+    )
+    result = await db.execute(stmt)
+    match = result.scalar_one_or_none()
+    if not match:
+        raise HTTPException(404, "Match not found")
+    return serialize_match(match)
+
+
 @router.post("/{id}/start")
 async def start_match(
     id: uuid.UUID,
