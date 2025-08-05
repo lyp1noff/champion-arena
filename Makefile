@@ -25,8 +25,8 @@ dev-front:
 	cd frontend && npm install && npm run dev
 
 # Other
-db:
-	docker compose --env-file .env up db
+dev-db:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up --build db
 
 dev-docker:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up --build
