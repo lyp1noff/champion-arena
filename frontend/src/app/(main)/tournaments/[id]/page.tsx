@@ -14,6 +14,7 @@ import { BracketView } from "@/components/bracket-view";
 import { ParticipantsView } from "./components/ParticipantsView";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "use-debounce";
+import { WebSocketProvider } from "@/components/websocket-provider";
 
 export default function TournamentPage() {
   const t = useTranslations("TournamentPage");
@@ -128,83 +129,87 @@ export default function TournamentPage() {
     return acc;
   }, {});
 
+  if (!id) return null;
+
   return (
-    <div className="container py-10 mx-auto">
-      <h1 className="text-2xl font-bold mb-10">{tournament ? tournament.name : t("tournament")}</h1>
+    <WebSocketProvider tournamentId={id as string}>
+      <div className="container py-10 mx-auto">
+        <h1 className="text-2xl font-bold mb-10">{tournament ? tournament.name : t("tournament")}</h1>
 
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6 sm:mb-10">
-        <Input
-          placeholder={t("searchPlaceholder")}
-          value={search}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-        />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6 sm:mb-10">
+          <Input
+            placeholder={t("searchPlaceholder")}
+            value={search}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+          />
 
-        <Tabs defaultValue="brackets" onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value="brackets">{t("brackets")}</TabsTrigger>
-            <TabsTrigger value="participants">{t("participants")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {loading && <ScreenLoader fullscreen />}
-      {error && <p className="text-red-500">{error}</p>}
-
-      {Object.entries(bracketsByTatami).map(([tatami, tatamiBrackets]) => (
-        <div key={tatami} className="mt-10">
-          <h2 className="text-2xl font-bold mb-2">
-            {t("tatami")} {tatami}
-          </h2>
-          <Accordion type="multiple" className="w-full">
-            {tatamiBrackets.map((bracket) => {
-              // const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
-              // const estimatedHeight =
-              //   getInitialMatchCount(bracket.participants.length) * (cardHeight + columnGap) + roundTitleHeight;
-              // const containerHeight = estimatedHeight > maxHeight ? maxHeight : estimatedHeight;
-
-              return (
-                <AccordionItem key={bracket.id} value={String(bracket.id)}>
-                  <AccordionTrigger
-                    className="text-lg font-medium group flex items-center justify-between"
-                    onClick={() => {
-                      if (!loadedBracketMatches[bracket.id]) {
-                        loadBracketData(bracket.id);
-                      }
-                    }}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                      <span className="text-base font-semibold">{bracket.display_name || bracket.category}</span>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        {/* i18n needed*/}
-                        <span>{(bracket.start_time && bracket.start_time.slice(0, 5)) || " — "}</span>
-                        <span> | </span>
-                        <span>
-                          {t("participantsCount")}: {bracket.participants.length || " — "}
-                        </span>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-
-                  <AccordionContent>
-                    {tab !== "brackets" ? (
-                      <ParticipantsView bracket={bracket} />
-                    ) : (
-                      <BracketView
-                        loading={loadedBracketMatches[bracket.id]?.loading ?? true}
-                        matches={loadedBracketMatches[bracket.id]?.matches ?? []}
-                        bracket={bracket}
-                        // maxHeight={maxHeight}
-                      />
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
+          <Tabs defaultValue="brackets" onValueChange={setTab}>
+            <TabsList>
+              <TabsTrigger value="brackets">{t("brackets")}</TabsTrigger>
+              <TabsTrigger value="participants">{t("participants")}</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-      ))}
 
-      {!loading && brackets.length === 0 && <p className="text-gray-500">{t("noData")}</p>}
-    </div>
+        {loading && <ScreenLoader fullscreen />}
+        {error && <p className="text-red-500">{error}</p>}
+
+        {Object.entries(bracketsByTatami).map(([tatami, tatamiBrackets]) => (
+          <div key={tatami} className="mt-10">
+            <h2 className="text-2xl font-bold mb-2">
+              {t("tatami")} {tatami}
+            </h2>
+            <Accordion type="multiple" className="w-full">
+              {tatamiBrackets.map((bracket) => {
+                // const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
+                // const estimatedHeight =
+                //   getInitialMatchCount(bracket.participants.length) * (cardHeight + columnGap) + roundTitleHeight;
+                // const containerHeight = estimatedHeight > maxHeight ? maxHeight : estimatedHeight;
+
+                return (
+                  <AccordionItem key={bracket.id} value={String(bracket.id)}>
+                    <AccordionTrigger
+                      className="text-lg font-medium group flex items-center justify-between"
+                      onClick={() => {
+                        if (!loadedBracketMatches[bracket.id]) {
+                          loadBracketData(bracket.id);
+                        }
+                      }}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                        <span className="text-base font-semibold">{bracket.display_name || bracket.category}</span>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          {/* i18n needed*/}
+                          <span>{(bracket.start_time && bracket.start_time.slice(0, 5)) || " — "}</span>
+                          <span> | </span>
+                          <span>
+                            {t("participantsCount")}: {bracket.participants.length || " — "}
+                          </span>
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+
+                    <AccordionContent>
+                      {tab !== "brackets" ? (
+                        <ParticipantsView bracket={bracket} />
+                      ) : (
+                        <BracketView
+                          loading={loadedBracketMatches[bracket.id]?.loading ?? true}
+                          matches={loadedBracketMatches[bracket.id]?.matches ?? []}
+                          bracket={bracket}
+                          // maxHeight={maxHeight}
+                        />
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          </div>
+        ))}
+
+        {!loading && brackets.length === 0 && <p className="text-gray-500">{t("noData")}</p>}
+      </div>
+    </WebSocketProvider>
   );
 }

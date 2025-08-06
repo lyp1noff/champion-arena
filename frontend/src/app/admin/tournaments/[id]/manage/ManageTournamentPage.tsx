@@ -38,6 +38,7 @@ import {
   defaultBracketValues,
 } from "@/app/admin/tournaments/[id]/manage/components/bracketSchema";
 import BracketFormDialog from "@/app/admin/tournaments/[id]/manage/components/BracketFormDialog";
+import { WebSocketProvider } from "@/components/websocket-provider";
 
 interface Props {
   tournamentId: number;
@@ -356,40 +357,43 @@ export default function ManageTournamentPage({
         </div>
 
         {/* Middle Column - Bracket Preview */}
-        <div className="flex-1 flex flex-col gap-4 h-full overflow-auto">
-          {selectedBracket ? (
-            <>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold pl-3">{selectedBracket.display_name || selectedBracket.category}</h2>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleRegenerate} disabled={loading}>
-                    <RefreshCw className="h-4 w-4 mr-1" />
-                    Regenerate
-                  </Button>
-                  <Button onClick={handleSave} disabled={loading}>
-                    <Save className="h-4 w-4 mr-1" />
-                    Save & Regenerate
-                  </Button>
+
+        <WebSocketProvider tournamentId={tournamentId.toString()}>
+          <div className="flex-1 flex flex-col gap-4 h-full overflow-auto">
+            {selectedBracket ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold pl-3">{selectedBracket.display_name || selectedBracket.category}</h2>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleRegenerate} disabled={loading}>
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Regenerate
+                    </Button>
+                    <Button onClick={handleSave} disabled={loading}>
+                      <Save className="h-4 w-4 mr-1" />
+                      Save & Regenerate
+                    </Button>
+                  </div>
                 </div>
+                <Card className="flex-1 h-full flex flex-col overflow-auto">
+                  <CardContent className="flex-1 p-0 h-full">
+                    <ScrollArea className="h-full w-full">
+                      <div className="p-6 h-full w-full">
+                        <BracketView loading={loading} matches={bracketMatches ?? []} bracket={selectedBracket} />
+                      </div>
+                      <ScrollBar orientation="horizontal" />
+                      <ScrollBar orientation="vertical" />
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                Select a bracket to view details
               </div>
-              <Card className="flex-1 h-full flex flex-col overflow-auto">
-                <CardContent className="flex-1 p-0 h-full">
-                  <ScrollArea className="h-full w-full">
-                    <div className="p-6 h-full w-full">
-                      <BracketView loading={loading} matches={bracketMatches ?? []} bracket={selectedBracket} />
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                    <ScrollBar orientation="vertical" />
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              Select a bracket to view details
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </WebSocketProvider>
 
         {/* Right Column - Options & Participants */}
         <div className="min-w-80 max-w-80 flex flex-col h-full gap-4">

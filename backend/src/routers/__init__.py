@@ -7,6 +7,7 @@ from . import (
     matches,
     tournaments,
     upload,
+    websocket,
 )
 
 routers = [
@@ -18,4 +19,5 @@ routers = [
     matches.router,
     upload.router,
     auth.router,
+    websocket.router,
 ]

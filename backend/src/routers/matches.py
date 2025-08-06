@@ -17,8 +17,29 @@ from src.models import (
 )
 from src.schemas import MatchFinishRequest, MatchSchema, MatchScoreUpdate
 from src.services.serialize import serialize_match
+from src.services.websocket_manager import MatchUpdate, websocket_manager
 
 router = APIRouter(prefix="/matches", tags=["Matches"], dependencies=[Depends(get_current_user)])
+
+
+async def broadcast_match_update(match: Match, db: AsyncSession) -> None:
+    try:
+        bracket_match_stmt = (
+            select(BracketMatch).options(selectinload(BracketMatch.bracket)).where(BracketMatch.match_id == match.id)
+        )
+        bracket_match_result = await db.execute(bracket_match_stmt)
+        bracket_match = bracket_match_result.scalar_one_or_none()
+
+        if bracket_match and bracket_match.bracket:
+            match_update = MatchUpdate(
+                match_id=match.id,
+                score_athlete1=match.score_athlete1,
+                score_athlete2=match.score_athlete2,
+                status=match.status,
+            )
+            await websocket_manager.broadcast_match_update(str(bracket_match.bracket.tournament_id), match_update)
+    except Exception as e:
+        print(f"Error broadcasting match update: {e}")
 
 
 @router.get("/{id}")
@@ -73,6 +94,9 @@ async def start_match(
 
     await db.commit()
     await db.refresh(match)
+
+    # Broadcast the update via WebSocket
+    await broadcast_match_update(match, db)
 
     return serialize_match(match)
 
@@ -132,6 +156,9 @@ async def finish_match(
     await db.commit()
     await db.refresh(match)
 
+    # Broadcast the update via WebSocket
+    await broadcast_match_update(match, db)
+
     return serialize_match(match)
 
 
@@ -167,6 +194,9 @@ async def update_match_scores(
     await db.commit()
     await db.refresh(match)
 
+    # Broadcast the update via WebSocket
+    await broadcast_match_update(match, db)
+
     return serialize_match(match)
 
 
@@ -197,5 +227,8 @@ async def update_match_status(
     match.status = status
     await db.commit()
     await db.refresh(match)
+
+    # Broadcast the update via WebSocket
+    await broadcast_match_update(match, db)
 
     return serialize_match(match)

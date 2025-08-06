@@ -2,6 +2,7 @@ import { BracketMatch, BracketMatchAthlete } from "@/lib/interfaces";
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent } from "@/components/ui/context-menu";
 import ParticipantMiniCard from "@/components/participant-mini-card";
 import React, { useRef } from "react";
+import { useMatchUpdate } from "@/components/websocket-provider";
 
 interface MatchCardProps {
   bracketMatch: BracketMatch;
@@ -13,13 +14,21 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
   const calculatedHeight = (height - 3) / 2;
   const calculatedFontSize = height / 5;
 
+  // Get real-time updates for this match
+  const matchUpdate = useMatchUpdate(bracketMatch.match.id);
+
+  // Use real-time data if available, otherwise fall back to original data
+  const currentScore1 = matchUpdate?.score_athlete1 ?? bracketMatch.match.score_athlete1;
+  const currentScore2 = matchUpdate?.score_athlete2 ?? bracketMatch.match.score_athlete2;
+  const currentStatus = matchUpdate?.status ?? bracketMatch.match.status;
+
   if (bracketMatch.round_number === 1 && (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2)) return;
   // return <div className="border border-dashed border-gray-500 rounded-md opacity-30" style={{ width, height }} />;
 
   return (
     <div className="relative" style={{ width }}>
       {/* Works only with 60px height */}
-      {bracketMatch.match.status === "started" && (
+      {currentStatus === "started" && (
         <div
           className="absolute right-3 pl-1 pr-2 pt-0.5 rounded-t-lg text-xs font-bold z-10 flex items-center gap-1 dark:bg-secondary bg-stone-300"
           style={{ bottom: `${height}px` }}
@@ -35,7 +44,7 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
       <div className="overflow-hidden rounded-md border" style={{ width, height }}>
         <PlayerSlotWithContextMenu
           player={bracketMatch.match.athlete1}
-          score={bracketMatch.match.score_athlete1}
+          score={currentScore1}
           isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete1?.id}
           isFirstRound={bracketMatch.round_number === 1}
           isTop={true}
@@ -46,7 +55,7 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
         <div className="h-px" />
         <PlayerSlotWithContextMenu
           player={bracketMatch.match.athlete2}
-          score={bracketMatch.match.score_athlete2}
+          score={currentScore2}
           isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete2?.id}
           isFirstRound={bracketMatch.round_number === 1}
           isTop={false}
@@ -95,7 +104,7 @@ function PlayerSlot({ player, score, isTop, height = 40, width = 220, fontSize =
       <span className="font-medium truncate">
         {player.last_name} {player.first_name} ({player.coaches_last_name?.join(", ") || "No coach"})
       </span>
-      <span className="ml-2 font-bold">{score !== null ? score : "-"}</span>
+      <span className="ml-2 font-bold transition-all duration-300 ease-in-out">{score !== null ? score : "-"}</span>
     </div>
   );
 }
