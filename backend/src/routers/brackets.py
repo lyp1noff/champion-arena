@@ -6,6 +6,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from src.database import get_db
 from src.dependencies.auth import get_current_user
+from src.logger import logger
 from src.models import (
     Athlete,
     AthleteCoachLink,
@@ -162,7 +163,7 @@ async def regenerate_matches_endpoint(
         elif bracket_type == BracketType.SINGLE_ELIMINATION.value:
             await regenerate_bracket_matches(db, bracket_id, tournament_id)
         else:
-            print(f"Warning! Bracket type: {bracket_type} not supported")
+            logger.warning(f"Bracket type: {bracket_type} not supported")
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to regenerate: {str(e)}")

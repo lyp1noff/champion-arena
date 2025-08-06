@@ -5,6 +5,7 @@ from typing import Optional
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.logger import logger
 from src.models import (
     Bracket,
     BracketMatch,
@@ -172,7 +173,7 @@ async def regenerate_bracket_matches(
 
     # TO-DO: Return list of errors, skip category
     if num_players < 2:
-        print(f"Warning! Category: {bracket_id} Player number: {num_players}")
+        logger.warning(f"Category: {bracket_id} Player number: {num_players}")
 
     next_power_of_two = 2 ** math.ceil(math.log2(max(num_players, 2)))
     total_rounds = int(math.log2(next_power_of_two))
@@ -280,7 +281,7 @@ async def regenerate_tournament_brackets(db: AsyncSession, tournament_id: int) -
         elif bracket_type == BracketType.SINGLE_ELIMINATION.value:
             await regenerate_bracket_matches(db, bracket_id, tournament_id, commit=False)
         else:
-            print(f"Warning! Bracket type: {bracket_type} not supported")
+            logger.warning(f"Bracket type: {bracket_type} not supported")
 
     tournament = await db.get(Tournament, tournament_id)
     if tournament is not None:

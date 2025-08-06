@@ -4,6 +4,8 @@ from uuid import UUID
 from fastapi import WebSocket
 from pydantic import BaseModel
 
+from src.logger import logger
+
 
 class MatchUpdate(BaseModel):
     match_id: UUID
@@ -36,7 +38,7 @@ class WebSocketManager:
         if websocket in self.connection_tournaments:
             del self.connection_tournaments[websocket]
 
-        print(f"WebSocket disconnected from tournament {tournament_id}")
+        logger.info(f"WebSocket disconnected from tournament {tournament_id}")
 
     async def broadcast_match_update(self, tournament_id: str, match_update: MatchUpdate) -> None:
         if tournament_id not in self.active_connections:
@@ -49,14 +51,14 @@ class WebSocketManager:
             try:
                 await websocket.send_text(message)
             except Exception as e:
-                print(f"Error sending message to WebSocket: {e}")
+                logger.error(f"Error sending message to WebSocket: {e}")
                 disconnected_websockets.add(websocket)
 
         # Clean up disconnected websockets
         for websocket in disconnected_websockets:
             self.disconnect(websocket)
 
-        print(f"Broadcasted match update to {len(self.active_connections.get(tournament_id, set()))} connections")
+        logger.info(f"Broadcasted match update to {len(self.active_connections.get(tournament_id, set()))} connections")
 
 
 # Global instance

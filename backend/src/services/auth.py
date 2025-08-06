@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from src.config import JWT_SECRET
+from src.logger import logger
 from src.models import User
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -60,8 +61,8 @@ async def create_default_user(db: AsyncSession) -> None:
         db.add(user)
         await db.commit()
 
-        print("[+] Default admin created")
+        logger.info("Default admin created")
         # print(f"    Username: admin")
         # print(f"    Password: {raw_password}")
     # else:
-    #     print("[✓] Default admin already exists")
+    #     logger.info("Default admin already exists")

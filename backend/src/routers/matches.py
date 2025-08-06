@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from src.database import get_db
 from src.dependencies.auth import get_current_user
+from src.logger import logger
 from src.models import (
     Athlete,
     AthleteCoachLink,
@@ -39,7 +40,7 @@ async def broadcast_match_update(match: Match, db: AsyncSession) -> None:
             )
             await websocket_manager.broadcast_match_update(str(bracket_match.bracket.tournament_id), match_update)
     except Exception as e:
-        print(f"Error broadcasting match update: {e}")
+        logger.error(f"Error broadcasting match update: {e}")
 
 
 @router.get("/{id}")

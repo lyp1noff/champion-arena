@@ -5,6 +5,7 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from src.config import R2_ACCESS_KEY_ID, R2_BUCKET_NAME, R2_ENDPOINT, R2_REGION, R2_SECRET_ACCESS_KEY
+from src.logger import logger
 
 s3_client = boto3.client(
     "s3",
@@ -28,5 +29,5 @@ async def upload_file_to_r2(file_data: bytes, upload_path: str) -> Optional[str]
         return file_key
 
     except (NoCredentialsError, ClientError) as e:
-        print(f"Error when uploading to R2: {e}")
+        logger.error(f"Error when uploading to R2: {e}")
         return None
