@@ -18,6 +18,7 @@ services:
       - R2_ENDPOINT=${R2_ENDPOINT}
       - JWT_SECRET=${JWT_SECRET}
       - DEV_MODE=${DEV_MODE}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS}
     depends_on:
       - db
 

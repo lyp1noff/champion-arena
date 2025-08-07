@@ -19,5 +19,5 @@ python -m src.init_data
 
 exec gunicorn src.main:app \
     -k uvicorn.workers.UvicornWorker \
-    --workers "${GUNICORN_WORKERS:-4}" \
+    --workers "${GUNICORN_WORKERS:-1}" \
     --bind 0.0.0.0:8000

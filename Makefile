@@ -26,10 +26,10 @@ front-dev:
 
 # Other
 db-dev:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up --build db
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up --build db && docker compose down
 
 docker-dev:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up --build
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up --build && docker compose down
 
 # Combined
 format: front-format back-format
