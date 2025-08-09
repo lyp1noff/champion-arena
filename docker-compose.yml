@@ -1,4 +1,17 @@
 services:
+  db:
+    image: postgres:15
+    container_name: champion-postgres-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: "${POSTGRES_DB:-champ}"
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
   backend:
     build:
       context: ./backend
@@ -39,19 +52,6 @@ services:
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
       - backend
-
-  db:
-    image: postgres:15
-    container_name: champion-postgres-db
-    restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: tournament_db
-    ports:
-      - "127.0.0.1:${DB_PORT:-5432}:5432"
-    volumes:
-      - pg_data:/var/lib/postgresql/data
 
 volumes:
   pg_data:

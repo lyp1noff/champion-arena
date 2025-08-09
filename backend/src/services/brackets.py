@@ -155,6 +155,21 @@ async def advance_auto_winners(db: AsyncSession, match_matrix: list[list[Bracket
                 next_match.athlete2_id = match.winner_id if match.winner_id else None
 
 
+def split_evenly(athletes: list[BracketParticipant], max_per_group: int = 4) -> list[list[BracketParticipant]]:
+    n = len(athletes)
+    min_groups = math.ceil(n / max_per_group)
+    base_size = n // min_groups
+    extra = n % min_groups
+
+    groups = []
+    start = 0
+    for i in range(min_groups):
+        size = base_size + (1 if i < extra else 0)
+        groups.append(athletes[start : start + size])
+        start += size
+    return groups
+
+
 async def regenerate_bracket_matches(
     db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True, skip_first_round: bool = False
 ) -> Optional[list[list[BracketMatch]]]:
@@ -205,21 +220,6 @@ async def regenerate_bracket_matches(
         return None
     else:
         return match_matrix
-
-
-def split_evenly(athletes: list[BracketParticipant], max_per_group: int = 4) -> list[list[BracketParticipant]]:
-    n = len(athletes)
-    min_groups = math.ceil(n / max_per_group)
-    base_size = n // min_groups
-    extra = n % min_groups
-
-    groups = []
-    start = 0
-    for i in range(min_groups):
-        size = base_size + (1 if i < extra else 0)
-        groups.append(athletes[start : start + size])
-        start += size
-    return groups
 
 
 async def regenerate_round_bracket_matches(

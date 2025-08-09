@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import (  # TournamentParticipant,
+from src.models import (
     Athlete,
     AthleteCoachLink,
     Bracket,
@@ -15,12 +15,6 @@ from src.models import (  # TournamentParticipant,
     Tournament,
 )
 from src.services.brackets import regenerate_tournament_brackets
-
-# def random_date(start_year=2005, end_year=2017):
-#     start_date = datetime(start_year, 1, 1)
-#     end_date = datetime(end_year, 12, 31)
-#     random_days = random.randint(0, (end_date - start_date).days)
-#     return (start_date + timedelta(days=random_days)).date()
 
 
 async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, content: bytes) -> dict[str, str]:
@@ -40,7 +34,6 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
     for br in brackets:
         await db.execute(delete(BracketParticipant).where(BracketParticipant.bracket_id == br.id))
         await db.execute(delete(BracketMatch).where(BracketMatch.bracket_id == br.id))
-    # await db.execute(delete(Bracket).where(Bracket.tournament_id == tournament_id))
     await db.commit()
 
     coaches_cache = {}
@@ -80,12 +73,10 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
         athlete_result = await db.execute(select(Athlete).filter_by(first_name=first_name, last_name=last_name))
         athlete = athlete_result.scalars().first()
         if not athlete:
-            # birth_date = random_date()
             athlete = Athlete(
                 first_name=first_name,
                 last_name=last_name,
                 gender="male-or-female",
-                # birth_date=birth_date,
             )
             db.add(athlete)
             await db.commit()
@@ -94,20 +85,6 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
             coach_link = AthleteCoachLink(athlete_id=athlete.id, coach_id=coach.id)
             db.add(coach_link)
             await db.commit()
-
-        # TournamentParticipant
-        # result = await db.execute(
-        #     select(TournamentParticipant).filter_by(
-        #         tournament_id=tournament.id, athlete_id=athlete.id
-        #     )
-        # )
-        # existing_participant = result.scalars().first()
-        # if not existing_participant:
-        #     tp = TournamentParticipant(
-        #         tournament_id=tournament.id, athlete_id=athlete.id
-        #     )
-        #     db.add(tp)
-        #     await db.commit()
 
         # Bracket
         bracket_result = await db.execute(
