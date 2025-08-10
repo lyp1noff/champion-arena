@@ -9,8 +9,21 @@ interface RoundRobinProps {
   containerHeight?: number;
 }
 
+function pairKey(a?: number, b?: number) {
+  if (a == null || b == null) return "";
+  return a < b ? `${a}-${b}` : `${b}-${a}`;
+}
+
 export default function RoundRobinContent({ bracketMatches, containerHeight }: RoundRobinProps) {
   const athletes = getUniqueAthletes(bracketMatches);
+
+  const matchByPair = new Map<string, (typeof bracketMatches)[number]>();
+  for (const m of bracketMatches) {
+    const id1 = m.match.athlete1?.id;
+    const id2 = m.match.athlete2?.id;
+    const key = pairKey(id1, id2);
+    if (key) matchByPair.set(key, m);
+  }
 
   const content = (
     <ScrollArea className="flex-1 overflow-auto">
@@ -35,12 +48,24 @@ export default function RoundRobinContent({ bracketMatches, containerHeight }: R
                 </td>
                 {athletes.map((colAthlete) => {
                   const isSame = rowAthlete.id === colAthlete.id;
+
+                  let cell = "×";
+                  if (!isSame) {
+                    const m = matchByPair.get(pairKey(rowAthlete.id, colAthlete.id));
+                    if (m && m.match.ended_at) {
+                      const { athlete1, score_athlete1, score_athlete2 } = m.match;
+                      const rowIsAth1 = athlete1?.id === rowAthlete.id;
+                      const left = rowIsAth1 ? score_athlete1 : m.match.score_athlete2;
+                      const right = rowIsAth1 ? score_athlete2 : m.match.score_athlete1;
+                      cell = `${left ?? ""} : ${right ?? ""}`;
+                    } else {
+                      cell = "";
+                    }
+                  }
+
                   return (
                     <td key={colAthlete.id} className="border px-2 py-1 text-center font-mono">
-                      {(() => {
-                        if (isSame) return "×";
-                        return "";
-                      })()}
+                      {cell}
                     </td>
                   );
                 })}
