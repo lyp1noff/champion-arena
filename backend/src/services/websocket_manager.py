@@ -1,17 +1,9 @@
 from typing import Dict, Set
-from uuid import UUID
 
 from fastapi import WebSocket
-from pydantic import BaseModel
 
 from src.logger import logger
-
-
-class MatchUpdate(BaseModel):
-    match_id: UUID
-    score_athlete1: int | None
-    score_athlete2: int | None
-    status: str | None
+from src.schemas import MatchUpdate
 
 
 class WebSocketManager:

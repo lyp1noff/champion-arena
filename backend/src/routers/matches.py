@@ -16,9 +16,9 @@ from src.models import (
     Match,
     MatchStatus,
 )
-from src.schemas import MatchFinishRequest, MatchSchema, MatchScoreUpdate
+from src.schemas import MatchFinishRequest, MatchSchema, MatchScoreUpdate, MatchUpdate
 from src.services.serialize import serialize_match
-from src.services.websocket_manager import MatchUpdate, websocket_manager
+from src.services.websocket_manager import websocket_manager
 
 router = APIRouter(prefix="/matches", tags=["Matches"], dependencies=[Depends(get_current_user)])
 

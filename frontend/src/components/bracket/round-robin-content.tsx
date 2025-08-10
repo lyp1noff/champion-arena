@@ -1,6 +1,7 @@
 import { BracketMatches } from "@/lib/interfaces";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { getUniqueAthletes } from "@/lib/utils";
+import { useMatchUpdate } from "@/components/websocket-provider";
 
 const TR_HEIGHT = undefined;
 
@@ -12,6 +13,47 @@ interface RoundRobinProps {
 function pairKey(a?: number, b?: number) {
   if (a == null || b == null) return "";
   return a < b ? `${a}-${b}` : `${b}-${a}`;
+}
+
+function EmptyCell() {
+  return <td className="border px-2 py-1 text-center font-mono"></td>;
+}
+
+function SameAthleteCell() {
+  return <td className="border px-2 py-1 text-center font-mono">×</td>;
+}
+
+function ScoreCell({ bm, rowId }: { bm: BracketMatches[number]; rowId: number }) {
+  const upd = useMatchUpdate(bm.match.id);
+
+  const status = upd?.status ?? bm.match.status;
+
+  const s1 = upd?.score_athlete1 ?? bm.match.score_athlete1;
+  const s2 = upd?.score_athlete2 ?? bm.match.score_athlete2;
+
+  const rowIsAth1 = bm.match.athlete1?.id === rowId;
+  const left = rowIsAth1 ? s1 : s2;
+  const right = rowIsAth1 ? s2 : s1;
+
+  const notStarted = status === "not_started";
+  const scoreText = !notStarted ? `${left ?? 0} : ${right ?? 0}` : "";
+
+  return (
+    <td className="border px-2 py-1 font-mono whitespace-nowrap">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-center gap-1">
+        <div className="justify-self-center text-center">{scoreText}</div>
+        {status === "started" && (
+          <div className="justify-self-center sm:justify-self-end pl-1 pr-2 rounded-xl text-xs font-bold flex items-center gap-1 dark:bg-secondary bg-stone-300">
+            <span className="relative flex h-2 w-2 ml-0.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-600"></span>
+            </span>
+            Live
+          </div>
+        )}
+      </div>
+    </td>
+  );
 }
 
 export default function RoundRobinContent({ bracketMatches, containerHeight }: RoundRobinProps) {
@@ -47,27 +89,14 @@ export default function RoundRobinContent({ bracketMatches, containerHeight }: R
                   {rowAthlete.coaches_last_name?.join(", ") || "No coach"})
                 </td>
                 {athletes.map((colAthlete) => {
-                  const isSame = rowAthlete.id === colAthlete.id;
-
-                  let cell = "×";
-                  if (!isSame) {
-                    const m = matchByPair.get(pairKey(rowAthlete.id, colAthlete.id));
-                    if (m && m.match.ended_at) {
-                      const { athlete1, score_athlete1, score_athlete2 } = m.match;
-                      const rowIsAth1 = athlete1?.id === rowAthlete.id;
-                      const left = rowIsAth1 ? score_athlete1 : m.match.score_athlete2;
-                      const right = rowIsAth1 ? score_athlete2 : m.match.score_athlete1;
-                      cell = `${left ?? ""} : ${right ?? ""}`;
-                    } else {
-                      cell = "";
-                    }
+                  if (rowAthlete.id === colAthlete.id) {
+                    return <SameAthleteCell key={colAthlete.id} />;
                   }
-
-                  return (
-                    <td key={colAthlete.id} className="border px-2 py-1 text-center font-mono">
-                      {cell}
-                    </td>
-                  );
+                  const bm = matchByPair.get(pairKey(rowAthlete.id, colAthlete.id));
+                  if (!bm) {
+                    return <EmptyCell key={colAthlete.id} />;
+                  }
+                  return <ScoreCell key={colAthlete.id} bm={bm} rowId={rowAthlete.id} />;
                 })}
               </tr>
             ))}

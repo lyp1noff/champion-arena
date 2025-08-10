@@ -255,3 +255,10 @@ class CategoryCreateSchema(BaseModel):
     name: str
     age: int
     gender: str
+
+
+class MatchUpdate(BaseModel):
+    match_id: uuid.UUID
+    score_athlete1: int | None
+    score_athlete2: int | None
+    status: str | None
