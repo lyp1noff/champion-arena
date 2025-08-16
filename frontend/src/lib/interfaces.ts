@@ -5,18 +5,18 @@ export interface Athlete {
   gender: string;
   birth_date: string;
   age: string;
-  coach_id: number;
-  coach_last_name: number;
+  coaches_id: number[];
+  coaches_last_name: string[];
 }
 
-export type AthleteCreate = Omit<Athlete, "id" | "coach_last_name" | "age">;
+export type AthleteCreate = Omit<Athlete, "id" | "coaches_last_name" | "age">;
 export type AthleteUpdate = Partial<AthleteCreate>;
 
 export interface Tournament {
   id: number;
   name: string;
   location: string;
-  // status: string;
+  status: "draft" | "upcoming" | "started" | "finished";
   start_date: string;
   end_date: string;
   registration_start_date: string;
@@ -27,11 +27,26 @@ export interface Tournament {
 export type TournamentCreate = Omit<Tournament, "id" | "status">;
 export type TournamentUpdate = Partial<TournamentCreate>;
 
+export interface Application {
+  athlete_id: number;
+  category_id: number;
+  tournament_id: number;
+}
+
+export interface ApplicationResponse extends Application {
+  id: number;
+  status: string;
+  athlete: Athlete;
+  category: Category;
+}
+
 export type Participant = {
+  id: number;
+  athlete_id: number;
   seed: number;
   last_name: string;
   first_name: string;
-  coach_last_name: string;
+  coaches_last_name: string[];
 };
 
 export type BracketType = "round_robin" | "single_elimination";
@@ -40,8 +55,11 @@ export type Bracket = {
   tournament_id: number;
   category: string;
   type: BracketType;
-  start_time: string;
+  start_time: string | null;
   tatami: number;
+  group_id?: number;
+  display_name?: string;
+  status: "pending" | "started" | "finished";
   participants: Participant[];
 };
 export type BracketUpdate = Partial<Bracket>;
@@ -56,30 +74,72 @@ export type BracketMatchAthlete = {
   id: number;
   first_name: string;
   last_name: string;
-  coach_last_name: string;
+  coaches_last_name: string[];
 };
 
 export type RoundType = "final" | "semifinal" | "quarterfinal" | "";
 
 export type Match = {
-  id: number;
+  id: string;
   round_type: RoundType;
   athlete1: BracketMatchAthlete | null;
   athlete2: BracketMatchAthlete | null;
   winner: BracketMatchAthlete | null;
   score_athlete1: number | null;
   score_athlete2: number | null;
-  is_finished: boolean;
+  status: "not_started" | "started" | "finished";
+  started_at?: string | null;
+  ended_at?: string | null;
 };
 
 export type BracketMatch = {
-  id: number;
+  id: string;
   round_number: number;
   position: number;
   match: Match;
 };
 
 export type BracketMatches = BracketMatch[];
+
+export interface Category {
+  id: number;
+  name: string;
+  min_age: number;
+  max_age: number;
+  gender: "male" | "female" | "any";
+}
+
+export type CategoryCreate = Omit<Category, "id">;
+
+export interface ParticipantMove {
+  participant_id: number;
+  from_bracket_id: number;
+  to_bracket_id: number;
+}
+
+export interface ParticipantReorder {
+  bracket_id: number;
+  participant_updates: Array<{ participant_id: number; new_seed: number }>;
+}
+
+export interface BracketCreate {
+  tournament_id: number;
+  category_id: number;
+  group_id?: number;
+  type?: string;
+  start_time?: string;
+  tatami?: number;
+}
+
+export interface BracketDelete {
+  target_bracket_id?: number;
+}
+
+// export interface CategoryCreate {
+//   name: string;
+//   age: number;
+//   gender: string;
+// }
 
 // export type BracketWithCategory = {
 //   bracket_id: number;

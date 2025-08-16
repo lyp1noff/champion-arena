@@ -1,4 +1,6 @@
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from src.config import FRONTEND_URL
 
 origins = [
@@ -6,7 +8,7 @@ origins = [
 ]
 
 
-def add_cors_middleware(app):
+def add_cors_middleware(app: FastAPI) -> None:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,

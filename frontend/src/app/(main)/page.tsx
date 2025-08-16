@@ -25,8 +25,8 @@ export default function TournamentsPage() {
         setTournaments(data.data);
       } catch (error) {
         console.error("Error fetching tournaments:", error);
-        toast.error("Failed to load tournaments", {
-          description: "Please try again or contact support.",
+        toast.error(t("loadError"), {
+          description: t("loadErrorDescription"),
         });
       } finally {
         // setIsLoadingTournaments(false);
@@ -34,7 +34,7 @@ export default function TournamentsPage() {
     };
 
     fetchTournaments();
-  }, []);
+  }, [t]);
 
   return (
     <div className="container py-10">
@@ -85,7 +85,7 @@ export default function TournamentsPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <div className="text-sm font-medium text-primary">View details</div>
+                <div className="text-sm font-medium text-primary">{t("viewDetails")}</div>
               </CardFooter>
             </Card>
           </Link>

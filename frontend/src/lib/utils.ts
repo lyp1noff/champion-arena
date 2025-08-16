@@ -33,11 +33,12 @@ export function getInitialMatchCount(participantCount: number): number {
 
 export function getBracketDimensions(matchCardHeight: number, matchCardWidth?: number) {
   const cardHeight = matchCardHeight;
-  const cardWidth = matchCardWidth ?? cardHeight * 3;
+  const cardWidth = matchCardWidth ?? cardHeight * 4;
   const roundTitleHeight = cardHeight / 3;
   const columnGap = (cardHeight / 8) * 2;
+  const rowGap = cardHeight / 2.5;
 
-  return { cardHeight, cardWidth, roundTitleHeight, columnGap };
+  return { cardHeight, cardWidth, roundTitleHeight, columnGap, rowGap };
 }
 
 export function getUniqueAthletes(matches: BracketMatches): BracketMatchAthlete[] {

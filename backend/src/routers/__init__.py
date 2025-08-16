@@ -1,11 +1,13 @@
 from . import (
-    coaches,
     athletes,
-    tournaments,
-    categories,
-    brackets,
-    upload,
     auth,
+    brackets,
+    categories,
+    coaches,
+    matches,
+    tournaments,
+    upload,
+    websocket,
 )
 
 routers = [
@@ -14,6 +16,8 @@ routers = [
     tournaments.router,
     categories.router,
     brackets.router,
+    matches.router,
     upload.router,
     auth.router,
+    websocket.router,
 ]

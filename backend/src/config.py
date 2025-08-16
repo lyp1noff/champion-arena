@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -6,9 +7,7 @@ ENV_FILE = os.path.join(BASE_DIR, "../.env")
 
 load_dotenv(ENV_FILE)
 
-async_db_url = os.getenv(
-    "DATABASE_URL", "postgresql+asyncpg://user:password@localhost:5432/tournament_db"
-)
+async_db_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@localhost:5432/tournament_db")
 DATABASE_URL = async_db_url.replace("+asyncpg", "")
 SQLALCHEMY_DATABASE_URL = async_db_url
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -19,3 +18,4 @@ R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
 R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")
 R2_ENDPOINT = os.getenv("R2_ENDPOINT")
 R2_REGION = os.getenv("R2_REGION", "weur")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

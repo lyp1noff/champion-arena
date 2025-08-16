@@ -11,6 +11,6 @@ frontend/node_modules/
 .env.*
 .vscode
 .idea
+.DS_Store
 
 data.cbr
-start.sh

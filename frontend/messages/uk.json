@@ -1,38 +1,81 @@
 {
-    "Header": {
-        "login": "Увійти",
-        "admin": "Адміністратор"
-    },
-    "Footer": {
-        "rights": "Усі права захищені."
-    },
-    "ModeToggle": {
-        "dark": "Темний",
-        "light": "Світлий",
-        "system": "Системний"
-    },
-    "Home": {
-        "tournaments": "Турніри"
-    },
-    "Admin": {
-        "title": "Сторінка адміністратора",
-        "tournaments": "Турніри",
-        "athletes": "Атлети"
-    },
-    "AdminTournaments": {
-        "create": "Створити новий турнір",
-        "search": "Пошук турніру..."
-    },
-    "DataTable": {
-        "totalRecords": "Всього записів",
-        "noData": "Немає доступних даних",
-        "of": "з",
-        "rowsSelected": "рядків вибрано",
-        "rowsPerPage": "Рядків на сторінці",
-        "page": "Сторінка",
-        "firstPage": "Перейти на першу сторінку",
-        "prevPage": "Перейти на попередню сторінку",
-        "nextPage": "Перейти на наступну сторінку",
-        "lastPage": "Перейти на останню сторінку"
-    }
+  "Header": {
+    "login": "Увійти",
+    "admin": "Адмін"
+  },
+  "Footer": {
+    "rights": "Усі права захищені."
+  },
+  "ModeToggle": {
+    "dark": "Темний",
+    "light": "Світлий",
+    "system": "Системний"
+  },
+  "Home": {
+    "tournaments": "Турніри",
+    "viewDetails": "Переглянути деталі",
+    "loadError": "Не вдалося завантажити турніри",
+    "loadErrorDescription": "Спробуйте ще раз або зверніться до служби підтримки."
+  },
+  "TournamentPage": {
+    "brackets": "Сітки",
+    "participants": "Учасники",
+    "searchPlaceholder": "Пошук сіток або учасників...",
+    "tatami": "Татамі",
+    "participantsCount": "Учасників",
+    "noData": "Немає даних",
+    "tournament": "Турнір",
+    "fetchError": "Помилка завантаження даних турніру",
+    "unknownTatami": "Невідомо"
+  },
+  "Login": {
+    "title": "Вхід",
+    "description": "Введіть ім'я користувача та пароль для продовження",
+    "username": "Ім'я користувача",
+    "password": "Пароль",
+    "loginButton": "Увійти"
+  },
+  "Admin": {
+    "title": "Сторінка адміністратора",
+    "tournaments": "Турніри",
+    "athletes": "Атлети"
+  },
+  "AdminTournaments": {
+    "create": "Створити новий турнір",
+    "search": "Пошук турніру...",
+    "deleteConfirmTitle": "Видалити турнір",
+    "deleteConfirmText": "Ви впевнені, що хочете видалити цей турнір? Цю дію не можна скасувати.",
+    "deleteConfirmCancel": "Скасувати",
+    "deleteConfirmDelete": "Видалити",
+    "open": "Відкрити",
+    "edit": "Редагувати",
+    "manage": "Керувати",
+    "exportToFile": "Експортувати у файл",
+    "applications": "Заявки",
+    "delete": "Видалити",
+    "selectCoach": "Оберіть тренера...",
+    "noCoachesFound": "Тренерів не знайдено.",
+    "selectAthlete": "Оберіть атлета...",
+    "noAthletesFound": "Атлетів не знайдено.",
+    "createNewAthlete": "Створити нового атлета",
+    "selectCategory": "Оберіть категорію...",
+    "noCategoriesFound": "Категорій не знайдено.",
+    "submitApplication": "Подати заявку",
+    "submittedApplications": "Подані заявки",
+    "noApplicationsYet": "Ще немає заявок.",
+    "approveAllApplications": "Схвалити всі заявки",
+    "athleteCreated": "Атлета створено"
+  },
+  "DataTable": {
+    "totalRecords": "Всього записів",
+    "noData": "Немає доступних даних",
+    "of": "з",
+    "rowsSelected": "рядків вибрано",
+    "rowsPerPage": "Рядків на сторінці",
+    "page": "Сторінка",
+    "firstPage": "Перейти на першу сторінку",
+    "prevPage": "Перейти на попередню сторінку",
+    "nextPage": "Перейти на наступну сторінку",
+    "lastPage": "Перейти на останню сторінку"
+  }
 }

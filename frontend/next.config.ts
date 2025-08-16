@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-import * as dotenv from "dotenv";
-import { resolve } from "path";
-
-dotenv.config({ path: resolve(__dirname, "../.env") });
 const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || "https://cdn.example.com";
 
 const nextConfig: NextConfig = {

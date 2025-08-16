@@ -1,36 +1,38 @@
-from typing import Optional
-from src.models import Athlete, Match, Bracket, BracketMatch
+from src.models import Athlete, Bracket, BracketMatch, Match, MatchStatus
 from src.schemas import (
+    BracketInfoResponse,
     BracketMatchAthlete,
-    MatchSchema,
+    BracketMatchesFull,
+    BracketMatchResponse,
+    BracketParticipantSchema,
     BracketResponse,
-    BracketParticipantSchema, BracketMatchResponse, BracketMatchesFull,
+    MatchSchema,
 )
 
 
-def serialize_athlete(athlete: Optional[Athlete]) -> Optional[BracketMatchAthlete]:
-    if not athlete:
-        return None
+def serialize_athlete(athlete: Athlete) -> BracketMatchAthlete:
+    coaches_last_name = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
+
     return BracketMatchAthlete(
         id=athlete.id,
         first_name=athlete.first_name,
         last_name=athlete.last_name,
-        coach_last_name=athlete.coach.last_name if athlete.coach else None,
+        coaches_last_name=coaches_last_name,
     )
 
 
-def serialize_match(match: Optional[Match]) -> Optional[MatchSchema]:
-    if not match:
-        return None
+def serialize_match(match: Match) -> MatchSchema:
     return MatchSchema(
         id=match.id,
         round_type=match.round_type,
-        athlete1=serialize_athlete(match.athlete1),
-        athlete2=serialize_athlete(match.athlete2),
-        winner=serialize_athlete(match.winner),
+        athlete1=serialize_athlete(match.athlete1) if match.athlete1 else None,
+        athlete2=serialize_athlete(match.athlete2) if match.athlete2 else None,
+        winner=serialize_athlete(match.winner) if match.winner else None,
         score_athlete1=match.score_athlete1,
         score_athlete2=match.score_athlete2,
-        is_finished=match.is_finished,
+        status=MatchStatus(match.status),
+        started_at=match.started_at,
+        ended_at=match.ended_at,
     )
 
 
@@ -58,10 +60,13 @@ def serialize_bracket_matches_full(bracket: Bracket) -> BracketMatchesFull:
 
     return BracketMatchesFull(
         bracket_id=bracket.id,
-        category=bracket.category.name if bracket.category else None,
+        category=bracket.category.name if bracket.category else "",
         type=bracket.type,
         start_time=bracket.start_time,
         tatami=bracket.tatami,
+        group_id=bracket.group_id,
+        display_name=bracket.get_display_name(),
+        status=bracket.status,
         matches=matches,
     )
 
@@ -74,14 +79,33 @@ def serialize_bracket(bracket: Bracket) -> BracketResponse:
         type=bracket.type,
         start_time=bracket.start_time,
         tatami=bracket.tatami,
+        group_id=bracket.group_id,
+        display_name=bracket.get_display_name(),
+        status=bracket.status,
         participants=[
             BracketParticipantSchema(
+                id=p.id,
+                athlete_id=p.athlete.id,
                 seed=p.seed,
                 first_name=p.athlete.first_name,
                 last_name=p.athlete.last_name,
-                coach_last_name=p.athlete.coach.last_name if p.athlete.coach else None,
+                coaches_last_name=[link.coach.last_name for link in p.athlete.coach_links if link.coach is not None],
             )
             for p in sorted(bracket.participants, key=lambda x: x.seed)
             if p.athlete
         ],
+    )
+
+
+def serialize_bracket_info(bracket: Bracket) -> BracketInfoResponse:
+    return BracketInfoResponse(
+        id=bracket.id,
+        tournament_id=bracket.tournament_id,
+        category=bracket.category.name if bracket.category else "",
+        type=bracket.type,
+        start_time=bracket.start_time,
+        tatami=bracket.tatami,
+        group_id=bracket.group_id,
+        display_name=bracket.get_display_name(),
+        status=bracket.status,
     )
