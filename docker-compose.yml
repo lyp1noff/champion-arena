@@ -13,12 +13,8 @@ services:
       - pg_data:/var/lib/postgresql/data
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: ./Dockerfile
-    pull_policy: build
+    image: ghcr.io/lyp1noff/champion-backend:latest
     container_name: champion-backend
-    image: champion-backend:latest
     restart: always
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
@@ -31,20 +27,12 @@ services:
       - R2_ENDPOINT=${R2_ENDPOINT}
       - JWT_SECRET=${JWT_SECRET}
       - DEV_MODE=${DEV_MODE}
-      - GUNICORN_WORKERS=${GUNICORN_WORKERS}
     depends_on:
       - db
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: ./Dockerfile
-      args:
-        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
-        NEXT_PUBLIC_CDN_URL: ${NEXT_PUBLIC_CDN_URL}
-    pull_policy: build
+    image: ghcr.io/lyp1noff/champion-frontend:latest
     container_name: champion-frontend
-    image: champion-frontend:latest
     restart: always
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
