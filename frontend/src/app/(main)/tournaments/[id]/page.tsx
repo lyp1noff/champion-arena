@@ -15,6 +15,7 @@ import { ParticipantsView } from "./components/ParticipantsView";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "use-debounce";
 import { WebSocketProvider } from "@/components/websocket-provider";
+import { RefreshCcw } from "lucide-react";
 
 export default function TournamentPage() {
   const t = useTranslations("TournamentPage");
@@ -43,8 +44,8 @@ export default function TournamentPage() {
   // const maxHeight = screenHeight * 0.7;
   // const matchCardHeight = 60;
 
-  const loadBracketData = async (bracketId: number) => {
-    if (loadedBracketMatches[bracketId]) return;
+  const loadBracketData = async (bracketId: number, force?: true) => {
+    if (!force && loadedBracketMatches[bracketId]) return;
 
     setLoadedBracketMatches((prev) => ({
       ...prev,
@@ -193,12 +194,23 @@ export default function TournamentPage() {
                       {tab !== "brackets" ? (
                         <ParticipantsView bracket={bracket} />
                       ) : (
-                        <BracketView
-                          loading={loadedBracketMatches[bracket.id]?.loading ?? true}
-                          matches={loadedBracketMatches[bracket.id]?.matches ?? []}
-                          bracket={bracket}
-                          // maxHeight={maxHeight}
-                        />
+                        <div>
+                          <div className="pb-4 flex justify-end">
+                            <button
+                              className="p-2 border rounded-full"
+                              onClick={async () => await loadBracketData(bracket.id, true)}
+                              aria-label="Reload bracket"
+                            >
+                              <RefreshCcw className="w-5 h-5" />
+                            </button>
+                          </div>
+                          <BracketView
+                            loading={loadedBracketMatches[bracket.id]?.loading ?? true}
+                            matches={loadedBracketMatches[bracket.id]?.matches ?? []}
+                            bracket={bracket}
+                            // maxHeight={maxHeight}
+                          />
+                        </div>
                       )}
                     </AccordionContent>
                   </AccordionItem>

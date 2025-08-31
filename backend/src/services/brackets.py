@@ -234,15 +234,44 @@ async def regenerate_round_bracket_matches(
         select(BracketParticipant).filter_by(bracket_id=bracket_id).order_by(BracketParticipant.seed)
     )
     participants = result.scalars().all()
+    n = len(participants)
 
     matches: list[BracketMatch] = []
+    if n < 2:
+        if commit:
+            tournament = await db.get(Tournament, tournament_id)
+            if tournament is not None:
+                tournament.export_last_updated_at = datetime.now(UTC)
+            await db.commit()
+        return None if commit else matches
+
+    participants = list(participants)
+    if n % 2 != 0:
+        dummy = BracketParticipant(athlete_id=None, bracket_id=bracket_id, seed=n + 1)
+        participants.append(dummy)
+        n += 1
+
+    players = list(range(n))
+    rounds = []
+    for _ in range(n - 1):
+        round_pairs = []
+        mid = n // 2
+        for i in range(mid):
+            p1_idx, p2_idx = players[i], players[n - 1 - i]
+            if participants[p1_idx].athlete_id is None or participants[p2_idx].athlete_id is None:
+                continue
+            if participants[p1_idx].seed < participants[p2_idx].seed:
+                round_pairs.append((p1_idx, p2_idx))
+            else:
+                round_pairs.append((p2_idx, p1_idx))
+        rounds.append(round_pairs)
+        players = [players[0]] + [players[-1]] + players[1:-1]
+
     position = 1
-
-    for i in range(len(participants)):
-        for j in range(i + 1, len(participants)):
-            p1 = participants[i]
-            p2 = participants[j]
-
+    for round_pairs in rounds:
+        for p1_idx, p2_idx in round_pairs:
+            p1 = participants[p1_idx]
+            p2 = participants[p2_idx]
             match = Match(
                 athlete1_id=p1.athlete_id,
                 athlete2_id=p2.athlete_id,
