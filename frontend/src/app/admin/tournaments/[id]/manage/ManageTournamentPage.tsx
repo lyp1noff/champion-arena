@@ -379,7 +379,7 @@ export default function ManageTournamentPage({
                   <CardContent className="flex-1 p-0 h-full">
                     <ScrollArea className="h-full w-full">
                       <div className="p-6 h-full w-full">
-                        <BracketView loading={loading} matches={bracketMatches ?? []} bracket={selectedBracket} />
+                        <BracketView matches={bracketMatches ?? []} bracketType={selectedBracket.type} />
                       </div>
                       <ScrollBar orientation="horizontal" />
                       <ScrollBar orientation="vertical" />

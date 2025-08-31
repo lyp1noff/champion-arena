@@ -7,7 +7,6 @@ const TR_HEIGHT = undefined;
 
 interface RoundRobinProps {
   bracketMatches: BracketMatches;
-  containerHeight?: number;
 }
 
 function pairKey(a?: number, b?: number) {
@@ -56,7 +55,7 @@ function ScoreCell({ bm, rowId }: { bm: BracketMatches[number]; rowId: number })
   );
 }
 
-export default function RoundRobinContent({ bracketMatches, containerHeight }: RoundRobinProps) {
+export default function RoundRobinContent({ bracketMatches }: RoundRobinProps) {
   const athletes = getUniqueAthletes(bracketMatches);
 
   const matchByPair = new Map<string, (typeof bracketMatches)[number]>();
@@ -109,11 +108,5 @@ export default function RoundRobinContent({ bracketMatches, containerHeight }: R
     </ScrollArea>
   );
 
-  return containerHeight ? (
-    <div className="flex" style={{ height: containerHeight }}>
-      {content}
-    </div>
-  ) : (
-    content
-  );
+  return content;
 }

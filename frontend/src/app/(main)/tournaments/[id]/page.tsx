@@ -8,7 +8,6 @@ import ScreenLoader from "@/components/loader";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { getBracketMatchesById } from "@/lib/api/brackets";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import { useScreenHeight } from "@/hooks/use-screen-height";
 import { useTranslations } from "next-intl";
 import { BracketView } from "@/components/bracket-view";
 import { ParticipantsView } from "./components/ParticipantsView";
@@ -19,51 +18,38 @@ import { RefreshCcw } from "lucide-react";
 
 export default function TournamentPage() {
   const t = useTranslations("TournamentPage");
-
   const { id } = useParams();
   const [tab, setTab] = useState("brackets");
   const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [tournament, setTournament] = useState<Tournament>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [loadedBracketMatches, setLoadedBracketMatches] = useState<
-    Record<number, { loading: boolean; matches: BracketMatches }>
-  >({});
-
+  const [loadedBracketMatches, setLoadedBracketMatches] = useState<Record<number, { matches: BracketMatches }>>({});
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebounce(search, 500);
   const [filteredBrackets, setFilteredBrackets] = useState<Bracket[]>([]);
-  // const [searchFields, setSearchFields] = useState({
-  //   bracketCategory: true,
-  //   participantFirstName: true,
-  //   participantLastName: true,
-  //   coachLastName: true,
-  // });
-
-  // const screenHeight = useScreenHeight();
-  // const maxHeight = screenHeight * 0.7;
-  // const matchCardHeight = 60;
+  const [openBracketIds, setOpenBracketIds] = useState<string[]>([]);
 
   const loadBracketData = async (bracketId: number, force?: true) => {
     if (!force && loadedBracketMatches[bracketId]) return;
 
-    setLoadedBracketMatches((prev) => ({
-      ...prev,
-      [bracketId]: { loading: true, matches: [] },
-    }));
+    setLoading(true);
 
     try {
-      const res = await getBracketMatchesById(bracketId);
+      const matches = await getBracketMatchesById(bracketId);
       setLoadedBracketMatches((prev) => ({
         ...prev,
-        [bracketId]: { loading: false, matches: res },
+        [bracketId]: { matches },
       }));
+      setOpenBracketIds((prev) => [...prev, String(bracketId)]);
     } catch (err) {
       console.error("Error fetching tournament bracketMatches:", err);
       setLoadedBracketMatches((prev) => ({
         ...prev,
-        [bracketId]: { loading: false, matches: [] },
+        [bracketId]: { matches: [] },
       }));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,7 +65,7 @@ export default function TournamentPage() {
         setBrackets(bracketsData);
 
         const tournamentData = await getTournamentById(Number(id));
-        setTournament(tournamentData); // separate two api calls
+        setTournament(tournamentData);
       } catch (error) {
         console.error("Error fetching tournament brackets:", error);
         setError(t("fetchError"));
@@ -160,62 +146,56 @@ export default function TournamentPage() {
             <h2 className="text-2xl font-bold mb-2">
               {t("tatami")} {tatami}
             </h2>
-            <Accordion type="multiple" className="w-full">
-              {tatamiBrackets.map((bracket) => {
-                // const { cardHeight, roundTitleHeight, columnGap } = getBracketDimensions(matchCardHeight);
-                // const estimatedHeight =
-                //   getInitialMatchCount(bracket.participants.length) * (cardHeight + columnGap) + roundTitleHeight;
-                // const containerHeight = estimatedHeight > maxHeight ? maxHeight : estimatedHeight;
-
-                return (
-                  <AccordionItem key={bracket.id} value={String(bracket.id)}>
-                    <AccordionTrigger
-                      className="text-lg font-medium group flex items-center justify-between"
-                      onClick={() => {
-                        if (!loadedBracketMatches[bracket.id]) {
-                          loadBracketData(bracket.id);
-                        }
-                      }}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                        <span className="text-base font-semibold">{bracket.display_name || bracket.category}</span>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          {/* i18n needed*/}
-                          <span>{(bracket.start_time && bracket.start_time.slice(0, 5)) || " — "}</span>
-                          <span> | </span>
-                          <span>
-                            {t("participantsCount")}: {bracket.participants.length || " — "}
-                          </span>
-                        </div>
+            <Accordion type="multiple" className="w-full" value={openBracketIds} onValueChange={setOpenBracketIds}>
+              {tatamiBrackets.map((bracket) => (
+                <AccordionItem key={bracket.id} value={String(bracket.id)}>
+                  <AccordionTrigger
+                    className="text-lg font-medium group flex items-center justify-between"
+                    onClick={() => {
+                      if (!loadedBracketMatches[bracket.id]) {
+                        loadBracketData(bracket.id);
+                      }
+                    }}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                      <span className="text-base font-semibold">{bracket.display_name || bracket.category}</span>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>{(bracket.start_time && bracket.start_time.slice(0, 5)) || " — "}</span>
+                        <span> | </span>
+                        <span>
+                          {t("participantsCount")}: {bracket.participants.length || " — "}
+                        </span>
                       </div>
-                    </AccordionTrigger>
+                    </div>
+                  </AccordionTrigger>
 
-                    <AccordionContent>
-                      {tab !== "brackets" ? (
-                        <ParticipantsView bracket={bracket} />
-                      ) : (
+                  <AccordionContent>
+                    {tab !== "brackets" ? (
+                      <ParticipantsView bracket={bracket} />
+                    ) : (
+                      loadedBracketMatches[bracket.id] && (
                         <div>
                           <div className="pb-4 flex justify-end">
                             <button
                               className="p-2 border rounded-full"
-                              onClick={async () => await loadBracketData(bracket.id, true)}
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                await loadBracketData(bracket.id, true);
+                              }}
                               aria-label="Reload bracket"
+                              type="button"
                             >
                               <RefreshCcw className="w-5 h-5" />
                             </button>
                           </div>
-                          <BracketView
-                            loading={loadedBracketMatches[bracket.id]?.loading ?? true}
-                            matches={loadedBracketMatches[bracket.id]?.matches ?? []}
-                            bracket={bracket}
-                            // maxHeight={maxHeight}
-                          />
+                          <BracketView matches={loadedBracketMatches[bracket.id].matches} bracketType={bracket.type} />
                         </div>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
+                      )
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
             </Accordion>
           </div>
         ))}
