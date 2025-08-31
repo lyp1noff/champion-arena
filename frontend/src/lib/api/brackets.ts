@@ -2,7 +2,7 @@ import {
   Bracket,
   BracketCreate,
   BracketDelete,
-  BracketMatches,
+  BracketMatchesResponse,
   BracketUpdate,
   CategoryCreate,
   ParticipantMove,
@@ -22,7 +22,7 @@ export async function getBracketsById(id: number): Promise<Bracket> {
   return res.json();
 }
 
-export async function getBracketMatchesById(id: number): Promise<BracketMatches> {
+export async function getBracketMatchesById(id: number): Promise<BracketMatchesResponse> {
   const res = await fetchWithRefresh(`${url}/brackets/${id}/matches`, { cache: "no-store" });
 
   if (!res.ok) {

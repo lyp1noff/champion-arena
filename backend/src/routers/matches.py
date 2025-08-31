@@ -21,6 +21,7 @@ from src.models import (
     TournamentStatus,
 )
 from src.schemas import MatchFinishRequest, MatchSchema, MatchScoreUpdate, MatchUpdate
+from src.services.matches import advance_participants
 from src.services.serialize import serialize_match
 from src.services.websocket_manager import websocket_manager
 
@@ -147,25 +148,7 @@ async def finish_match(
     bm = bm_result.scalar_one_or_none()
 
     if bm:
-        next_position = (bm.position + 1) // 2
-        next_bm = (
-            await db.execute(
-                select(BracketMatch).where(
-                    BracketMatch.bracket_id == bm.bracket_id,
-                    BracketMatch.round_number == bm.round_number + 1,
-                    BracketMatch.position == next_position,
-                )
-            )
-        ).scalar_one_or_none()
-
-        if next_bm:
-            next_match = await db.get(Match, next_bm.match_id)
-            if next_match:
-                if bm.position % 2 == 1:
-                    next_match.athlete1_id = match.winner_id
-                else:
-                    next_match.athlete2_id = match.winner_id
-
+        await advance_participants(db, bm.bracket_id)
         total_in_bracket = await db.scalar(
             select(func.count()).select_from(BracketMatch).where(BracketMatch.bracket_id == bm.bracket_id)
         )
@@ -198,7 +181,6 @@ async def finish_match(
 
     await db.commit()
     await db.refresh(match)
-
     await broadcast_match_update(match, db)
     return serialize_match(match)
 

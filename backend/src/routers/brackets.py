@@ -23,7 +23,7 @@ from src.schemas import (
     BracketCreateSchema,
     BracketDeleteRequest,
     BracketInfoResponse,
-    BracketMatchResponse,
+    BracketMatchesResponse,
     BracketResponse,
     BracketUpdateSchema,
     ParticipantMoveSchema,
@@ -121,8 +121,8 @@ async def update_bracket(
     return serialize_bracket_info(bracket)
 
 
-@router.get("/{bracket_id}/matches", response_model=list[BracketMatchResponse])
-async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db)) -> list[BracketMatchResponse]:
+@router.get("/{bracket_id}/matches", response_model=BracketMatchesResponse)
+async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db)) -> BracketMatchesResponse:
     result = await db.execute(
         select(BracketMatch)
         .filter_by(bracket_id=bracket_id)
@@ -140,10 +140,16 @@ async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db
             .selectinload(Athlete.coach_links)
             .joinedload(AthleteCoachLink.coach),
         )
-        .order_by(BracketMatch.round_number, BracketMatch.position)
+        .order_by(BracketMatch.match_type, BracketMatch.round_number, BracketMatch.position)
     )
     matches = result.scalars().all()
-    return [serialize_bracket_match(match) for match in matches]
+
+    return BracketMatchesResponse(
+        bracket_id=bracket_id,
+        main_matches=[serialize_bracket_match(m) for m in matches if m.match_type == "MAIN"],
+        repechage_a_matches=[serialize_bracket_match(m) for m in matches if m.match_type == "REPECHAGE_A"],
+        repechage_b_matches=[serialize_bracket_match(m) for m in matches if m.match_type == "REPECHAGE_B"],
+    )
 
 
 @router.post("/{bracket_id}/regenerate", dependencies=[Depends(get_current_user)])

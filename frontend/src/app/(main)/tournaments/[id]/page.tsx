@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { getTournamentBracketsById, getTournamentById } from "@/lib/api/tournaments";
-import { Bracket, BracketMatches, Tournament } from "@/lib/interfaces";
+import { Bracket, BracketMatchesResponse, Tournament } from "@/lib/interfaces";
 import ScreenLoader from "@/components/loader";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { getBracketMatchesById } from "@/lib/api/brackets";
@@ -24,7 +24,9 @@ export default function TournamentPage() {
   const [tournament, setTournament] = useState<Tournament>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [loadedBracketMatches, setLoadedBracketMatches] = useState<Record<number, { matches: BracketMatches }>>({});
+  const [loadedBracketMatches, setLoadedBracketMatches] = useState<Record<number, { matches: BracketMatchesResponse }>>(
+    {},
+  );
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebounce(search, 500);
   const [filteredBrackets, setFilteredBrackets] = useState<Bracket[]>([]);
@@ -36,7 +38,8 @@ export default function TournamentPage() {
     setLoading(true);
 
     try {
-      const matches = await getBracketMatchesById(bracketId);
+      const matches_raw = await getBracketMatchesById(bracketId);
+      const matches = matches_raw;
       setLoadedBracketMatches((prev) => ({
         ...prev,
         [bracketId]: { matches },
@@ -44,10 +47,6 @@ export default function TournamentPage() {
       setOpenBracketIds((prev) => [...prev, String(bracketId)]);
     } catch (err) {
       console.error("Error fetching tournament bracketMatches:", err);
-      setLoadedBracketMatches((prev) => ({
-        ...prev,
-        [bracketId]: { matches: [] },
-      }));
     } finally {
       setLoading(false);
     }

@@ -77,7 +77,8 @@ export type BracketMatchAthlete = {
   coaches_last_name: string[];
 };
 
-export type RoundType = "final" | "semifinal" | "quarterfinal" | "";
+// export type RoundType = "final" | "semifinal" | "quarterfinal" | "";
+export type RoundType = string;
 
 export type Match = {
   id: string;
@@ -100,6 +101,13 @@ export type BracketMatch = {
 };
 
 export type BracketMatches = BracketMatch[];
+
+export interface BracketMatchesResponse {
+  bracket_id: number;
+  main_matches: BracketMatches;
+  repechage_a_matches: BracketMatches;
+  repechage_b_matches: BracketMatches;
+}
 
 export interface Category {
   id: number;

@@ -81,7 +81,10 @@ export default function TournamentsPage() {
                 </div>
                 <div className="flex items-center text-sm text-muted-foreground">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {tournament.start_date.toLocaleString()}
+                  {new Date(tournament.start_date).toLocaleDateString(undefined, {
+                    day: "numeric",
+                    month: "long",
+                  })}
                 </div>
               </CardContent>
               <CardFooter>

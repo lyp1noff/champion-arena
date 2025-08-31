@@ -17,15 +17,20 @@ from src.models import (
 )
 
 
-def get_round_type(round_index: int, total_rounds: int) -> str:
-    if round_index == total_rounds - 1:
-        return "final"
-    elif round_index == total_rounds - 2:
-        return "semifinal"
-    elif round_index == total_rounds - 3:
-        return "quarterfinal"
+def get_round_type(round_index: int, total_rounds: int, match_type: str = "main") -> str:
+    if match_type == "main":
+        if round_index == total_rounds - 1:
+            return "final"
+        elif round_index == total_rounds - 2:
+            return "semifinal"
+        elif round_index == total_rounds - 3:
+            return "quarterfinal"
+        else:
+            return f"round_{round_index + 1}"
+    elif match_type == "repechage_final":
+        return "bronze"
     else:
-        return ""
+        return f"round_{round_index + 1}"
 
 
 def distribute_byes_safely(athlete_ids: list[int]) -> list[tuple[Optional[int], Optional[int]]]:
@@ -105,13 +110,14 @@ async def generate_first_round(
 
 
 async def generate_following_rounds(db: AsyncSession, bracket_id: int, total_rounds: int) -> list[list[BracketMatch]]:
-    match_matrix: list[list[BracketMatch]] = [[] for _ in range(total_rounds)]
+    repechage_depth = max(1, total_rounds - 1)
+    match_matrix: list[list[BracketMatch]] = [[] for _ in range(total_rounds + repechage_depth)]
 
     for round_num in range(2, total_rounds + 1):
         num_matches = 2 ** (total_rounds - round_num)
         for pos in range(1, num_matches + 1):
             match = Match(
-                round_type=get_round_type(round_num - 1, total_rounds),
+                round_type=get_round_type(round_num - 1, total_rounds, "main"),
                 status=MatchStatus.NOT_STARTED.value,
             )
             db.add(match)
@@ -122,9 +128,32 @@ async def generate_following_rounds(db: AsyncSession, bracket_id: int, total_rou
                 round_number=round_num,
                 position=pos,
                 match_id=match.id,
+                match_type="MAIN",
             )
             db.add(bracket_match)
             match_matrix[round_num - 1].append(bracket_match)
+
+    for branch in ["A", "B"]:
+        for round_num in range(1, repechage_depth + 1):
+            num_matches = 2 ** (repechage_depth - round_num) if round_num < repechage_depth else 1
+            match_type = "repechage" if round_num < repechage_depth else "repechage_final"
+            for pos in range(1, num_matches + 1):
+                match = Match(
+                    round_type=get_round_type(round_num - 1, repechage_depth, match_type),
+                    status=MatchStatus.NOT_STARTED.value,
+                )
+                db.add(match)
+                await db.flush()
+
+                bracket_match = BracketMatch(
+                    bracket_id=bracket_id,
+                    round_number=total_rounds + round_num,
+                    position=pos,
+                    match_id=match.id,
+                    match_type=f"REPECHAGE_{branch}",
+                )
+                db.add(bracket_match)
+                match_matrix[total_rounds + round_num - 1].append(bracket_match)
 
     return match_matrix
 
@@ -185,24 +214,36 @@ async def regenerate_bracket_matches(
     athlete_ids = [p.athlete_id for p in participants if p.athlete_id is not None]
 
     num_players = len(athlete_ids)
-
-    # TO-DO: Return list of errors, skip category
     if num_players < 2:
         logger.warning(f"Category: {bracket_id} Player number: {num_players}")
+        if commit:
+            tournament = await db.get(Tournament, tournament_id)
+            if tournament is not None:
+                tournament.export_last_updated_at = datetime.now(UTC)
+            await db.commit()
+        return None
 
     next_power_of_two = 2 ** math.ceil(math.log2(max(num_players, 2)))
     total_rounds = int(math.log2(next_power_of_two))
-
-    match_matrix: list[list[BracketMatch]] = [[] for _ in range(total_rounds)]
+    repechage_depth = max(1, total_rounds - 1)
+    match_matrix: list[list[BracketMatch]] = [[] for _ in range(total_rounds + repechage_depth)]
 
     if not skip_first_round:
         match_matrix[0] = await generate_first_round(db, bracket_id, athlete_ids, total_rounds)
 
     later_rounds = await generate_following_rounds(db, bracket_id, total_rounds)
-    for i in range(1, total_rounds):
+    for i in range(1, len(match_matrix)):
         match_matrix[i] = later_rounds[i] if i < len(later_rounds) else []
 
-    for round_index in range(len(match_matrix) - 1):
+    for round_index in range(total_rounds - 1):
+        current_round = match_matrix[round_index]
+        next_round = match_matrix[round_index + 1]
+        for i, match in enumerate(current_round):
+            next_match_index = i // 2
+            if next_match_index < len(next_round):
+                match.next_slot = 1 if i % 2 == 0 else 2
+
+    for round_index in range(total_rounds, total_rounds + repechage_depth - 1):
         current_round = match_matrix[round_index]
         next_round = match_matrix[round_index + 1]
         for i, match in enumerate(current_round):

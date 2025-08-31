@@ -2,10 +2,10 @@
 
 import BracketContent from "@/components/bracket/bracket-content";
 import RoundRobinContent from "@/components/bracket/round-robin-content";
-import { BracketMatches, BracketType } from "@/lib/interfaces";
+import { BracketMatchesResponse, BracketType } from "@/lib/interfaces";
 
 interface BracketViewProps {
-  matches: BracketMatches;
+  matches?: BracketMatchesResponse;
   bracketType: BracketType;
   matchCardHeight?: number;
   containerHeight?: number;
@@ -15,8 +15,12 @@ interface BracketViewProps {
 export function BracketView({ matches, bracketType, matchCardHeight = 60 }: BracketViewProps) {
   const isRoundRobin = bracketType === "round_robin";
 
+  if (!matches) {
+    return;
+  }
+
   if (isRoundRobin) {
-    return <RoundRobinContent bracketMatches={matches ?? []} />;
+    return <RoundRobinContent bracketMatches={matches.main_matches ?? []} />;
   }
 
   return <BracketContent bracketMatches={matches ?? []} matchCardHeight={matchCardHeight} />;

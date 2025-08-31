@@ -227,6 +227,13 @@ class BracketMatchesFull(BracketBase):
     matches: list[BracketMatchResponse]
 
 
+class BracketMatchesResponse(BaseModel):
+    bracket_id: int
+    main_matches: list[BracketMatchResponse]
+    repechage_a_matches: list[BracketMatchResponse]
+    repechage_b_matches: list[BracketMatchResponse]
+
+
 class ParticipantMoveSchema(BaseModel):
     participant_id: int
     from_bracket_id: int

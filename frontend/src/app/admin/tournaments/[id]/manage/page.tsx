@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { getTournamentBracketsById } from "@/lib/api/tournaments";
 import { getBracketMatchesById, updateBracket } from "@/lib/api/brackets";
 import { toast } from "sonner";
-import { Bracket, BracketMatches, BracketType } from "@/lib/interfaces";
+import { Bracket, BracketMatchesResponse, BracketType } from "@/lib/interfaces";
 import ManageTournamentPage from "./ManageTournamentPage";
 import { formatTimeToISO } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ export default function Page() {
   const tournamentId = Number(id);
 
   const [brackets, setBrackets] = useState<Bracket[]>([]);
-  const [bracketMatches, setBracketMatches] = useState<BracketMatches>();
+  const [bracketMatches, setBracketMatches] = useState<BracketMatchesResponse>();
   const [selectedBracket, setSelectedBracket] = useState<Bracket | null>(null);
   const [loading, setLoading] = useState(false);
 

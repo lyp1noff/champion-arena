@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bracket, BracketMatches, BracketType, Category, Participant } from "@/lib/interfaces";
+import { Bracket, BracketMatchesResponse, BracketType, Category, Participant } from "@/lib/interfaces";
 import { BracketView } from "@/components/bracket-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -44,7 +44,7 @@ interface Props {
   tournamentId: number;
   brackets: Bracket[];
   selectedBracket: Bracket | null;
-  bracketMatches?: BracketMatches;
+  bracketMatches?: BracketMatchesResponse;
   loading: boolean;
   onSelectBracket: (bracket: Bracket | null) => Promise<void>;
   onSaveBracket: (updated: {
@@ -379,7 +379,7 @@ export default function ManageTournamentPage({
                   <CardContent className="flex-1 p-0 h-full">
                     <ScrollArea className="h-full w-full">
                       <div className="p-6 h-full w-full">
-                        <BracketView matches={bracketMatches ?? []} bracketType={selectedBracket.type} />
+                        <BracketView matches={bracketMatches} bracketType={selectedBracket.type} />
                       </div>
                       <ScrollBar orientation="horizontal" />
                       <ScrollBar orientation="vertical" />
