@@ -214,6 +214,8 @@ async def move_participant(
     await regenerate_matches_endpoint(move_data.from_bracket_id, db)
     await regenerate_matches_endpoint(move_data.to_bracket_id, db)
 
+    # TO-DO: Handle change in Application as well
+
     return {"status": "ok"}
 
 

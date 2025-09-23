@@ -1,8 +1,9 @@
-from src.models import Athlete, Bracket, BracketMatch, Match, MatchStatus
+from src.models import Athlete, Bracket, BracketMatch, Match, MatchStatus, MatchType
 from src.schemas import (
     BracketInfoResponse,
     BracketMatchAthlete,
     BracketMatchesFull,
+    BracketMatchesGrouped,
     BracketMatchResponse,
     BracketParticipantSchema,
     BracketResponse,
@@ -47,16 +48,25 @@ def serialize_bracket_match(match: BracketMatch) -> BracketMatchResponse:
 
 
 def serialize_bracket_matches_full(bracket: Bracket) -> BracketMatchesFull:
-    matches = [
-        BracketMatchResponse(
+    main_matches = []
+    repechage_a_matches = []
+    repechage_b_matches = []
+
+    for bm in bracket.matches:
+        match_resp = BracketMatchResponse(
             id=bm.id,
             round_number=bm.round_number,
             position=bm.position,
             match=serialize_match(bm.match),
             next_slot=bm.next_slot,
         )
-        for bm in bracket.matches
-    ]
+
+        if bm.match_type == MatchType.MAIN.value:
+            main_matches.append(match_resp)
+        elif bm.match_type == MatchType.REPECHAGE_A.value:
+            repechage_a_matches.append(match_resp)
+        elif bm.match_type == MatchType.REPECHAGE_B.value:
+            repechage_b_matches.append(match_resp)
 
     return BracketMatchesFull(
         bracket_id=bracket.id,
@@ -67,7 +77,11 @@ def serialize_bracket_matches_full(bracket: Bracket) -> BracketMatchesFull:
         group_id=bracket.group_id,
         display_name=bracket.get_display_name(),
         status=bracket.status,
-        matches=matches,
+        matches=BracketMatchesGrouped(
+            main_matches=main_matches,
+            repechage_a_matches=repechage_a_matches,
+            repechage_b_matches=repechage_b_matches,
+        ),
     )
 
 

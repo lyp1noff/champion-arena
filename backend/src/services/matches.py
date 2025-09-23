@@ -8,14 +8,14 @@ from src.models import BracketMatch, Match, MatchStatus
 
 
 async def advance_participants(db: AsyncSession, bracket_id: int) -> None:
-    # Вычисляем total_rounds для основной сетки
+    # Calculate total_rounds for the main bracket
     total_rounds: int = (
         await db.scalar(select(func.max(BracketMatch.round_number)).filter_by(bracket_id=bracket_id, match_type="MAIN"))
         or 1
     )
     repechage_depth: int = max(1, total_rounds - 1)
 
-    # Загружаем все матчи сетки
+    # Load all matches of the bracket
     result = await db.execute(
         select(BracketMatch)
         .filter_by(bracket_id=bracket_id)
@@ -24,12 +24,12 @@ async def advance_participants(db: AsyncSession, bracket_id: int) -> None:
     )
     matches: List[BracketMatch] = list(result.scalars().all())
 
-    # Создаем match_matrix с аннотацией типа
+    # Create match_matrix with type annotation
     match_matrix: List[List[BracketMatch]] = [[] for _ in range(total_rounds + repechage_depth)]
     for m in matches:
         match_matrix[m.round_number - 1].append(m)
 
-    # Продвижение в основной сетке
+    # Advancement in the main bracket
     for round_index in range(total_rounds - 1):
         current_round: List[BracketMatch] = [m for m in match_matrix[round_index] if m.match_type == "MAIN"]
         next_round: List[BracketMatch] = [m for m in match_matrix[round_index + 1] if m.match_type == "MAIN"]
@@ -48,7 +48,7 @@ async def advance_participants(db: AsyncSession, bracket_id: int) -> None:
                     else:
                         next_match.athlete2_id = match.winner_id
 
-    # Продвижение в репазаже
+    # Advancement in the repechage
     for branch in ["A", "B"]:
         for round_index in range(total_rounds, total_rounds + repechage_depth - 1):
             repechage_current_round: List[BracketMatch] = [
@@ -78,7 +78,7 @@ async def advance_participants(db: AsyncSession, bracket_id: int) -> None:
                         else:
                             repechage_next_match.athlete2_id = repechage_match.winner_id
 
-    # Триггер репазажа после полуфиналов
+    # Trigger repechage after semifinals
     semifinal_matches: List[BracketMatch] = [
         m
         for m in match_matrix[total_rounds - 2]
@@ -88,7 +88,7 @@ async def advance_participants(db: AsyncSession, bracket_id: int) -> None:
         finalists: List[int] = [bm.match.winner_id for bm in semifinal_matches if bm.match.winner_id is not None]
         for finalist_id, branch in zip(finalists, ["A", "B"]):
             losers: List[Dict[str, int]] = await get_losers_to_finalist(db, finalist_id, bracket_id, total_rounds)
-            # Исправляем списочное выражение для получения плоского списка
+            # Fix list comprehension to get a flat list
             repechage_matches: List[BracketMatch] = [
                 m
                 for round_matches in match_matrix[total_rounds : total_rounds + repechage_depth]
@@ -97,7 +97,7 @@ async def advance_participants(db: AsyncSession, bracket_id: int) -> None:
             ]
             repechage_matches.sort(key=lambda m: (m.round_number, m.position))
 
-            # Заполняем первый раунд репазажа
+            # Fill the first round of repechage
             first_round_repechage: List[BracketMatch] = [
                 m for m in repechage_matches if m.round_number == total_rounds + 1
             ]
@@ -109,7 +109,7 @@ async def advance_participants(db: AsyncSession, bracket_id: int) -> None:
                     elif not rm_match.athlete2_id:
                         rm_match.athlete2_id = loser["loser_id"]
 
-            # Заполняем бронзовый матч
+            # Fill the bronze match
             bronze_match: Optional[BracketMatch] = next(
                 (m for m in repechage_matches if m.match.round_type == "bronze"), None
             )
@@ -159,6 +159,5 @@ async def get_losers_to_finalist(
                 loser_id: int = match.athlete1_id if match.winner_id == match.athlete2_id else match.athlete2_id
                 losers.append({"loser_id": loser_id, "round_number": bm.round_number})
 
-    # Сортировка с явным приведением к int
     losers.sort(key=lambda x: x["round_number"] if x["round_number"] is not None else 0, reverse=True)
     return losers

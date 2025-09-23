@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15
+    image: postgres:17.6
     container_name: champion-postgres-db
     restart: always
     environment:
@@ -11,6 +11,11 @@ services:
       - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     image: ghcr.io/lyp1noff/champion-backend:dev
@@ -28,7 +33,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - DEV_MODE=${DEV_MODE}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   frontend:
     image: ghcr.io/lyp1noff/champion-frontend:dev

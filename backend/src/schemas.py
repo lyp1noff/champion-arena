@@ -222,9 +222,20 @@ class BracketMatchResponse(CustomBaseModel):
     next_slot: Optional[int] = None
 
 
+class BracketMatchesGrouped(BaseModel):
+    main_matches: list[BracketMatchResponse]
+    repechage_a_matches: list[BracketMatchResponse]
+    repechage_b_matches: list[BracketMatchResponse]
+
+
 class BracketMatchesFull(BracketBase):
     bracket_id: int
-    matches: list[BracketMatchResponse]
+    matches: BracketMatchesGrouped
+
+
+# class BracketMatchesFull(BracketBase):
+#     bracket_id: int
+#     matches: list[BracketMatchResponse]
 
 
 class BracketMatchesResponse(BaseModel):
