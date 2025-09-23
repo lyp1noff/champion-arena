@@ -1,16 +1,17 @@
 "use client";
 
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Command, CommandInput, CommandList, CommandItem, CommandEmpty } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useCallback, useEffect, useState } from "react";
-import { Coach, Athlete, Category, ApplicationResponse } from "@/lib/interfaces";
-import { getApplications, createApplication, approveAllApplications } from "@/lib/api/applications";
+import { ApplicationResponse, Athlete, Category, Coach } from "@/lib/interfaces";
+import { approveAllApplications, createApplication, getApplications } from "@/lib/api/applications";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import AthleteForm from "@/components/athlete-form";
 import { useTranslations } from "next-intl";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface Props {
   tournamentId: number;
@@ -98,8 +99,8 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto">
-      <div className="flex-1 space-y-4">
+    <div className="flex flex-col lg:flex-row gap-6 mx-auto">
+      <div className="flex-1 space-y-4 max-w-md mx-auto">
         {/* Coach selector */}
         <Popover open={openCoach} onOpenChange={setOpenCoach}>
           <PopoverTrigger asChild>
@@ -135,7 +136,7 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
         <Popover open={openAthlete} onOpenChange={setOpenAthlete}>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full text-left min-h-10">
-              {selectedAthlete ? `${selectedAthlete.first_name} ${selectedAthlete.last_name}` : t("selectAthlete")}
+              {selectedAthlete ? `${selectedAthlete.last_name} ${selectedAthlete.first_name}` : t("selectAthlete")}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -161,14 +162,14 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
                 {filteredAthletes.map((athlete) => (
                   <CommandItem
                     key={athlete.id}
-                    value={`${athlete.first_name} ${athlete.last_name}`}
+                    value={`${athlete.last_name} ${athlete.first_name}`}
                     onSelect={() => {
                       setSelectedAthlete(athlete);
                       setSelectedCategory(null);
                       setOpenAthlete(false);
                     }}
                   >
-                    {athlete.first_name} {athlete.last_name}
+                    {athlete.last_name} {athlete.first_name}
                   </CommandItem>
                 ))}
               </CommandList>
@@ -212,19 +213,38 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
 
       <div className="flex flex-1 flex-col space-y-4">
         {/* Sidebar with submitted applications */}
-        <Card className="w-full">
+        <Card className="w-full max-h-96 flex flex-col">
           <CardHeader>
             <CardTitle>{t("submittedApplications")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="overflow-y-auto">
             {submitted.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("noApplicationsYet")}</p>
             ) : (
-              submitted.map((app) => (
-                <div key={app.id} className="text-sm">
-                  {app.athlete.first_name} {app.athlete.last_name} – {app.category.name} ({app.status})
-                </div>
-              ))
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Athlete</TableHead>
+                    <TableHead>Coaches</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {submitted.map((app) => (
+                    <TableRow key={app.id}>
+                      <TableCell>
+                        {app.athlete.last_name} {app.athlete.first_name}
+                      </TableCell>
+                      <TableCell>
+                        {app.athlete.coaches_last_name?.length ? app.athlete.coaches_last_name.join(", ") : "No coach"}
+                      </TableCell>
+                      <TableCell>{app.category.name}</TableCell>
+                      <TableCell>{app.status}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
