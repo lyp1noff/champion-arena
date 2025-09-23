@@ -27,6 +27,7 @@ from src.routers.brackets import regenerate_matches_endpoint
 from src.schemas import (
     ApplicationCreate,
     ApplicationResponse,
+    AthleteResponse,
     BracketMatchesFull,
     BracketResponse,
     PaginatedTournamentResponse,
@@ -386,18 +387,31 @@ async def get_applications(
         result = await db.execute(
             select(Application)
             .options(
-                selectinload(Application.athlete),
+                selectinload(Application.athlete).selectinload(Athlete.coaches),  # <-- грузим тренеров
                 selectinload(Application.category),
             )
             .where(Application.tournament_id == tournament_id)
         )
         applications = result.scalars().all()
-        return [ApplicationResponse.model_validate(app) for app in applications]
+
+        responses: list[ApplicationResponse] = []
+        for app in applications:
+            athlete = app.athlete
+            athlete_response = AthleteResponse.model_validate(athlete)
+            athlete_response.coaches_id = [c.id for c in athlete.coaches]
+            athlete_response.coaches_last_name = [c.last_name for c in athlete.coaches]
+
+            application_response = ApplicationResponse.model_validate(app)
+            application_response.athlete = athlete_response
+            responses.append(application_response)
+
+        return responses
+
     except Exception:
         raise HTTPException(status_code=500, detail="An error occurred while fetching applications")
 
 
-@router.post("/{tournament_id}/applications", response_model=list[ApplicationResponse])
+@router.post("/{tournament_id}/applications")
 async def submit_application(
     tournament_id: int,
     data: ApplicationCreate,
