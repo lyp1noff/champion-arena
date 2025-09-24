@@ -12,9 +12,9 @@ router = APIRouter(tags=["WebSocket"])
 
 @router.websocket("/ws/tournament/{tournament_id}")
 async def websocket_endpoint(
-    websocket: WebSocket,
-    tournament_id: str,
-    db: AsyncSession = Depends(get_db),
+        websocket: WebSocket,
+        tournament_id: str,
+        db: AsyncSession = Depends(get_db),
 ) -> None:
     try:
         try:
@@ -53,7 +53,7 @@ async def websocket_endpoint(
             websocket_manager.disconnect(websocket)
 
     except Exception as e:
-        logger.error(f"Error in WebSocket endpoint: {e}")
+        # logger.error(f"Error in WebSocket endpoint: {e}")
         try:
             await websocket.close(code=1011, reason="Internal server error")
         except Exception:

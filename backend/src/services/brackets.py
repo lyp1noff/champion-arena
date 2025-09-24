@@ -76,12 +76,13 @@ def distribute_byes_safely(athlete_ids: list[int]) -> list[tuple[Optional[int], 
     return pairs
 
 
-async def generate_first_round(
-    db: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
-) -> list[BracketMatch]:
-    pairs = distribute_byes_safely(athlete_ids)
-    matches: list[BracketMatch] = []
+async def generate_all_rounds(
+        db: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
+) -> list[list[BracketMatch]]:
+    repechage_depth = max(1, total_rounds - 1)
+    match_matrix: list[list[BracketMatch]] = [[] for _ in range(total_rounds + repechage_depth)]
 
+    pairs = distribute_byes_safely(athlete_ids)
     for position, (a1, a2) in enumerate(pairs, start=1):
         bye = (a1 is None) != (a2 is None)
         winner_id = a1 or a2 if bye else None
@@ -90,7 +91,7 @@ async def generate_first_round(
             athlete1_id=a1,
             athlete2_id=a2,
             winner_id=winner_id,
-            round_type=get_round_type(0, total_rounds),
+            round_type=get_round_type(0, total_rounds, "main"),
             status=MatchStatus.FINISHED.value if bye else MatchStatus.NOT_STARTED.value,
             ended_at=datetime.now(UTC) if bye else None,
         )
@@ -102,16 +103,10 @@ async def generate_first_round(
             round_number=1,
             position=position,
             match_id=match.id,
+            match_type="MAIN",
         )
         db.add(bracket_match)
-        matches.append(bracket_match)
-
-    return matches
-
-
-async def generate_following_rounds(db: AsyncSession, bracket_id: int, total_rounds: int) -> list[list[BracketMatch]]:
-    repechage_depth = max(1, total_rounds - 1)
-    match_matrix: list[list[BracketMatch]] = [[] for _ in range(total_rounds + repechage_depth)]
+        match_matrix[0].append(bracket_match)
 
     for round_num in range(2, total_rounds + 1):
         num_matches = 2 ** (total_rounds - round_num)
@@ -135,25 +130,24 @@ async def generate_following_rounds(db: AsyncSession, bracket_id: int, total_rou
 
     for branch in ["A", "B"]:
         for round_num in range(1, repechage_depth + 1):
-            num_matches = 2 ** (repechage_depth - round_num) if round_num < repechage_depth else 1
             match_type = "repechage" if round_num < repechage_depth else "repechage_final"
-            for pos in range(1, num_matches + 1):
-                match = Match(
-                    round_type=get_round_type(round_num - 1, repechage_depth, match_type),
-                    status=MatchStatus.NOT_STARTED.value,
-                )
-                db.add(match)
-                await db.flush()
+            match = Match(
+                round_type=get_round_type(round_num - 1, repechage_depth, match_type),
+                status=MatchStatus.NOT_STARTED.value,
+            )
+            db.add(match)
+            await db.flush()
 
-                bracket_match = BracketMatch(
-                    bracket_id=bracket_id,
-                    round_number=total_rounds + round_num,
-                    position=pos,
-                    match_id=match.id,
-                    match_type=f"REPECHAGE_{branch}",
-                )
-                db.add(bracket_match)
-                match_matrix[total_rounds + round_num - 1].append(bracket_match)
+            bracket_match = BracketMatch(
+                bracket_id=bracket_id,
+                round_number=round_num,
+                position=1,
+                match_id=match.id,
+                match_type=f"REPECHAGE_{branch}",
+                next_slot=1,
+            )
+            db.add(bracket_match)
+            match_matrix[total_rounds + round_num - 1].append(bracket_match)
 
     return match_matrix
 
@@ -194,14 +188,14 @@ def split_evenly(athletes: list[BracketParticipant], max_per_group: int = 4) -> 
     start = 0
     for i in range(min_groups):
         size = base_size + (1 if i < extra else 0)
-        groups.append(athletes[start : start + size])
+        groups.append(athletes[start: start + size])
         start += size
     return groups
 
 
 async def regenerate_bracket_matches(
-    db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True, skip_first_round: bool = False
-) -> Optional[list[list[BracketMatch]]]:
+        db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
+) -> None:
     await db.execute(
         delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
     )
@@ -225,25 +219,10 @@ async def regenerate_bracket_matches(
 
     next_power_of_two = 2 ** math.ceil(math.log2(max(num_players, 2)))
     total_rounds = int(math.log2(next_power_of_two))
-    repechage_depth = max(1, total_rounds - 1)
-    match_matrix: list[list[BracketMatch]] = [[] for _ in range(total_rounds + repechage_depth)]
 
-    if not skip_first_round:
-        match_matrix[0] = await generate_first_round(db, bracket_id, athlete_ids, total_rounds)
-
-    later_rounds = await generate_following_rounds(db, bracket_id, total_rounds)
-    for i in range(1, len(match_matrix)):
-        match_matrix[i] = later_rounds[i] if i < len(later_rounds) else []
+    match_matrix = await generate_all_rounds(db, bracket_id, athlete_ids, total_rounds)
 
     for round_index in range(total_rounds - 1):
-        current_round = match_matrix[round_index]
-        next_round = match_matrix[round_index + 1]
-        for i, match in enumerate(current_round):
-            next_match_index = i // 2
-            if next_match_index < len(next_round):
-                match.next_slot = 1 if i % 2 == 0 else 2
-
-    for round_index in range(total_rounds, total_rounds + repechage_depth - 1):
         current_round = match_matrix[round_index]
         next_round = match_matrix[round_index + 1]
         for i, match in enumerate(current_round):
@@ -258,13 +237,11 @@ async def regenerate_bracket_matches(
         if tournament is not None:
             tournament.export_last_updated_at = datetime.now(UTC)
         await db.commit()
-        return None
-    else:
-        return match_matrix
+    return None
 
 
 async def regenerate_round_bracket_matches(
-    db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
+        db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
 ) -> Optional[list[BracketMatch]]:
     await db.execute(
         delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))

@@ -233,7 +233,7 @@ class BracketMatch(Base):
     position: Mapped[int] = mapped_column()
     match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), index=True)
     next_slot: Mapped[Optional[int]] = mapped_column(nullable=True)
-    match_type: Mapped[MatchType] = mapped_column(String(20), default=MatchType.MAIN.value)
+    match_type: Mapped[str] = mapped_column(String(20), default=MatchType.MAIN.value)
 
     bracket: Mapped["Bracket"] = relationship(back_populates="matches")
     match: Mapped["Match"] = relationship(back_populates="bracket_match", cascade="all, delete", single_parent=True)

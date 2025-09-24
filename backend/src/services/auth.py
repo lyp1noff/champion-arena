@@ -64,5 +64,5 @@ async def create_default_user(db: AsyncSession) -> None:
         logger.info("Default admin created")
         # print(f"    Username: admin")
         # print(f"    Password: {raw_password}")
-    # else:
-    #     logger.info("Default admin already exists")
+    else:
+        logger.info("Default admin already exists")

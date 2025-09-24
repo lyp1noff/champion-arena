@@ -10,6 +10,16 @@ interface BracketCardProps {
   matchCardWidth?: number;
 }
 
+function buildRoundSlots(maxMatchesInRound: number): number[] {
+  const rounds: number[] = [];
+  let value = maxMatchesInRound;
+  while (value >= 1) {
+    rounds.push(value);
+    value = value / 2;
+  }
+  return rounds;
+}
+
 export default function BracketContent({ bracketMatches, matchCardHeight = 80, matchCardWidth }: BracketCardProps) {
   const {
     cardHeight: fallbackCardHeight,
@@ -23,23 +33,15 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
   const cardWidth = matchCardWidth || fallbackCardWidth;
 
   const renderBracketSection = (matches: BracketMatches, section: string) => {
-    const groupedRounds = matches.reduce(
-      (acc, bracketMatch) => {
-        if (!acc[bracketMatch.round_number]) acc[bracketMatch.round_number] = [];
-        acc[bracketMatch.round_number].push(bracketMatch);
-        return acc;
-      },
-      {} as Record<number, BracketMatches>,
-    );
+    const sortedRounds = Array.from(new Map(matches.map((m) => [m.round_number, [] as BracketMatches])).keys())
+      .sort((a, b) => a - b)
+      .map((round) => ({
+        round,
+        bracketMatches: matches.filter((m) => m.round_number === round).sort((a, b) => a.position - b.position),
+      }));
 
-    const sortedRounds = Object.entries(groupedRounds)
-      .map(([roundStr, bracketMatches]) => ({
-        round: Number(roundStr),
-        bracketMatches: bracketMatches.sort((a, b) => a.position - b.position),
-      }))
-      .sort((a, b) => a.round - b.round);
-
-    const maxMatchesInRound = Math.max(...sortedRounds.map((r) => r.bracketMatches.length), 1);
+    const maxMatchesInRound = 2 ** (sortedRounds.length - 1);
+    const roundSlots = buildRoundSlots(maxMatchesInRound);
 
     return (
       <div className="flex flex-col gap-4">
@@ -70,35 +72,36 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
                     className="font-semibold text-center leading-none absolute"
                     style={{ fontSize: `calc(${roundTitleHeight}px * 0.8)` }}
                   >
-                    {/* {label === "bronze" ? "Bronze Match" : label} */}
                     {label}
                   </h2>
                 </li>
-                {bracketMatches.map((bracketMatch, idx) => {
+                {Array.from({ length: roundSlots[round - 1] }, (_, idx) => {
+                  const bracketMatch = bracketMatches[idx] ?? null;
                   const isLastRound =
-                    bracketMatch.match.round_type === "final" || bracketMatch.match.round_type === "bronze";
+                    bracketMatch?.match?.round_type === "final" || bracketMatch?.match?.round_type === "bronze";
                   const isFirstMatchEmpty =
-                    bracketMatch.round_number === 1 && (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2);
-                  const isMatchOdd = bracketMatch.position % 2 === 1;
+                    bracketMatch?.round_number === 1 &&
+                    (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2);
+                  const isMatchOdd = (idx + 1) % 2 === 1;
 
-                  const connectorX = -columnGap / 2 - 1 / 2;
-                  const connectorY = (maxMatchesInRound / bracketMatches.length / 2) * (cardHeight + rowGap);
+                  const connectorX = -columnGap / 2 - 0.5;
+                  const connectorY = (maxMatchesInRound / roundSlots[round - 1] / 2) * (cardHeight + rowGap);
                   const horizontalYOffset = cardHeight / 4;
                   const totalYOffset =
-                    (maxMatchesInRound / bracketMatches.length) * (cardHeight + rowGap) - horizontalYOffset - 0.5;
+                    (maxMatchesInRound / roundSlots[round - 1]) * (cardHeight + rowGap) - horizontalYOffset - 0.5;
 
                   return (
                     <li
-                      key={bracketMatch.id || `empty-${bracketMatch.round_number}-${idx}`}
+                      key={bracketMatch?.id || `empty-${idx + 1}`}
                       className="relative flex-1 flex items-center justify-center"
                     >
-                      {!isLastRound && !isFirstMatchEmpty && (
+                      {bracketMatch && !isLastRound && !isFirstMatchEmpty && (
                         <>
                           <div
                             style={{
                               position: "absolute",
                               right: connectorX,
-                              width: columnGap / 2 + 1 / 2,
+                              width: columnGap / 2 + 0.5,
                               height: 1,
                               backgroundColor: "hsl(var(--foreground))",
                             }}
@@ -117,7 +120,7 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
                             style={{
                               position: "absolute",
                               right: -columnGap,
-                              width: columnGap / 2 + 1 / 2,
+                              width: columnGap / 2 + 0.5,
                               height: 1,
                               [!isMatchOdd ? "bottom" : "top"]: totalYOffset,
                               backgroundColor: "hsl(var(--foreground))",
@@ -125,7 +128,9 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
                           />
                         </>
                       )}
-                      <MatchCard bracketMatch={bracketMatch} height={cardHeight} width={cardWidth} />
+                      {bracketMatch ? (
+                        <MatchCard bracketMatch={bracketMatch} height={cardHeight} width={cardWidth} />
+                      ) : null}
                     </li>
                   );
                 })}

@@ -23,7 +23,9 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
   const currentStatus = matchUpdate?.status ?? bracketMatch.match.status;
 
   if (bracketMatch.round_number === 1 && (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2)) return;
-  // return <div className="border border-dashed border-gray-500 rounded-md opacity-30" style={{ width, height }} />;
+
+  // if (bracketMatch.round_number === 1 && (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2))
+  //   return <div className="border border-dashed border-gray-500 rounded-md opacity-30" style={{ width, height }} />;
 
   return (
     <div className="relative" style={{ width }}>

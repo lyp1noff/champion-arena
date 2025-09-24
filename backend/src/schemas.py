@@ -233,11 +233,6 @@ class BracketMatchesFull(BracketBase):
     matches: BracketMatchesGrouped
 
 
-# class BracketMatchesFull(BracketBase):
-#     bracket_id: int
-#     matches: list[BracketMatchResponse]
-
-
 class BracketMatchesResponse(BaseModel):
     bracket_id: int
     main_matches: list[BracketMatchResponse]
