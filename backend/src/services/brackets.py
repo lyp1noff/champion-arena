@@ -77,7 +77,7 @@ def distribute_byes_safely(athlete_ids: list[int]) -> list[tuple[Optional[int], 
 
 
 async def generate_all_rounds(
-        db: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
+    db: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
 ) -> list[list[BracketMatch]]:
     repechage_depth = max(1, total_rounds - 1)
     match_matrix: list[list[BracketMatch]] = [[] for _ in range(total_rounds + repechage_depth)]
@@ -188,13 +188,13 @@ def split_evenly(athletes: list[BracketParticipant], max_per_group: int = 4) -> 
     start = 0
     for i in range(min_groups):
         size = base_size + (1 if i < extra else 0)
-        groups.append(athletes[start: start + size])
+        groups.append(athletes[start : start + size])
         start += size
     return groups
 
 
 async def regenerate_bracket_matches(
-        db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
+    db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
 ) -> None:
     await db.execute(
         delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
@@ -241,7 +241,7 @@ async def regenerate_bracket_matches(
 
 
 async def regenerate_round_bracket_matches(
-        db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
+    db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
 ) -> Optional[list[BracketMatch]]:
     await db.execute(
         delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))

@@ -39,7 +39,7 @@ class WebSocketManager:
         for websocket in self.active_connections[tournament_id]:
             try:
                 await websocket.send_text(message)
-            except Exception as e:
+            except Exception:
                 disconnected_websockets.add(websocket)
 
         for websocket in disconnected_websockets:

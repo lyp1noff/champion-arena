@@ -1,18 +1,21 @@
 from datetime import datetime, timezone
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.models import BracketMatch, Match, MatchType, MatchStatus
+from src.models import BracketMatch, Match, MatchStatus, MatchType
 
 
 async def advance_participants(db: AsyncSession, bracket_id: int) -> None:
     total_rounds: int = (
-            await db.scalar(
-                select(func.max(BracketMatch.round_number))
-                .filter_by(bracket_id=bracket_id, match_type=MatchType.MAIN.value)
-            ) or 1
+        await db.scalar(
+            select(func.max(BracketMatch.round_number)).filter_by(
+                bracket_id=bracket_id, match_type=MatchType.MAIN.value
+            )
+        )
+        or 1
     )
     repechage_depth = max(1, total_rounds - 1)
 
@@ -39,7 +42,8 @@ async def advance_participants(db: AsyncSession, bracket_id: int) -> None:
     await advance_main(db, main_matrix)
 
     semifinal_matches = [
-        m for m in main_matrix[-2]
+        m
+        for m in main_matrix[-2]
         if m.match and m.match.round_type == "semifinal" and m.match.status == MatchStatus.FINISHED.value
     ]
 
@@ -149,7 +153,7 @@ async def advance_repechage(db: AsyncSession, matrix: List[List[BracketMatch]]) 
 
 
 async def get_losers_to_finalist(
-        db: AsyncSession, finalist_id: int, bracket_id: int, total_rounds: int
+    db: AsyncSession, finalist_id: int, bracket_id: int, total_rounds: int
 ) -> List[Dict[str, int]]:
     losers: List[Dict[str, int]] = []
     for round_index in range(1, total_rounds + 1):
@@ -161,10 +165,10 @@ async def get_losers_to_finalist(
         for bm in matches.scalars():
             match: Optional[Match] = bm.match
             if (
-                    match
-                    and match.winner_id == finalist_id
-                    and match.athlete1_id is not None
-                    and match.athlete2_id is not None
+                match
+                and match.winner_id == finalist_id
+                and match.athlete1_id is not None
+                and match.athlete2_id is not None
             ):
                 loser_id: int = match.athlete1_id if match.winner_id == match.athlete2_id else match.athlete2_id
                 losers.append({"loser_id": loser_id, "round_number": bm.round_number})
