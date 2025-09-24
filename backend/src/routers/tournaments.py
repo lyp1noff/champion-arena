@@ -157,9 +157,13 @@ async def delete_tournament(id: int, db: AsyncSession = Depends(get_db)) -> None
 
 
 @router.get("/{tournament_id}/brackets", response_model=list[BracketResponse])
-async def get_all_brackets(tournament_id: int, db: AsyncSession = Depends(get_db)) -> list[BracketResponse]:
+async def get_all_brackets(
+    tournament_id: int,
+    sorted: bool = Query(True, description="Sort brackets by tatami and start_time"),
+    db: AsyncSession = Depends(get_db),
+) -> list[BracketResponse]:
     try:
-        result = await db.execute(
+        query = (
             select(Bracket)
             .filter_by(tournament_id=tournament_id)
             .options(
@@ -169,8 +173,14 @@ async def get_all_brackets(tournament_id: int, db: AsyncSession = Depends(get_db
                 .selectinload(Athlete.coach_links)
                 .joinedload(AthleteCoachLink.coach),
             )
-            .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
         )
+
+        if sorted:
+            query = query.order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
+        else:
+            query = query.order_by(Bracket.category_id.asc().nullslast())
+
+        result = await db.execute(query)
         brackets = result.scalars().all()
         return [serialize_bracket(b) for b in brackets]
     except Exception:
