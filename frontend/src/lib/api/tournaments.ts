@@ -70,8 +70,8 @@ export async function deleteTournament(id: number): Promise<{ success: boolean }
   return { success: true };
 }
 
-export async function getTournamentBracketsById(id: number): Promise<Bracket[]> {
-  const res = await fetchWithRefresh(`${url}/tournaments/${id}/brackets`, { cache: "no-store" });
+export async function getTournamentBracketsById(id: number, sorted: boolean = true): Promise<Bracket[]> {
+  const res = await fetchWithRefresh(`${url}/tournaments/${id}/brackets?sorted=${sorted}`, { cache: "no-store" });
 
   if (!res.ok) {
     throw new Error("Failed to load tournament brackets");

@@ -19,7 +19,7 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    getTournamentBracketsById(tournamentId)
+    getTournamentBracketsById(tournamentId, false)
       .then(setBrackets)
       .catch((err) => {
         console.error(err);
@@ -40,7 +40,7 @@ export default function Page() {
   };
 
   const refreshBracketsAndSelect = async (bracketId: number | null) => {
-    const refreshed = await getTournamentBracketsById(tournamentId);
+    const refreshed = await getTournamentBracketsById(tournamentId, false);
     setBrackets(refreshed);
 
     if (bracketId !== null) {
