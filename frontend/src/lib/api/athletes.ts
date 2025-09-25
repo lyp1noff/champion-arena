@@ -1,4 +1,4 @@
-import { Athlete, AthleteCreate } from "../interfaces";
+import { Athlete, AthleteCreate, AthleteUpdate } from "../interfaces";
 import { fetchWithRefresh } from "./api";
 
 const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
@@ -41,6 +41,30 @@ export async function getAllAthletes(): Promise<Athlete[]> {
   const res = await fetchWithRefresh(`${url}/athletes/all`, { cache: "no-store" });
 
   if (!res.ok) throw new Error("Failed to load athletes");
+
+  return res.json();
+}
+
+export async function getAthleteById(id: number): Promise<Athlete> {
+  const res = await fetchWithRefresh(`${url}/athletes/${id}`, { cache: "no-store" });
+
+  if (!res.ok) {
+    throw new Error("Failed to load athlete");
+  }
+
+  return res.json();
+}
+
+export async function updateAthlete(id: number, data: AthleteUpdate): Promise<Athlete> {
+  const res = await fetchWithRefresh(`${url}/athletes/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    throw new Error("Error updating athlete");
+  }
 
   return res.json();
 }

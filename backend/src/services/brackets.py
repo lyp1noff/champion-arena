@@ -305,7 +305,7 @@ async def regenerate_tournament_brackets(db: AsyncSession, tournament_id: int) -
     brackets = result.all()
 
     for bracket_id, bracket_type in brackets:
-        if bracket_type == BracketType.ROUND_ROBIN:
+        if bracket_type == BracketType.ROUND_ROBIN.value:
             await regenerate_round_bracket_matches(db, bracket_id, tournament_id, commit=False)
         elif bracket_type == BracketType.SINGLE_ELIMINATION.value:
             await regenerate_bracket_matches(db, bracket_id, tournament_id, commit=False)

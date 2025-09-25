@@ -7,9 +7,15 @@ ENV_FILE = os.path.join(BASE_DIR, "../.env")
 
 load_dotenv(ENV_FILE)
 
-async_db_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@localhost:5432/tournament_db")
-DATABASE_URL = async_db_url.replace("+asyncpg", "")
-SQLALCHEMY_DATABASE_URL = async_db_url
+POSTGRES_USER = os.getenv("POSTGRES_USER", "user")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "champ")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+SQLALCHEMY_DATABASE_URL = (
+    f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+)
+DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("+asyncpg", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 JWT_SECRET = os.getenv("JWT_SECRET", "secret")
 DEV_MODE = os.getenv("DEV_MODE", False)

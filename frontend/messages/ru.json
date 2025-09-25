@@ -66,6 +66,14 @@
     "approveAllApplications": "Одобрить все заявки",
     "athleteCreated": "Атлет создан"
   },
+  "AdminAthletes": {
+    "deleteConfirmTitle": "Удалить атлета",
+    "deleteConfirmText": "Вы уверены, что хотите удалить этого атлета? Это действие необратимо.",
+    "deleteConfirmCancel": "Отмена",
+    "deleteConfirmDelete": "Удалить",
+    "edit": "Редактировать",
+    "delete": "Удалить"
+  },
   "DataTable": {
     "totalRecords": "Всего записей",
     "noData": "Нет доступных данных",

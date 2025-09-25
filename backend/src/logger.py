@@ -1,13 +1,16 @@
 import logging
+import sys
 
-from .config import LOG_LEVEL
-
-# Configure logging
 logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL.upper()),
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
+    stream=sys.stdout,
 )
 
-# Create logger
+logging.getLogger("uvicorn.access").handlers = []
+logging.getLogger("uvicorn.access").propagate = False
+
+logging.getLogger("uvicorn.error").setLevel(logging.ERROR)
+
 logger = logging.getLogger("champion_arena")

@@ -66,6 +66,14 @@
     "approveAllApplications": "Approve All Applications",
     "athleteCreated": "Athlete created"
   },
+  "AdminAthletes": {
+    "deleteConfirmTitle": "Delete Athlete",
+    "deleteConfirmText": "Are you sure you want to delete this athlete? This action cannot be undone.",
+    "deleteConfirmCancel": "Cancel",
+    "deleteConfirmDelete": "Delete",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
   "DataTable": {
     "totalRecords": "Total records",
     "noData": "No data available",
