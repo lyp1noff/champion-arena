@@ -180,6 +180,19 @@ export default function BracketFormDialog({
               />
               <FormField
                 control={form.control}
+                name="day"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Day</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={1} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="tatami"
                 render={({ field }) => (
                   <FormItem>

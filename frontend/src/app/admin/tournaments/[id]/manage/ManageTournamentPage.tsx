@@ -106,6 +106,7 @@ export default function ManageTournamentPage({
       group_id: selectedBracket.group_id ?? defaultBracketValues.group_id,
       type: selectedBracket.type ?? defaultBracketValues.type,
       start_time: selectedBracket.start_time ?? defaultBracketValues.start_time,
+      day: selectedBracket.day ?? defaultBracketValues.day,
       tatami: selectedBracket.tatami ?? defaultBracketValues.tatami,
     });
   }, [categories, selectedBracket]);
@@ -210,6 +211,7 @@ export default function ManageTournamentPage({
         group_id: data.group_id,
         type: data.type,
         start_time: data.start_time,
+        day: data.day,
         tatami: data.tatami,
       };
       const newBracketObj = await createBracket(bracketData);

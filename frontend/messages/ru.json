@@ -19,14 +19,16 @@
   },
   "TournamentPage": {
     "brackets": "Сетки",
+    "categoriesCount": "Категорий",
     "participants": "Участники",
-    "searchPlaceholder": "Поиск сеток или участников...",
+    "searchPlaceholder": "Поиск по сеткам или участникам...",
     "tatami": "Татами",
-    "participantsCount": "Участники",
+    "participantsCount": "Участников",
     "noData": "Нет данных",
     "tournament": "Турнир",
-    "fetchError": "Ошибка загрузки данных турнира",
-    "unknownTatami": "Неизвестно"
+    "fetchError": "Ошибка при загрузке данных турнира",
+    "unknownTatami": "Неизвестно",
+    "day": "День {number}"
   },
   "Login": {
     "title": "Вход",

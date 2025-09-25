@@ -19,6 +19,7 @@
   },
   "TournamentPage": {
     "brackets": "Brackets",
+    "categoriesCount": "Сategories",
     "participants": "Participants",
     "searchPlaceholder": "Search brackets or participants...",
     "tatami": "Tatami",
@@ -26,7 +27,8 @@
     "noData": "No Data",
     "tournament": "Tournament",
     "fetchError": "Error fetching tournament data",
-    "unknownTatami": "Unknown"
+    "unknownTatami": "Unknown",
+    "day": "Day {number}"
   },
   "Login": {
     "title": "Login",

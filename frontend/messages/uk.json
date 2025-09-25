@@ -19,14 +19,16 @@
   },
   "TournamentPage": {
     "brackets": "Сітки",
+    "categoriesCount": "Категорій",
     "participants": "Учасники",
-    "searchPlaceholder": "Пошук сіток або учасників...",
+    "searchPlaceholder": "Пошук по сітках або учасниках...",
     "tatami": "Татамі",
     "participantsCount": "Учасників",
     "noData": "Немає даних",
     "tournament": "Турнір",
-    "fetchError": "Помилка завантаження даних турніру",
-    "unknownTatami": "Невідомо"
+    "fetchError": "Помилка під час завантаження даних турніру",
+    "unknownTatami": "Невідомо",
+    "day": "День {number}"
   },
   "Login": {
     "title": "Вхід",

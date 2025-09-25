@@ -56,6 +56,7 @@ export type Bracket = {
   category: string;
   type: BracketType;
   start_time: string | null;
+  day: number;
   tatami: number;
   group_id?: number;
   display_name?: string;
