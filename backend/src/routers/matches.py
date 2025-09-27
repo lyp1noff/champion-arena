@@ -42,7 +42,7 @@ async def broadcast_match_update(match: Match, db: AsyncSession) -> None:
                 score_athlete2=match.score_athlete2,
                 status=match.status,
             )
-            await websocket_manager.broadcast_match_update(str(bracket_match.bracket.tournament_id), match_update)
+            await websocket_manager.broadcast_match_update(bracket_match.bracket.tournament_id, match_update)
     except Exception as e:
         logger.error(f"Error broadcasting match update: {e}")
 

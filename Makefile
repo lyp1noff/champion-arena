@@ -21,6 +21,9 @@ front-lint:
 front-build:
 	cd frontend && npm run build
 
+front-start:
+	cd frontend && npm run start
+
 front-dev:
 	cd frontend && npm install && npm run dev
 
