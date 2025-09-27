@@ -95,9 +95,9 @@ jobs:
           provenance: false
           sbom: false
 
-  redeploy-portainer:
-    runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend]
-    steps:
-      - name: Trigger Portainer stack webhook
-        run: curl -fsSL -X POST "${{ secrets.PORTAINER_STACK_WEBHOOK }}"
+#  redeploy-portainer:
+#    runs-on: ubuntu-latest
+#    needs: [build-backend, build-frontend]
+#    steps:
+#      - name: Trigger Portainer stack webhook
+#        run: curl -fsSL -X POST "${{ secrets.PORTAINER_STACK_WEBHOOK }}"
