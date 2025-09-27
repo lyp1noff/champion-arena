@@ -20,8 +20,8 @@ import { createAthlete, updateAthlete, getAthleteById } from "@/lib/api/athletes
 import { Athlete, Coach } from "@/lib/interfaces";
 
 const formSchema = z.object({
-  last_name: z.string().min(2, { message: "Last name must be at least 2 characters." }),
-  first_name: z.string().min(2, { message: "First name must be at least 2 characters." }),
+  last_name: z.string().trim().min(2, { message: "Last name must be at least 2 characters." }),
+  first_name: z.string().trim().min(2, { message: "First name must be at least 2 characters." }),
   gender: z.string().nonempty({ message: "Please select a gender." }),
   birth_date: z.string().nonempty({ message: "Birth date is required." }),
   coaches_id: z.array(z.number()).default([]),
@@ -154,7 +154,7 @@ export default function AthleteForm({ athleteId, onSuccess, onCancel }: AthleteF
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Gender</FormLabel>
-                <Select onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select gender" />
