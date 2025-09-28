@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getTournamentBracketsById, getTournamentById } from "@/lib/api/tournaments";
 import { Bracket, BracketMatches, Tournament } from "@/lib/interfaces";
 import ScreenLoader from "@/components/loader";
@@ -19,12 +19,17 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateRange } from "@/components/date-range";
 import { Button } from "@/components/ui/button";
+import { getBracketDisplayName } from "@/lib/utils";
 
 const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
 
 export default function TournamentPage() {
   const t = useTranslations("TournamentPage");
   const { id } = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlDay = searchParams.get("day");
+
   const [tab, setTab] = useState("brackets");
   const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [tournament, setTournament] = useState<Tournament>();
@@ -59,6 +64,34 @@ export default function TournamentPage() {
   };
 
   useEffect(() => {
+    if (urlDay) {
+      setSelectedDay(urlDay);
+    } else if (tournament) {
+      const start = new Date(tournament.start_date);
+      const end = new Date(tournament.end_date);
+      const now = new Date();
+
+      const toDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+      const startDay = toDay(start);
+      const endDay = toDay(end);
+      const nowDay = toDay(now);
+
+      setSelectedDay(
+        nowDay >= startDay && nowDay <= endDay ? String(Math.floor((+nowDay - +startDay) / 86400000) + 1) : "1",
+      );
+    }
+  }, [urlDay, tournament]);
+
+  const handleDayChange = (v: string) => {
+    setSelectedDay(v);
+    setOpenBracketIds([]);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("day", v);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
+
+  useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
       setLoading(true);
@@ -87,7 +120,9 @@ export default function TournamentPage() {
     }
     const result = brackets.filter((bracket) => {
       const matchesBracketCategory = bracket.category?.toLowerCase().includes(searchLower);
-      const matchesDisplayName = bracket.display_name?.toLowerCase().includes(searchLower);
+      const matchesDisplayName = getBracketDisplayName(bracket.category, bracket.group_id)
+        .toLowerCase()
+        .includes(searchLower);
       const matchesParticipant = bracket.participants.some((participant) => {
         const firstName = participant.first_name?.toLowerCase() ?? "";
         const lastName = participant.last_name?.toLowerCase() ?? "";
@@ -195,13 +230,7 @@ export default function TournamentPage() {
         {loading && <ScreenLoader fullscreen />}
         {error && <p className="text-red-500">{error}</p>}
 
-        <Tabs
-          value={selectedDay}
-          onValueChange={(v) => {
-            setSelectedDay(v);
-            setOpenBracketIds([]);
-          }}
-        >
+        <Tabs value={selectedDay} onValueChange={handleDayChange}>
           <TabsList>
             {Object.keys(bracketsByDayTatami).length > 0 ? (
               Object.keys(bracketsByDayTatami)
@@ -242,7 +271,9 @@ export default function TournamentPage() {
                           }}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                            <span className="text-base font-semibold">{bracket.display_name || bracket.category}</span>
+                            <span className="text-base font-semibold">
+                              {getBracketDisplayName(bracket.category, bracket.group_id)}
+                            </span>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <span>{(bracket.start_time && bracket.start_time.slice(0, 5)) || " — "}</span>
                               <span> | </span>
