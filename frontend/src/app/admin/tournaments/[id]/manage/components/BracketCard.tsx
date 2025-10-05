@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users } from "lucide-react";
 import { Bracket, Participant } from "@/lib/interfaces";
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu";
+import { getBracketDisplayName } from "@/lib/utils";
 
 interface BracketCardProps {
   bracket: Bracket;
@@ -29,7 +30,7 @@ export default function BracketCard({
           onClick={onSelect}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-m">{bracket.display_name || bracket.category}</CardTitle>
+            <CardTitle className="text-m">{getBracketDisplayName(bracket.category, bracket.group_id)}</CardTitle>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Users className="h-4 w-4" />

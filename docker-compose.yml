@@ -18,12 +18,8 @@ services:
       retries: 10
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: ./Dockerfile
-    pull_policy: build
+    image: ghcr.io/lyp1noff/champion-backend:${IMAGE_TAG:-latest}
     container_name: champion-backend
-    image: champion-backend:latest
     restart: always
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
@@ -44,15 +40,8 @@ services:
         condition: service_healthy
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: ./Dockerfile
-      args:
-        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
-        NEXT_PUBLIC_CDN_URL: ${NEXT_PUBLIC_CDN_URL}
-    pull_policy: build
+    image: ghcr.io/lyp1noff/champion-frontend:${IMAGE_TAG:-latest}
     container_name: champion-frontend
-    image: champion-frontend:latest
     restart: always
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"

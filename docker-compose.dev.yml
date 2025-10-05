@@ -8,12 +8,14 @@ services:
     ports: !override
       - "8010:8000"
   frontend:
-    build:
+    build: !override
       context: ./frontend
       dockerfile: ./Dockerfile
       args:
         NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
         NEXT_PUBLIC_CDN_URL: ${NEXT_PUBLIC_CDN_URL}
+        NEXT_PUBLIC_ANALYTICS_URL: ${NEXT_PUBLIC_ANALYTICS_URL}
+        NEXT_PUBLIC_ANALYTICS_ID: ${NEXT_PUBLIC_ANALYTICS_ID}
     image: champion-backend:latest
     pull_policy: build
     ports: !override

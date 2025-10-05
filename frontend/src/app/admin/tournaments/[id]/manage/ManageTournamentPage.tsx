@@ -39,6 +39,7 @@ import {
 } from "@/app/admin/tournaments/[id]/manage/components/bracketSchema";
 import BracketFormDialog from "@/app/admin/tournaments/[id]/manage/components/BracketFormDialog";
 import { WebSocketProvider } from "@/components/websocket-provider";
+import { getBracketDisplayName } from "@/lib/utils";
 
 interface Props {
   tournamentId: number;
@@ -289,7 +290,7 @@ export default function ManageTournamentPage({
         <>
           Participant moved to:
           <br />
-          {targetBracket?.display_name || targetBracket?.category || targetBracketId.toString()}
+          {getBracketDisplayName(targetBracket?.category, targetBracket?.group_id)}
         </>,
       );
       await onSelectBracket(selectedBracket);
@@ -365,7 +366,9 @@ export default function ManageTournamentPage({
             {selectedBracket ? (
               <>
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold pl-3">{selectedBracket.display_name || selectedBracket.category}</h2>
+                  <h2 className="text-xl font-bold pl-3">
+                    {getBracketDisplayName(selectedBracket.category, selectedBracket.group_id)}
+                  </h2>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={handleRegenerate} disabled={loading}>
                       <RefreshCw className="h-4 w-4 mr-1" />
