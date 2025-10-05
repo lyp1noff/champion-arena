@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import cairosvg
-from PyPDF2 import PdfMerger
+from pypdf import PdfReader, PdfWriter
 
 from src.models import Bracket, BracketMatch, BracketType, MatchStatus
 from src.utils import sanitize_filename
@@ -147,7 +147,7 @@ def generate_pdf(data: list[Bracket], tournament_title: str) -> str | dict[str, 
     if not entries:
         return {"detail": "Нет данных для генерации."}
 
-    merger = PdfMerger()
+    writer = PdfWriter()
     temp_paths = []
 
     elimination_template = Path(SVG_TEMPLATE_PATH).read_text(encoding="utf-8")
@@ -169,16 +169,16 @@ def generate_pdf(data: list[Bracket], tournament_title: str) -> str | dict[str, 
         with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             cairosvg.svg2pdf(bytestring=svg_template.encode("utf-8"), write_to=tmp.name)
             temp_paths.append(tmp.name)
-            merger.append(tmp.name)
+            reader = PdfReader(tmp.name)
+            writer.append_pages_from_reader(reader)
 
     sanitized_title = sanitize_filename(tournament_title or "tournament")
 
     pdf_storage_path = os.path.join(os.getcwd(), "pdf_storage")
     final_path = os.path.join(pdf_storage_path, f"{sanitized_title}.pdf")
 
-    with open(final_path, "wb") as final_file:
-        merger.write(final_file)
-    merger.close()
+    with open(final_path, "wb") as f_out:
+        writer.write(f_out)
 
     for path in temp_paths:
         os.remove(path)
