@@ -29,7 +29,10 @@ front-dev:
 
 # Other
 db-dev:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up --build db; docker compose down
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up db; docker compose down
+
+redis-dev:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up redis; docker compose down
 
 docker-dev:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.docker up --build; docker compose down

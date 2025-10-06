@@ -25,4 +25,6 @@ R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")
 R2_ENDPOINT = os.getenv("R2_ENDPOINT")
 R2_REGION = os.getenv("R2_REGION", "weur")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
