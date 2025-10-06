@@ -51,13 +51,13 @@ async def get_athletes(
         "first_name",
         "gender",
         "birth_date",
+        "age",
         "coaches_last_name",
     }
 
     if order_by not in valid_order_fields:
         order_by = "id"
 
-    # Handle special case for coaches_last_name sorting
     if order_by == "coaches_last_name":
         # Only add joins if they don't already exist (from coach_search)
         if not coach_search:
@@ -67,6 +67,11 @@ async def get_athletes(
         stmt = stmt.group_by(Athlete.id)
         order_column = func.min(Coach.last_name)
         stmt = stmt.order_by(desc(order_column) if order.lower() == "desc" else asc(order_column))
+    elif order_by == "age":
+        if order.lower() == "asc":
+            stmt = stmt.order_by(desc(Athlete.birth_date))
+        else:
+            stmt = stmt.order_by(asc(Athlete.birth_date))
     else:
         order_column = getattr(Athlete, order_by)
         stmt = stmt.order_by(desc(order_column) if order.lower() == "desc" else asc(order_column))

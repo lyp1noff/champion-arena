@@ -2,23 +2,27 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.logger import logger
+from src.services.broadcast import broadcast
 from src.database import get_db
 from src.dependencies.auth import get_current_user
-from src.logger import logger
 from src.models import (
     Athlete,
     AthleteCoachLink,
+    Bracket,
     BracketMatch,
+    BracketStatus,
     Match,
     MatchStatus,
+    Tournament,
+    TournamentStatus,
 )
 from src.schemas import MatchFinishRequest, MatchSchema, MatchScoreUpdate, MatchUpdate
 from src.services.serialize import serialize_match
-from src.services.websocket_manager import websocket_manager
 
 router = APIRouter(prefix="/matches", tags=["Matches"], dependencies=[Depends(get_current_user)])
 
@@ -38,15 +42,18 @@ async def broadcast_match_update(match: Match, db: AsyncSession) -> None:
                 score_athlete2=match.score_athlete2,
                 status=match.status,
             )
-            await websocket_manager.broadcast_match_update(str(bracket_match.bracket.tournament_id), match_update)
+            await broadcast.publish(
+                channel=f"tournament:{bracket_match.bracket.tournament_id}",
+                message=match_update.model_dump_json()
+            )
     except Exception as e:
         logger.error(f"Error broadcasting match update: {e}")
 
 
 @router.get("/{id}")
 async def get_match(
-    id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+        id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
 ) -> MatchSchema:
     stmt = (
         select(Match)
@@ -66,8 +73,8 @@ async def get_match(
 
 @router.post("/{id}/start")
 async def start_match(
-    id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+        id: uuid.UUID,
+        db: AsyncSession = Depends(get_db),
 ) -> MatchSchema:
     stmt = (
         select(Match)
@@ -75,6 +82,7 @@ async def start_match(
             selectinload(Match.athlete1).selectinload(Athlete.coach_links).selectinload(AthleteCoachLink.coach),
             selectinload(Match.athlete2).selectinload(Athlete.coach_links).selectinload(AthleteCoachLink.coach),
             selectinload(Match.winner).selectinload(Athlete.coach_links).selectinload(AthleteCoachLink.coach),
+            selectinload(Match.bracket_match).selectinload(BracketMatch.bracket).selectinload(Bracket.tournament),
         )
         .where(Match.id == id)
     )
@@ -93,6 +101,13 @@ async def start_match(
     match.score_athlete1 = 0
     match.score_athlete2 = 0
 
+    bracket = match.bracket_match.bracket if match.bracket_match else None
+    if bracket and bracket.status != BracketStatus.FINISHED.value:
+        bracket.status = BracketStatus.STARTED.value
+        tournament = bracket.tournament
+        if tournament and tournament.status != TournamentStatus.FINISHED.value:
+            tournament.status = TournamentStatus.STARTED.value
+
     await db.commit()
     await db.refresh(match)
 
@@ -104,9 +119,9 @@ async def start_match(
 
 @router.post("/{id}/finish")
 async def finish_match(
-    id: uuid.UUID,
-    result: MatchFinishRequest,
-    db: AsyncSession = Depends(get_db),
+        id: uuid.UUID,
+        result: MatchFinishRequest,
+        db: AsyncSession = Depends(get_db),
 ) -> MatchSchema:
     stmt = (
         select(Match)
@@ -129,20 +144,22 @@ async def finish_match(
     match.score_athlete2 = result.score_athlete2
     match.winner_id = result.winner_id
     match.status = MatchStatus.FINISHED.value
+    match.ended_at = datetime.now(UTC)
 
     bm_result = await db.execute(select(BracketMatch).where(BracketMatch.match_id == match.id))
     bm = bm_result.scalar_one_or_none()
 
     if bm:
         next_position = (bm.position + 1) // 2
-        next_bm_result = await db.execute(
-            select(BracketMatch).where(
-                BracketMatch.bracket_id == bm.bracket_id,
-                BracketMatch.round_number == bm.round_number + 1,
-                BracketMatch.position == next_position,
+        next_bm = (
+            await db.execute(
+                select(BracketMatch).where(
+                    BracketMatch.bracket_id == bm.bracket_id,
+                    BracketMatch.round_number == bm.round_number + 1,
+                    BracketMatch.position == next_position,
+                )
             )
-        )
-        next_bm = next_bm_result.scalar_one_or_none()
+        ).scalar_one_or_none()
 
         if next_bm:
             next_match = await db.get(Match, next_bm.match_id)
@@ -152,22 +169,48 @@ async def finish_match(
                 else:
                     next_match.athlete2_id = match.winner_id
 
-        match.ended_at = datetime.now(UTC)
+        total_in_bracket = await db.scalar(
+            select(func.count()).select_from(BracketMatch).where(BracketMatch.bracket_id == bm.bracket_id)
+        )
+        finished_in_bracket = await db.scalar(
+            select(func.count())
+            .select_from(Match)
+            .join(BracketMatch, BracketMatch.match_id == Match.id)
+            .where(
+                BracketMatch.bracket_id == bm.bracket_id,
+                Match.status == MatchStatus.FINISHED.value,
+            )
+        )
+
+        if total_in_bracket and finished_in_bracket == total_in_bracket:
+            bracket = await db.get(Bracket, bm.bracket_id)
+            if bracket and bracket.status != BracketStatus.FINISHED.value:
+                bracket.status = BracketStatus.FINISHED.value
+                unfinished_brackets = await db.scalar(
+                    select(func.count())
+                    .select_from(Bracket)
+                    .where(
+                        Bracket.tournament_id == bracket.tournament_id,
+                        Bracket.status != BracketStatus.FINISHED.value,
+                    )
+                )
+                if unfinished_brackets == 0:
+                    tournament = await db.get(Tournament, bracket.tournament_id)
+                    if tournament and tournament.status != TournamentStatus.FINISHED.value:
+                        tournament.status = TournamentStatus.FINISHED.value
 
     await db.commit()
     await db.refresh(match)
 
-    # Broadcast the update via WebSocket
     await broadcast_match_update(match, db)
-
     return serialize_match(match)
 
 
 @router.patch("/{id}/scores")
 async def update_match_scores(
-    id: uuid.UUID,
-    scores: MatchScoreUpdate,
-    db: AsyncSession = Depends(get_db),
+        id: uuid.UUID,
+        scores: MatchScoreUpdate,
+        db: AsyncSession = Depends(get_db),
 ) -> MatchSchema:
     stmt = (
         select(Match)
@@ -204,9 +247,9 @@ async def update_match_scores(
 # TODO: only for admin
 @router.patch("/{id}/status")
 async def update_match_status(
-    id: uuid.UUID,
-    status: str = Body(..., embed=True),
-    db: AsyncSession = Depends(get_db),
+        id: uuid.UUID,
+        status: str = Body(..., embed=True),
+        db: AsyncSession = Depends(get_db),
 ) -> MatchSchema:
     stmt = (
         select(Match)

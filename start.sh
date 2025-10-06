@@ -17,9 +17,11 @@ fi
 tmux new-session -d -s $SESSION_NAME
 tmux rename-window -t $SESSION_NAME:0 "Database"
 tmux send-keys -t $SESSION_NAME:0 "make db-dev" C-m
+tmux new-window -t $SESSION_NAME -n "Redis"
+tmux send-keys -t $SESSION_NAME:1 "make redis-dev" C-m
 tmux new-window -t $SESSION_NAME -n "Backend"
-tmux send-keys -t $SESSION_NAME:1 "make back-dev" C-m
+tmux send-keys -t $SESSION_NAME:2 "make back-dev" C-m
 tmux new-window -t $SESSION_NAME -n "Frontend"
-tmux send-keys -t $SESSION_NAME:2 "make front-dev" C-m
+tmux send-keys -t $SESSION_NAME:3 "make front-dev" C-m
 
 tmux attach-session -t $SESSION_NAME

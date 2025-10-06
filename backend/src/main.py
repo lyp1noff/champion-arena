@@ -5,17 +5,19 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
 
+from src.services.broadcast import broadcast
 from src.config import DEV_MODE
-from src.database import Base, engine
 from src.middleware import add_cors_middleware
 from src.routers import routers
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
+    await broadcast.connect()
+    try:
+        yield
+    finally:
+        await broadcast.disconnect()
 
 
 app = FastAPI(
@@ -35,3 +37,8 @@ os.makedirs(pdf_storage_path, exist_ok=True)
 app.mount("/pdf_storage", StaticFiles(directory=pdf_storage_path), name="static")
 for router in routers:
     app.include_router(router)
+
+
+@app.get("/ping", tags=["Health"])
+async def ping():
+    return {"pong": True}

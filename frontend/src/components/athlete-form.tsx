@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,25 +16,24 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { getCoaches } from "@/lib/api/api";
-import { createAthlete } from "@/lib/api/athletes";
+import { createAthlete, updateAthlete, getAthleteById } from "@/lib/api/athletes";
 import { Athlete, Coach } from "@/lib/interfaces";
 
 const formSchema = z.object({
-  last_name: z.string().min(2, { message: "Last name must be at least 2 characters." }),
-  first_name: z.string().min(2, { message: "First name must be at least 2 characters." }),
+  last_name: z.string().trim().min(2, { message: "Last name must be at least 2 characters." }),
+  first_name: z.string().trim().min(2, { message: "First name must be at least 2 characters." }),
   gender: z.string().nonempty({ message: "Please select a gender." }),
   birth_date: z.string().nonempty({ message: "Birth date is required." }),
   coaches_id: z.array(z.number()).default([]),
 });
 
 interface AthleteFormProps {
-  defaultValues?: Partial<z.infer<typeof formSchema>>;
-  onSubmit?: (values: z.infer<typeof formSchema>) => Promise<void>;
+  athleteId?: number;
   onSuccess?: (athlete: Athlete) => void;
   onCancel?: () => void;
 }
 
-export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCancel }: AthleteFormProps) {
+export default function AthleteForm({ athleteId, onSuccess, onCancel }: AthleteFormProps) {
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [isLoadingCoaches, setIsLoadingCoaches] = useState(true);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -42,7 +41,7 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: defaultValues ?? {
+    defaultValues: {
       last_name: "",
       first_name: "",
       gender: "",
@@ -51,6 +50,7 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
     },
   });
 
+  // загрузка коучей
   useEffect(() => {
     const fetchCoaches = async () => {
       setIsLoadingCoaches(true);
@@ -59,9 +59,7 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
         setCoaches(data);
       } catch (error) {
         console.error("Error fetching coaches:", error);
-        toast.error("Failed to load coaches", {
-          description: "Please try again or contact support.",
-        });
+        toast.error("Failed to load coaches");
       } finally {
         setIsLoadingCoaches(false);
       }
@@ -70,17 +68,47 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
     fetchCoaches();
   }, []);
 
+  useEffect(() => {
+    if (athleteId) {
+      (async () => {
+        try {
+          const athlete = await getAthleteById(athleteId);
+          form.reset({
+            first_name: athlete.first_name,
+            last_name: athlete.last_name,
+            gender: athlete.gender,
+            birth_date: athlete.birth_date,
+            coaches_id: athlete.coaches_id,
+          });
+        } catch (err) {
+          console.error(err);
+          toast.error("Failed to load athlete data");
+        }
+      })();
+    }
+  }, [athleteId, form]);
+
   const handleSubmitInternal = async (values: z.infer<typeof formSchema>) => {
     setSubmitting(true);
     try {
-      if (onSubmit) {
-        await onSubmit(values);
+      const payload = {
+        ...values,
+        birth_date: format(values.birth_date, "yyyy-MM-dd"),
+      };
+
+      let athlete: Athlete;
+      if (!athleteId) {
+        athlete = await createAthlete(payload);
+        toast.success("Athlete created");
       } else {
-        const athlete = await createAthlete(values);
-        onSuccess?.(athlete);
+        athlete = await updateAthlete(athleteId, payload);
+        toast.success("Athlete updated");
       }
-    } catch {
-      toast.error("Failed to submit athlete");
+
+      onSuccess?.(athlete);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save athlete");
     } finally {
       setSubmitting(false);
     }
@@ -92,12 +120,12 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
         <div className="grid gap-6 sm:grid-cols-2">
           <FormField
             control={form.control}
-            name="first_name"
+            name="last_name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>First Name</FormLabel>
+                <FormLabel>Last Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter first name" {...field} />
+                  <Input placeholder="Enter last name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -106,12 +134,12 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
 
           <FormField
             control={form.control}
-            name="last_name"
+            name="first_name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Last Name</FormLabel>
+                <FormLabel>First Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter last name" {...field} />
+                  <Input placeholder="Enter first name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -126,7 +154,7 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Gender</FormLabel>
-                <Select onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select gender" />
@@ -195,18 +223,20 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
                               const coachIndex = currentCoaches.indexOf(coach.id);
 
                               if (coachIndex > -1) {
-                                // Remove coach if already selected
+                                // remove
                                 const newCoaches = currentCoaches.filter((id) => id !== coach.id);
                                 form.setValue("coaches_id", newCoaches);
                               } else {
-                                // Add coach if not selected
+                                // add
                                 form.setValue("coaches_id", [...currentCoaches, coach.id]);
                               }
                             }}
                           >
                             <div className="flex items-center gap-2">
                               <div
-                                className={`w-4 h-4 border rounded flex items-center justify-center ${field.value?.includes(coach.id) ? "bg-primary border-primary" : "border-gray-300"}`}
+                                className={`w-4 h-4 border rounded flex items-center justify-center ${
+                                  field.value?.includes(coach.id) ? "bg-primary border-primary" : "border-gray-300"
+                                }`}
                               >
                                 {field.value?.includes(coach.id) && (
                                   <span className="w-3 h-3 text-white flex items-center justify-center">
@@ -234,7 +264,7 @@ export default function AthleteForm({ defaultValues, onSubmit, onSuccess, onCanc
           </Button>
           <Button type="submit" disabled={submitting || isLoadingCoaches}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {defaultValues?.last_name ? "Save Changes" : "Add Athlete"}
+            {!athleteId ? "Add Athlete" : "Save Changes"}
           </Button>
         </div>
       </form>

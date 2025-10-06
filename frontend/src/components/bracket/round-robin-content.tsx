@@ -7,7 +7,6 @@ const TR_HEIGHT = undefined;
 
 interface RoundRobinProps {
   bracketMatches: BracketMatches;
-  containerHeight?: number;
 }
 
 function pairKey(a?: number, b?: number) {
@@ -56,7 +55,7 @@ function ScoreCell({ bm, rowId }: { bm: BracketMatches[number]; rowId: number })
   );
 }
 
-export default function RoundRobinContent({ bracketMatches, containerHeight }: RoundRobinProps) {
+export default function RoundRobinContent({ bracketMatches }: RoundRobinProps) {
   const athletes = getUniqueAthletes(bracketMatches);
 
   const matchByPair = new Map<string, (typeof bracketMatches)[number]>();
@@ -69,49 +68,45 @@ export default function RoundRobinContent({ bracketMatches, containerHeight }: R
 
   const content = (
     <ScrollArea className="flex-1 overflow-auto">
-      <div className="overflow-auto">
-        <table className="table-auto border-collapse text-sm">
-          <thead>
-            <tr style={{ height: TR_HEIGHT }}>
-              <th className="border px-2 py-1 bg-muted"></th>
-              {athletes.map((a) => (
-                <th key={a.id} className="border px-2 py-1 bg-muted text-center font-normal text-xs">
-                  {a.last_name} {a.first_name} ({a.coaches_last_name?.join(", ") || "No coach"})
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {athletes.map((rowAthlete) => (
-              <tr key={rowAthlete.id} style={{ height: TR_HEIGHT }}>
-                <td className="border px-2 py-1 bg-muted font-normal text-xs">
-                  {rowAthlete.last_name} {rowAthlete.first_name} (
-                  {rowAthlete.coaches_last_name?.join(", ") || "No coach"})
-                </td>
-                {athletes.map((colAthlete) => {
-                  if (rowAthlete.id === colAthlete.id) {
-                    return <SameAthleteCell key={colAthlete.id} />;
-                  }
-                  const bm = matchByPair.get(pairKey(rowAthlete.id, colAthlete.id));
-                  if (!bm) {
-                    return <EmptyCell key={colAthlete.id} />;
-                  }
-                  return <ScoreCell key={colAthlete.id} bm={bm} rowId={rowAthlete.id} />;
-                })}
+      <div className="flex justify-center">
+        <div className="overflow-auto">
+          <table className="table-auto border-collapse text-sm">
+            <thead>
+              <tr style={{ height: TR_HEIGHT }}>
+                <th className="border px-2 py-1 bg-muted"></th>
+                {athletes.map((a) => (
+                  <th key={a.id} className="border px-2 py-1 bg-muted text-center font-normal text-xs">
+                    {a.last_name} {a.first_name} ({a.coaches_last_name?.join(", ") || "No coach"})
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {athletes.map((rowAthlete) => (
+                <tr key={rowAthlete.id} style={{ height: TR_HEIGHT }}>
+                  <td className="border px-2 py-1 bg-muted font-normal text-xs">
+                    {rowAthlete.last_name} {rowAthlete.first_name} (
+                    {rowAthlete.coaches_last_name?.join(", ") || "No coach"})
+                  </td>
+                  {athletes.map((colAthlete) => {
+                    if (rowAthlete.id === colAthlete.id) {
+                      return <SameAthleteCell key={colAthlete.id} />;
+                    }
+                    const bm = matchByPair.get(pairKey(rowAthlete.id, colAthlete.id));
+                    if (!bm) {
+                      return <EmptyCell key={colAthlete.id} />;
+                    }
+                    return <ScoreCell key={colAthlete.id} bm={bm} rowId={rowAthlete.id} />;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
   );
 
-  return containerHeight ? (
-    <div className="flex" style={{ height: containerHeight }}>
-      {content}
-    </div>
-  ) : (
-    content
-  );
+  return content;
 }

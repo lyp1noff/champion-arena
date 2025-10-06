@@ -262,6 +262,7 @@ async def create_bracket(
         group_id=bracket_data.group_id,
         type=bracket_data.type,
         start_time=bracket_data.start_time,
+        day=bracket_data.day,
         tatami=bracket_data.tatami,
     )
 

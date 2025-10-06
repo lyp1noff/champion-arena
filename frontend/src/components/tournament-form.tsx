@@ -19,8 +19,8 @@ import { getTournamentById, createTournament, updateTournament, importCbrFile } 
 
 const formSchema = z
   .object({
-    name: z.string().min(3, { message: "Tournament name must be at least 3 characters." }),
-    location: z.string().min(3, { message: "Location must be at least 3 characters." }),
+    name: z.string().trim().min(3, { message: "Tournament name must be at least 3 characters." }),
+    location: z.string().trim().min(3, { message: "Location must be at least 3 characters." }),
     start_date: z.date({ required_error: "Start date is required." }),
     end_date: z.date({ required_error: "End date is required." }),
     registration_start_date: z.date({ required_error: "Registration start date is required." }),

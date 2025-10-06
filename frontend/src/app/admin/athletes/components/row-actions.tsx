@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Row } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 
@@ -12,6 +13,9 @@ import {
 import { Athlete } from "@/lib/interfaces";
 import { toast } from "sonner";
 import { deleteAthlete } from "@/lib/api/athletes";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useTranslations } from "next-intl";
+import AthleteForm from "@/components/athlete-form";
 
 interface DataTableRowActionsProps {
   row: Row<Athlete>;
@@ -19,6 +23,11 @@ interface DataTableRowActionsProps {
 }
 
 export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsProps) {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const t = useTranslations("AdminAthletes");
+
   const handleDelete = async () => {
     try {
       await deleteAthlete(row.original.id);
@@ -30,31 +39,50 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex h-8 w-8 p-0 data-[state=open]:bg-muted">
-          <MoreHorizontal />
-          <span className="sr-only">Open menu</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[160px]">
-        <DropdownMenuItem
-          onClick={() => {
-            console.log(row);
-          }}
-        >
-          Edit
-        </DropdownMenuItem>
-        {/*<DropdownMenuItem*/}
-        {/*  onClick={() => {*/}
-        {/*    console.log(row);*/}
-        {/*  }}*/}
-        {/*>*/}
-        {/*  Make a copy*/}
-        {/*</DropdownMenuItem>*/}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleDelete}>Delete</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="flex h-8 w-8 p-0 data-[state=open]:bg-muted">
+            <MoreHorizontal />
+            <span className="sr-only">Open menu</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-[160px]">
+          <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>{t("edit")}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>{t("delete")}</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogTitle>Edit Athlete</DialogTitle>
+          <AthleteForm
+            athleteId={row.original.id}
+            onSuccess={() => {
+              toast.success("Athlete updated");
+              setIsEditDialogOpen(false);
+              onDataChanged?.();
+            }}
+            onCancel={() => setIsEditDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogTitle>{t("deleteConfirmTitle")}</DialogTitle>
+          <p>{t("deleteConfirmText")}</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              {t("deleteConfirmCancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              {t("deleteConfirmDelete")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

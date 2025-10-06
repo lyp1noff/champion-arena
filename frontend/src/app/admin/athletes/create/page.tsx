@@ -28,7 +28,7 @@ export default function CreateAthletePage() {
           <CardTitle className="text-2xl">Add New Athlete</CardTitle>
         </CardHeader>
         <CardContent>
-          <AthleteForm onSubmit={handleCreate} />
+          <AthleteForm onSuccess={handleCreate} />
         </CardContent>
       </Card>
     </div>

@@ -146,6 +146,7 @@ class BracketBase(CustomBaseModel):
     category: str
     type: str
     start_time: Optional[time] = None
+    day: Optional[int] = None
     tatami: Optional[int] = None
     group_id: Optional[int] = 1
     display_name: Optional[str] = None
@@ -178,6 +179,7 @@ class BracketResponse(BracketBase):
 class BracketUpdateSchema(CustomBaseModel):
     type: Optional[str] = None
     start_time: Optional[time] = None
+    day: Optional[int] = None
     tatami: Optional[int] = None
     group_id: Optional[int] = None
     category_id: Optional[int] = None
@@ -244,6 +246,7 @@ class BracketCreateSchema(BaseModel):
     group_id: int = 1
     type: Optional[str] = BracketType.SINGLE_ELIMINATION.value
     start_time: Optional[time] = None
+    day: Optional[int] = 1
     tatami: Optional[int] = None
 
 

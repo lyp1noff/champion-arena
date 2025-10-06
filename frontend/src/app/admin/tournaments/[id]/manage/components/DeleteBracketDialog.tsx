@@ -6,6 +6,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { ChevronsUpDown } from "lucide-react";
 import React, { useState } from "react";
+import { getBracketDisplayName } from "@/lib/utils";
 
 interface DeleteBracketDialogProps {
   open: boolean;
@@ -42,7 +43,9 @@ export default function DeleteBracketDialog({
               <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" role="combobox" className="w-full justify-between">
-                    {selectedBracket ? selectedBracket.display_name || selectedBracket.category : "Select bracket"}
+                    {selectedBracket
+                      ? getBracketDisplayName(selectedBracket.category, selectedBracket.group_id)
+                      : "Select bracket"}
                     <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -55,7 +58,7 @@ export default function DeleteBracketDialog({
                         {filteredBrackets.map((bracket) => (
                           <CommandItem
                             key={bracket.id}
-                            value={bracket.display_name || bracket.category}
+                            value={getBracketDisplayName(bracket.category, bracket.group_id)}
                             onSelect={() => {
                               setBracketToTransfer(bracket);
                               setPopoverOpen(false);
@@ -71,7 +74,7 @@ export default function DeleteBracketDialog({
                                   </span>
                                 )}
                               </div> */}
-                              {bracket.display_name || bracket.category}
+                              {getBracketDisplayName(bracket.category, bracket.group_id)}
                             </div>
                           </CommandItem>
                         ))}

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from src.config import JWT_SECRET
+from src.database import get_async_session
 from src.logger import logger
 from src.models import User
 
@@ -66,3 +67,34 @@ async def create_default_user(db: AsyncSession) -> None:
         # print(f"    Password: {raw_password}")
     # else:
     #     logger.info("Default admin already exists")
+
+
+async def set_password(username: str, password: str) -> bool:
+    async with get_async_session() as session:
+        result = await session.execute(select(User).where(User.username == username))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            return False
+
+        user.password_hash = hash_password(password)
+        await session.commit()
+        return True
+
+
+async def create_admin(username: str, password: str) -> bool:
+    async with get_async_session() as session:
+        result = await session.execute(select(User).where(User.username == username))
+        user = result.scalar_one_or_none()
+
+        if user:
+            return False
+
+        new_user = User(
+            username=username,
+            password_hash=hash_password(password),
+            role="admin",
+        )
+        session.add(new_user)
+        await session.commit()
+        return True

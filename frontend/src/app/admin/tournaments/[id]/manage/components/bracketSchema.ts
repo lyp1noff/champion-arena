@@ -7,6 +7,7 @@ export const createBracketSchema = z.object({
     errorMap: () => ({ message: "Bracket type is required" }),
   }),
   start_time: z.string().min(1, "Start time is required"),
+  day: z.coerce.number().min(1, "Day must be at least 1"),
   tatami: z.coerce.number().min(1, "Tatami must be at least 1"),
 });
 
@@ -17,5 +18,6 @@ export const defaultBracketValues: CreateBracketSchema = {
   group_id: 1,
   type: "single_elimination",
   start_time: "09:00:00",
+  day: 1,
   tatami: 1,
 };

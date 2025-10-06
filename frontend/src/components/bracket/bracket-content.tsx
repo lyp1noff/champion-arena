@@ -7,15 +7,9 @@ interface BracketCardProps {
   bracketMatches: BracketMatches;
   matchCardHeight?: number;
   matchCardWidth?: number;
-  containerHeight?: number;
 }
 
-export default function BracketContent({
-  bracketMatches,
-  matchCardHeight = 80,
-  matchCardWidth,
-  containerHeight,
-}: BracketCardProps) {
+export default function BracketContent({ bracketMatches, matchCardHeight = 80, matchCardWidth }: BracketCardProps) {
   const {
     cardHeight: fallbackCardHeight,
     cardWidth: fallbackCardWidth,
@@ -156,11 +150,5 @@ export default function BracketContent({
     </ScrollArea>
   );
 
-  return containerHeight ? (
-    <div className="flex" style={{ height: containerHeight }}>
-      {content}
-    </div>
-  ) : (
-    content
-  );
+  return content;
 }

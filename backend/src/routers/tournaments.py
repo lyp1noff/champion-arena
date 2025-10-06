@@ -27,6 +27,7 @@ from src.routers.brackets import regenerate_matches_endpoint
 from src.schemas import (
     ApplicationCreate,
     ApplicationResponse,
+    AthleteResponse,
     BracketMatchesFull,
     BracketResponse,
     PaginatedTournamentResponse,
@@ -156,9 +157,13 @@ async def delete_tournament(id: int, db: AsyncSession = Depends(get_db)) -> None
 
 
 @router.get("/{tournament_id}/brackets", response_model=list[BracketResponse])
-async def get_all_brackets(tournament_id: int, db: AsyncSession = Depends(get_db)) -> list[BracketResponse]:
+async def get_all_brackets(
+    tournament_id: int,
+    sorted: bool = Query(True, description="Sort brackets by tatami and start_time"),
+    db: AsyncSession = Depends(get_db),
+) -> list[BracketResponse]:
     try:
-        result = await db.execute(
+        query = (
             select(Bracket)
             .filter_by(tournament_id=tournament_id)
             .options(
@@ -168,8 +173,14 @@ async def get_all_brackets(tournament_id: int, db: AsyncSession = Depends(get_db
                 .selectinload(Athlete.coach_links)
                 .joinedload(AthleteCoachLink.coach),
             )
-            .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
         )
+
+        if sorted:
+            query = query.order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
+        else:
+            query = query.order_by(Bracket.category_id.asc().nullslast())
+
+        result = await db.execute(query)
         brackets = result.scalars().all()
         return [serialize_bracket(b) for b in brackets]
     except Exception:
@@ -277,7 +288,7 @@ async def get_matches_for_tournament_raw(tournament_id: int, db: AsyncSession = 
             .selectinload(Athlete.coach_links)
             .joinedload(AthleteCoachLink.coach),
         )
-        .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
+        .order_by(Bracket.day.asc(), Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
     )
 
     return list(result.scalars().all())
@@ -386,18 +397,31 @@ async def get_applications(
         result = await db.execute(
             select(Application)
             .options(
-                selectinload(Application.athlete),
+                selectinload(Application.athlete).selectinload(Athlete.coaches),  # <-- грузим тренеров
                 selectinload(Application.category),
             )
             .where(Application.tournament_id == tournament_id)
         )
         applications = result.scalars().all()
-        return [ApplicationResponse.model_validate(app) for app in applications]
+
+        responses: list[ApplicationResponse] = []
+        for app in applications:
+            athlete = app.athlete
+            athlete_response = AthleteResponse.model_validate(athlete)
+            athlete_response.coaches_id = [c.id for c in athlete.coaches]
+            athlete_response.coaches_last_name = [c.last_name for c in athlete.coaches]
+
+            application_response = ApplicationResponse.model_validate(app)
+            application_response.athlete = athlete_response
+            responses.append(application_response)
+
+        return responses
+
     except Exception:
         raise HTTPException(status_code=500, detail="An error occurred while fetching applications")
 
 
-@router.post("/{tournament_id}/applications", response_model=list[ApplicationResponse])
+@router.post("/{tournament_id}/applications")
 async def submit_application(
     tournament_id: int,
     data: ApplicationCreate,

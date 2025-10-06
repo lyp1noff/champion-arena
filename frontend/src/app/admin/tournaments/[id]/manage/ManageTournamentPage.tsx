@@ -39,6 +39,7 @@ import {
 } from "@/app/admin/tournaments/[id]/manage/components/bracketSchema";
 import BracketFormDialog from "@/app/admin/tournaments/[id]/manage/components/BracketFormDialog";
 import { WebSocketProvider } from "@/components/websocket-provider";
+import { getBracketDisplayName } from "@/lib/utils";
 
 interface Props {
   tournamentId: number;
@@ -106,6 +107,7 @@ export default function ManageTournamentPage({
       group_id: selectedBracket.group_id ?? defaultBracketValues.group_id,
       type: selectedBracket.type ?? defaultBracketValues.type,
       start_time: selectedBracket.start_time ?? defaultBracketValues.start_time,
+      day: selectedBracket.day ?? defaultBracketValues.day,
       tatami: selectedBracket.tatami ?? defaultBracketValues.tatami,
     });
   }, [categories, selectedBracket]);
@@ -210,6 +212,7 @@ export default function ManageTournamentPage({
         group_id: data.group_id,
         type: data.type,
         start_time: data.start_time,
+        day: data.day,
         tatami: data.tatami,
       };
       const newBracketObj = await createBracket(bracketData);
@@ -287,7 +290,7 @@ export default function ManageTournamentPage({
         <>
           Participant moved to:
           <br />
-          {targetBracket?.display_name || targetBracket?.category || targetBracketId.toString()}
+          {getBracketDisplayName(targetBracket?.category, targetBracket?.group_id)}
         </>,
       );
       await onSelectBracket(selectedBracket);
@@ -363,7 +366,9 @@ export default function ManageTournamentPage({
             {selectedBracket ? (
               <>
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold pl-3">{selectedBracket.display_name || selectedBracket.category}</h2>
+                  <h2 className="text-xl font-bold pl-3">
+                    {getBracketDisplayName(selectedBracket.category, selectedBracket.group_id)}
+                  </h2>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={handleRegenerate} disabled={loading}>
                       <RefreshCw className="h-4 w-4 mr-1" />
@@ -379,7 +384,7 @@ export default function ManageTournamentPage({
                   <CardContent className="flex-1 p-0 h-full">
                     <ScrollArea className="h-full w-full">
                       <div className="p-6 h-full w-full">
-                        <BracketView loading={loading} matches={bracketMatches ?? []} bracket={selectedBracket} />
+                        <BracketView matches={bracketMatches ?? []} bracketType={selectedBracket.type} />
                       </div>
                       <ScrollBar orientation="horizontal" />
                       <ScrollBar orientation="vertical" />
