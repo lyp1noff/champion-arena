@@ -1,12 +1,14 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from jose import jwt
 from passlib.context import CryptContext
+from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from src.config import JWT_SECRET
+from src.config import DEV_MODE, JWT_SECRET
 from src.database import get_async_session
 from src.logger import logger
 from src.models import User
@@ -49,24 +51,24 @@ async def authenticate_user(db: AsyncSession, username: str, password: str) -> U
 
 
 async def create_default_user(db: AsyncSession) -> None:
-    result = await db.execute(select(User).where(User.username == "qwe"))  # CHANGE THIS
-    user = result.scalar_one_or_none()
+    if not DEV_MODE:
+        await db.execute(delete(User).where(User.username.in_(["qwe", "test", "demo"])))
+        await db.commit()
 
-    if user is None:
-        # raw_password = secrets.token_urlsafe(9)
-        # hashed = hash_password(raw_password)
+    result = await db.execute(select(func.count()).select_from(User))
+    count = result.scalar_one()
 
-        # user = User(username="admin", password_hash=hashed, role="admin")
+    if count == 0:
+        raw_password = secrets.token_urlsafe(12)
+        hashed = hash_password(raw_password)
 
-        user = User(username="qwe", password_hash=hash_password("qwe"), role="admin")
+        user = User(username="champ", password_hash=hashed, role="admin")
         db.add(user)
         await db.commit()
 
         logger.info("Default admin created")
-        # print(f"    Username: admin")
-        # print(f"    Password: {raw_password}")
-    # else:
-    #     logger.info("Default admin already exists")
+        logger.info("    Username: champ")
+        logger.info(f"    Password: {raw_password}")
 
 
 async def set_password(username: str, password: str) -> bool:

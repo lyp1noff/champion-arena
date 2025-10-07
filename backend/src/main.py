@@ -5,10 +5,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
 
-from src.services.broadcast import broadcast
 from src.config import DEV_MODE
 from src.middleware import add_cors_middleware
 from src.routers import routers
+from src.services.broadcast import broadcast
 
 
 @asynccontextmanager
@@ -40,5 +40,5 @@ for router in routers:
 
 
 @app.get("/ping", tags=["Health"])
-async def ping():
+async def ping() -> dict[str, bool]:
     return {"pong": True}
