@@ -3,21 +3,26 @@ services:
     build: !override
       context: ./backend
       dockerfile: ./Dockerfile
-    image: champion-frontend:latest
+    image: champion-backend:latest
     pull_policy: build
     ports: !override
       - "8010:8000"
   frontend:
-    build:
+    build: !override
       context: ./frontend
       dockerfile: ./Dockerfile
       args:
         NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
         NEXT_PUBLIC_CDN_URL: ${NEXT_PUBLIC_CDN_URL}
-    image: champion-backend:latest
+        NEXT_PUBLIC_ANALYTICS_URL: ${NEXT_PUBLIC_ANALYTICS_URL}
+        NEXT_PUBLIC_ANALYTICS_ID: ${NEXT_PUBLIC_ANALYTICS_ID}
+    image: champion-frontend:latest
     pull_policy: build
     ports: !override
       - "3010:3000"
   db:
     ports: !override
       - "5432:5432"
+  redis:
+    ports: !override
+      - "6379:6379"

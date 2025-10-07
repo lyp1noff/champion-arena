@@ -39,39 +39,26 @@ def distribute_byes_safely(athlete_ids: list[int]) -> list[tuple[Optional[int], 
     total_matches = next_power_of_two // 2
     byes_needed = next_power_of_two - num_players
 
-    ids = athlete_ids.copy()
     pairs: list[tuple[Optional[int], Optional[int]]] = []
-    bye_inserted = 0
-    i = 0
+    ids = athlete_ids.copy()
 
-    # If no byes are needed, just pair up sequentially
-    if byes_needed == 0:
-        while i < len(ids):
-            a1 = ids[i] if i < len(ids) else None
-            a2 = ids[i + 1] if (i + 1) < len(ids) else None
-            if a1 is None and a2 is None:
-                break
-            pairs.append((a1, a2))
-            i += 2
-        return pairs
+    bye_positions = set()
+    if byes_needed > 0:
+        step = total_matches / byes_needed
+        for k in range(byes_needed):
+            pos = round(k * step)
+            bye_positions.add(pos)
 
-    # Otherwise, distribute byes as evenly as possible
-    insert_every = max(1, len(ids) // byes_needed) if byes_needed > 0 else 1
-
-    while len(pairs) < total_matches:
-        # Only insert a bye if we still have byes to insert
-        if byes_needed > 0 and bye_inserted < byes_needed and (i // 2) % insert_every == 0:
-            a1 = ids[i] if i < len(ids) else None
-            pairs.append((a1, None))
-            i += 1
-            bye_inserted += 1
+    idx = 0
+    for match_idx in range(total_matches):
+        if match_idx in bye_positions and idx < len(ids):
+            pairs.append((ids[idx], None))
+            idx += 1
         else:
-            a1 = ids[i] if i < len(ids) else None
-            a2 = ids[i + 1] if (i + 1) < len(ids) else None
-            if a1 is None and a2 is None:
-                break
+            a1 = ids[idx] if idx < len(ids) else None
+            a2 = ids[idx + 1] if (idx + 1) < len(ids) else None
             pairs.append((a1, a2))
-            i += 2
+            idx += 2
 
     return pairs
 
@@ -323,7 +310,7 @@ async def regenerate_tournament_brackets(db: AsyncSession, tournament_id: int) -
     brackets = result.all()
 
     for bracket_id, bracket_type in brackets:
-        if bracket_type == BracketType.ROUND_ROBIN:
+        if bracket_type == BracketType.ROUND_ROBIN.value:
             await regenerate_round_bracket_matches(db, bracket_id, tournament_id, commit=False)
         elif bracket_type == BracketType.SINGLE_ELIMINATION.value:
             await regenerate_bracket_matches(db, bracket_id, tournament_id, commit=False)

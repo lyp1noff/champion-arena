@@ -288,7 +288,7 @@ async def get_matches_for_tournament_raw(tournament_id: int, db: AsyncSession = 
             .selectinload(Athlete.coach_links)
             .joinedload(AthleteCoachLink.coach),
         )
-        .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
+        .order_by(Bracket.day.asc(), Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
     )
 
     return list(result.scalars().all())

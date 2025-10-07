@@ -190,6 +190,7 @@ class Bracket(Base, TimestampMixin):
     group_id: Mapped[int] = mapped_column(default=1)
     type: Mapped[str] = mapped_column(String(50), default=BracketType.SINGLE_ELIMINATION.value)
     start_time: Mapped[time] = mapped_column(Time, default=lambda: time(9, 0))
+    day: Mapped[int] = mapped_column(default=1)
     tatami: Mapped[int] = mapped_column(default=1)
     status: Mapped[str] = mapped_column(String(20), default=BracketStatus.PENDING.value)
 

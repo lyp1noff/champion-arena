@@ -19,14 +19,16 @@
   },
   "TournamentPage": {
     "brackets": "Сітки",
+    "categoriesCount": "Категорій",
     "participants": "Учасники",
-    "searchPlaceholder": "Пошук сіток або учасників...",
+    "searchPlaceholder": "Пошук по сітках або учасниках...",
     "tatami": "Татамі",
     "participantsCount": "Учасників",
     "noData": "Немає даних",
     "tournament": "Турнір",
-    "fetchError": "Помилка завантаження даних турніру",
-    "unknownTatami": "Невідомо"
+    "fetchError": "Помилка під час завантаження даних турніру",
+    "unknownTatami": "Невідомо",
+    "day": "День {number}"
   },
   "Login": {
     "title": "Вхід",
@@ -65,6 +67,14 @@
     "noApplicationsYet": "Ще немає заявок.",
     "approveAllApplications": "Схвалити всі заявки",
     "athleteCreated": "Атлета створено"
+  },
+  "AdminAthletes": {
+    "deleteConfirmTitle": "Видалити атлета",
+    "deleteConfirmText": "Ви впевнені, що хочете видалити цього атлета? Цю дію не можна скасувати.",
+    "deleteConfirmCancel": "Скасувати",
+    "deleteConfirmDelete": "Видалити",
+    "edit": "Редагувати",
+    "delete": "Видалити"
   },
   "DataTable": {
     "totalRecords": "Всього записів",

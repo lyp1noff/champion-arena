@@ -21,9 +21,9 @@ from src.models import (
     TournamentStatus,
 )
 from src.schemas import MatchFinishRequest, MatchSchema, MatchScoreUpdate, MatchUpdate
+from src.services.broadcast import broadcast
 from src.services.matches import advance_participants
 from src.services.serialize import serialize_match
-from src.services.websocket_manager import websocket_manager
 
 router = APIRouter(prefix="/matches", tags=["Matches"], dependencies=[Depends(get_current_user)])
 
@@ -43,7 +43,9 @@ async def broadcast_match_update(match: Match, db: AsyncSession) -> None:
                 score_athlete2=match.score_athlete2,
                 status=match.status,
             )
-            await websocket_manager.broadcast_match_update(str(bracket_match.bracket.tournament_id), match_update)
+            await broadcast.publish(
+                channel=f"tournament:{bracket_match.bracket.tournament_id}", message=match_update.model_dump_json()
+            )
     except Exception as e:
         logger.error(f"Error broadcasting match update: {e}")
 
@@ -181,6 +183,7 @@ async def finish_match(
 
     await db.commit()
     await db.refresh(match)
+
     await broadcast_match_update(match, db)
     return serialize_match(match)
 

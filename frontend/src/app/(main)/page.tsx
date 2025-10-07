@@ -9,6 +9,7 @@ import { Tournament } from "@/lib/interfaces";
 import { getTournaments } from "@/lib/api/tournaments";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { DateRange } from "@/components/date-range";
 
 const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
 
@@ -81,10 +82,7 @@ export default function TournamentsPage() {
                 </div>
                 <div className="flex items-center text-sm text-muted-foreground">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {new Date(tournament.start_date).toLocaleDateString(undefined, {
-                    day: "numeric",
-                    month: "long",
-                  })}
+                  <DateRange start={tournament.start_date} end={tournament.end_date} />
                 </div>
               </CardContent>
               <CardFooter>

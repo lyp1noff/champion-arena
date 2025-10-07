@@ -20,6 +20,8 @@ COPY . .
 RUN chmod +x /app/docker-entrypoint.sh
 
 RUN useradd -ms /bin/bash appuser
+RUN mkdir -p /app/pdf_storage \
+    && chown -R appuser:appuser /app/pdf_storage
 USER appuser
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

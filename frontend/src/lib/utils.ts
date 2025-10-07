@@ -51,3 +51,11 @@ export function getUniqueAthletes(matches: BracketMatches): BracketMatchAthlete[
   }
   return Array.from(athleteMap.values());
 }
+
+export function getBracketDisplayName(categoryName?: string, groupId?: number): string {
+  const name = categoryName ?? "";
+  if (groupId && groupId !== 1) {
+    return `${name} (Група ${groupId})`;
+  }
+  return name;
+}

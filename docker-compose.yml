@@ -17,27 +17,52 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:8.2.2-alpine
+    container_name: champion_redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   backend:
-    image: ghcr.io/lyp1noff/champion-backend:dev
+    image: ghcr.io/lyp1noff/champion-backend:${IMAGE_TAG:-latest}
     container_name: champion-backend
     restart: always
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-champ}
       - FRONTEND_URL=${FRONTEND_URL}
-      - DATABASE_URL=${DATABASE_URL}
       - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
       - R2_BUCKET_NAME=${R2_BUCKET_NAME}
       - R2_ENDPOINT=${R2_ENDPOINT}
       - JWT_SECRET=${JWT_SECRET}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS}
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT}
       - DEV_MODE=${DEV_MODE}
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/ping || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
-    image: ghcr.io/lyp1noff/champion-frontend:dev
+    image: ghcr.io/lyp1noff/champion-frontend:${IMAGE_TAG:-latest}
     container_name: champion-frontend
     restart: always
     ports:
