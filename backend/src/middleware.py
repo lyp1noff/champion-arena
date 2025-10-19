@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import FRONTEND_URL
 
 origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
     FRONTEND_URL,
 ]
 
