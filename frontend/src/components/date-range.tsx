@@ -9,8 +9,15 @@ export function DateRange({ start, end }: DateRangeProps) {
   const startDate = new Date(start);
   const endDate = new Date(end);
 
+  if (
+    startDate.getDate() === endDate.getDate() &&
+    startDate.getMonth() === endDate.getMonth() &&
+    startDate.getFullYear() === endDate.getFullYear()
+  ) {
+    return <>{startDate.toLocaleDateString(undefined, { day: "numeric", month: "long" })}</>;
+  }
+
   if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
-    // один месяц
     return (
       <>
         {startDate.toLocaleDateString(undefined, { day: "numeric" })}–
@@ -19,7 +26,6 @@ export function DateRange({ start, end }: DateRangeProps) {
     );
   }
 
-  // разные месяцы или годы
   return (
     <>
       {startDate.toLocaleDateString(undefined, { day: "numeric", month: "long" })} –{" "}
