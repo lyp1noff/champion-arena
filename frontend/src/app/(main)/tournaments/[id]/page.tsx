@@ -263,22 +263,28 @@ export default function TournamentPage() {
                     {tatamiBrackets.map((bracket) => (
                       <AccordionItem key={bracket.id} value={String(bracket.id)}>
                         <AccordionTrigger
-                          className="text-lg font-medium group flex items-center justify-between"
+                          className="group flex w-full items-center justify-between text-lg font-medium hover:no-underline"
                           onClick={() => {
                             if (!loadedBracketMatches[bracket.id]) {
                               loadBracketData(bracket.id);
                             }
                           }}
                         >
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                            <span className="text-base font-semibold">
+                          <div className="flex w-full flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 sm:justify-between">
+                            <span className="text-base font-semibold group-hover:underline underline-offset-4">
                               {getBracketDisplayName(bracket.category, bracket.group_id)}
                             </span>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span>{(bracket.start_time && bracket.start_time.slice(0, 5)) || " — "}</span>
-                              <span> | </span>
-                              <span>
-                                {t("participantsCount")}: {bracket.participants.length || " — "}
+
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground sm:justify-end pr-4">
+                              <span className="tabular-nums">
+                                {(bracket.start_time && bracket.start_time.slice(0, 5)) || "-"}
+                              </span>
+                              <span>|</span>
+                              <span className="tabular-nums">
+                                {t("participantsCount")}:{" "}
+                                <span className="inline-block" style={{ minWidth: "3ch" }}>
+                                  {bracket.participants.length || "-"}
+                                </span>
                               </span>
                             </div>
                           </div>
