@@ -7,7 +7,7 @@ import {
   PaginationState,
   SortingState,
 } from "@tanstack/react-table";
-import DataTablePagination from "@/components/data-table-pagination";
+import DataTablePagination from "@/components/table/data-table-pagination";
 import { useTranslations } from "next-intl";
 
 interface DataTableProps<TData> {

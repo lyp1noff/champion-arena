@@ -39,7 +39,7 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
 
   const maxMatchesInRound = Math.max(...sortedRounds.map((r) => r.bracketMatches.length));
 
-  const content = (
+  return (
     <ScrollArea className="flex-1 overflow-auto">
       {/* Blurred background */}
       {/* <div
@@ -149,6 +149,4 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
   );
-
-  return content;
 }

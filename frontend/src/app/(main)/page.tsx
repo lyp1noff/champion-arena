@@ -21,8 +21,7 @@ export default async function TournamentsPage() {
   try {
     const data = await getTournaments(1, 10, "start_date", "desc", "");
     tournaments = data.data ?? [];
-  } catch (error) {
-    console.error("[TournamentsPage] failed to fetch tournaments:", error);
+  } catch {
     isFallback = true;
   }
 
@@ -35,7 +34,7 @@ export default async function TournamentsPage() {
       </h1>
       {isFallback ? (
         <div className="p-8 border border-dashed rounded-lg text-center text-muted-foreground">
-          <p className="mb-2">{t("loadErrorDescription")}</p>
+          <p>{t("loadErrorDescription")}</p>
         </div>
       ) : tournaments.length === 0 ? (
         <div className="p-8 border border-dashed rounded-lg text-center text-muted-foreground">

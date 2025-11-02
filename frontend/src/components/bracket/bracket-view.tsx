@@ -8,16 +8,14 @@ interface BracketViewProps {
   matches: BracketMatches;
   bracketType: BracketType;
   matchCardHeight?: number;
-  containerHeight?: number;
-  maxHeight?: number;
 }
 
 export function BracketView({ matches, bracketType, matchCardHeight = 60 }: BracketViewProps) {
   const isRoundRobin = bracketType === "round_robin";
 
   if (isRoundRobin) {
-    return <RoundRobinContent bracketMatches={matches ?? []} />;
+    return <RoundRobinContent bracketMatches={matches} />;
   }
 
-  return <BracketContent bracketMatches={matches ?? []} matchCardHeight={matchCardHeight} />;
+  return <BracketContent bracketMatches={matches} matchCardHeight={matchCardHeight} />;
 }

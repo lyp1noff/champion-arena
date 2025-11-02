@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import DataTable from "@/components/data-table";
+import DataTable from "@/components/table/data-table";
 import ScreenLoader from "@/components/loader";
 import useDataTable from "./hooks/use-data-table";
 import { Input } from "@/components/ui/input";

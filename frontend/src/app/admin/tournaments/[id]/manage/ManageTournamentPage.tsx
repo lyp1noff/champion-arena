@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bracket, BracketMatches, BracketType, Category, Participant } from "@/lib/interfaces";
-import { BracketView } from "@/components/bracket-view";
+import { BracketView } from "@/components/bracket/bracket-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";

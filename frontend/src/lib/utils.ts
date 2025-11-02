@@ -29,11 +29,6 @@ export function formatTimeToISO(timeStr: string | null | undefined): string | nu
   return timeStr.length === 5 ? `${timeStr}:00` : timeStr;
 }
 
-export function getInitialMatchCount(participantCount: number): number {
-  const half = participantCount / 2;
-  return 2 ** Math.ceil(Math.log2(half));
-}
-
 export function getBracketDimensions(matchCardHeight: number, matchCardWidth?: number) {
   const cardHeight = matchCardHeight;
   const cardWidth = matchCardWidth ?? cardHeight * 4;
