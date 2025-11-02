@@ -193,9 +193,9 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
                               </span>
                               <span>|</span>
                               <span className="tabular-nums">
-                                {t("participantsCount")}:{" "}
+                                {t("participantsCountFallback")}:{" "}
                                 <span className="inline-block" style={{ minWidth: "3ch" }}>
-                                  {bracket.participants.length || "-"}
+                                  {bracket.participants.length || 0}
                                 </span>
                               </span>
                             </div>

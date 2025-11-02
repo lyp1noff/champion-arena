@@ -17,7 +17,12 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
     notFound();
   }
 
-  const uniqueParticipantsCount = new Set(brackets.flatMap((b) => b.participants.map((p) => p.athlete_id))).size;
+  const uniqueIds = new Set<number>();
+  const participantsCount = brackets.reduce((acc, b) => {
+    for (const p of b.participants) uniqueIds.add(p.athlete_id);
+    return acc + b.participants.length;
+  }, 0);
+  const uniqueParticipantsCount = uniqueIds.size;
 
   return (
     <div className="container py-10 mx-auto">
@@ -26,6 +31,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
         tournament={tournament}
         uniqueParticipantsCount={uniqueParticipantsCount}
         categoriesCount={brackets.length}
+        applicationsCount={participantsCount}
       />
       <TournamentBrackets tournament={tournament} brackets={brackets} />
     </div>

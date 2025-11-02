@@ -1,3 +1,5 @@
+import { LiveBadge } from "@/components/bracket/live-badge";
+import { ParticipantNameWithMenu } from "@/components/bracket/participant-name-with-menu";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useMatchUpdate } from "@/components/websocket-provider";
 
@@ -42,15 +44,7 @@ function ScoreCell({ bm, rowId }: { bm: BracketMatches[number]; rowId: number })
     <td className="border px-2 py-1 font-mono whitespace-nowrap">
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-center gap-1">
         <div className="justify-self-center text-center">{scoreText}</div>
-        {status === "started" && (
-          <div className="justify-self-center sm:justify-self-end pl-1 pr-2 rounded-xl text-xs font-bold flex items-center gap-1 dark:bg-secondary bg-stone-300">
-            <span className="relative flex h-2 w-2 ml-0.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-600"></span>
-            </span>
-            Live
-          </div>
-        )}
+        {status === "started" && <LiveBadge size="sm" className="justify-self-center sm:justify-self-end" />}
       </div>
     </td>
   );
@@ -77,7 +71,7 @@ export default function RoundRobinContent({ bracketMatches }: RoundRobinProps) {
                 <th className="border px-2 py-1 bg-muted"></th>
                 {athletes.map((a) => (
                   <th key={a.id} className="border px-2 py-1 bg-muted text-center font-normal text-xs">
-                    {a.last_name} {a.first_name} ({a.coaches_last_name?.join(", ") || "No coach"})
+                    <ParticipantNameWithMenu participant={a} />
                   </th>
                 ))}
               </tr>
@@ -86,9 +80,9 @@ export default function RoundRobinContent({ bracketMatches }: RoundRobinProps) {
               {athletes.map((rowAthlete) => (
                 <tr key={rowAthlete.id} style={{ height: TR_HEIGHT }}>
                   <td className="border px-2 py-1 bg-muted font-normal text-xs">
-                    {rowAthlete.last_name} {rowAthlete.first_name} (
-                    {rowAthlete.coaches_last_name?.join(", ") || "No coach"})
+                    <ParticipantNameWithMenu participant={rowAthlete} />
                   </td>
+
                   {athletes.map((colAthlete) => {
                     if (rowAthlete.id === colAthlete.id) {
                       return <SameAthleteCell key={colAthlete.id} />;

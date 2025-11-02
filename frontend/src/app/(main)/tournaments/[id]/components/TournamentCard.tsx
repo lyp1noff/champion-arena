@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import Image from "next/image";
 
-import { CalendarDays, MapPin, Trophy, Users } from "lucide-react";
+import { CalendarDays, FileUser, MapPin, Trophy, Users } from "lucide-react";
 
 import { DateRange } from "@/components/date-range";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,12 +14,14 @@ interface TournamentCardProps {
   tournament: Tournament;
   uniqueParticipantsCount: number;
   categoriesCount: number;
+  applicationsCount: number;
 }
 
 export default async function TournamentCard({
   tournament,
   uniqueParticipantsCount,
   categoriesCount,
+  applicationsCount,
 }: TournamentCardProps) {
   const locale = await getLocale();
   const t = await getTranslations("TournamentPage");
@@ -51,17 +53,18 @@ export default async function TournamentCard({
           </div>
 
           <div className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-muted-foreground" />
-            <span>
-              {t("categoriesCount")}: {categoriesCount}
-            </span>
+            <FileUser className="w-5 h-5 text-muted-foreground" />
+            <span>{t("applicationsCount", { count: applicationsCount })}</span>
           </div>
 
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-muted-foreground" />
-            <span>
-              {t("participantsCount")}: {uniqueParticipantsCount}
-            </span>
+            <span>{t("participantsCount", { count: uniqueParticipantsCount })}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-muted-foreground" />
+            <span>{t("categoriesCount", { count: categoriesCount })}</span>
           </div>
         </div>
       </CardContent>
