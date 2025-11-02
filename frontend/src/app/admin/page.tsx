@@ -5,14 +5,17 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 import { logout } from "@/lib/api/auth";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function Admin() {
   const t = useTranslations("Admin");
+  const router = useRouter();
 
   const handleLogout = async () => {
     try {
       await logout();
-      window.location.href = "/";
+      router.push("/");
+      router.refresh();
     } catch {
       toast.error("Logout failed");
     }

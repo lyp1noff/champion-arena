@@ -1,41 +1,30 @@
-"use client";
+export const dynamic = "force-dynamic";
 
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { CalendarIcon, MapPinIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Tournament } from "@/lib/interfaces";
 import { getTournaments } from "@/lib/api/tournaments";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import { DateRange } from "@/components/date-range";
+import { getLocale, getTranslations } from "next-intl/server";
+import { Tournament } from "@/lib/interfaces";
 
 const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
 
-export default function TournamentsPage() {
-  const t = useTranslations("Home");
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  // const [isLoadingTournaments, setIsLoadingTournaments] = useState(true);
+export default async function TournamentsPage() {
+  const locale = await getLocale();
+  const t = await getTranslations("Home");
 
-  useEffect(() => {
-    const fetchTournaments = async () => {
-      // setIsLoadingTournaments(true);
-      try {
-        const data = await getTournaments(1, 10, "start_date", "desc", "");
-        setTournaments(data.data);
-      } catch (error) {
-        console.error("Error fetching tournaments:", error);
-        toast.error(t("loadError"), {
-          description: t("loadErrorDescription"),
-        });
-      } finally {
-        // setIsLoadingTournaments(false);
-      }
-    };
+  let tournaments: Tournament[] = [];
+  let isFallback = false;
 
-    fetchTournaments();
-  }, [t]);
+  try {
+    const data = await getTournaments(1, 10, "start_date", "desc", "");
+    tournaments = data.data ?? [];
+  } catch (error) {
+    console.error("[TournamentsPage] failed to fetch tournaments:", error);
+    isFallback = true;
+  }
 
   return (
     <div className="container py-10">
@@ -44,54 +33,64 @@ export default function TournamentsPage() {
         <span className="dark:text-championYellow"> Club </span>
         {t("tournaments")}
       </h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tournaments.map((tournament) => (
-          <Link
-            href={`/tournaments/${tournament.id}`}
-            key={tournament.id}
-            className="block transition-transform hover:scale-[1.01]"
-          >
-            <Card className="h-full overflow-hidden">
-              <div className="relative h-72 w-full overflow-hidden">
-                <Image
-                  src={tournament.image_url ? `${cdnUrl}/${tournament.image_url}` : "/tournament.svg"}
-                  alt=""
-                  className="absolute inset-0 object-cover blur-md scale-110"
-                  fill
-                  aria-hidden="true"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                  priority
-                />
-                <Image
-                  src={tournament.image_url ? `${cdnUrl}/${tournament.image_url}` : "/tournament.svg"}
-                  alt={tournament.name}
-                  className="relative object-contain z-10"
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                  priority
-                />
-              </div>
+      {isFallback ? (
+        <div className="p-8 border border-dashed rounded-lg text-center text-muted-foreground">
+          <p className="mb-2">{t("loadErrorDescription")}</p>
+        </div>
+      ) : tournaments.length === 0 ? (
+        <div className="p-8 border border-dashed rounded-lg text-center text-muted-foreground">
+          <p>{t("noTournamentsFound")}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tournaments.map((tournament) => (
+            <Link
+              href={`/tournaments/${tournament.id}`}
+              key={tournament.id}
+              className="block transition-transform hover:scale-[1.01]"
+            >
+              <Card className="h-full overflow-hidden">
+                <div className="relative h-72 w-full overflow-hidden">
+                  <Image
+                    src={tournament.image_url ? `${cdnUrl}/${tournament.image_url}` : "/tournament.svg"}
+                    alt=""
+                    className="absolute inset-0 object-cover blur-md scale-110"
+                    fill
+                    aria-hidden="true"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                    priority
+                  />
+                  <Image
+                    src={tournament.image_url ? `${cdnUrl}/${tournament.image_url}` : "/tournament.svg"}
+                    alt={tournament.name}
+                    className="relative object-contain z-10"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                    priority
+                  />
+                </div>
 
-              <CardHeader>
-                <h2 className="text-xl font-semibold">{tournament.name}</h2>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPinIcon className="mr-2 h-4 w-4" />
-                  {tournament.location}
-                </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  <DateRange start={tournament.start_date} end={tournament.end_date} />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <div className="text-sm font-medium text-primary">{t("viewDetails")}</div>
-              </CardFooter>
-            </Card>
-          </Link>
-        ))}
-      </div>
+                <CardHeader>
+                  <h2 className="text-xl font-semibold">{tournament.name}</h2>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <MapPinIcon className="mr-2 h-4 w-4" />
+                    {tournament.location}
+                  </div>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <DateRange start={tournament.start_date} end={tournament.end_date} locale={locale} />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <div className="text-sm font-medium text-primary">{t("viewDetails")}</div>
+                </CardFooter>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

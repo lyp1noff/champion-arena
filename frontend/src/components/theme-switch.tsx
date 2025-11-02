@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTranslations } from "next-intl";
 
-export function ModeToggle() {
-  const t = useTranslations("ModeToggle");
+export function ThemeSwitch() {
+  const t = useTranslations("ThemeSwitch");
   const { setTheme } = useTheme();
 
   return (

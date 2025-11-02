@@ -6,6 +6,7 @@ import { Header } from "@/components/header";
 import { Toaster } from "@/components/ui/sonner";
 import { verifyTokenFromCookie } from "@/lib/auth";
 import "@/styles/globals.css";
+import { getLocale } from "next-intl/server";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
@@ -19,11 +20,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
   const payload = await verifyTokenFromCookie();
   return (
-    <html lang="ua" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <NextIntlClientProvider>
             <div className="relative flex flex-col min-h-screen">
               <div className="relative z-10 flex flex-col min-h-screen">

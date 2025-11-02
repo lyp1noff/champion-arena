@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ModeToggle } from "@/components/mode-toggle";
+import { ThemeSwitch } from "@/components/theme-switch";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 
@@ -23,7 +23,7 @@ export function Header({ user }: HeaderProps) {
         </div>
         <div className="flex items-center space-x-4">
           <nav className="flex items-center space-x-4">
-            <ModeToggle />
+            <ThemeSwitch />
             {user ? (
               <Link href="/admin">
                 <Button variant="outline">{t(user.role || "admin")}</Button>

@@ -6,7 +6,7 @@
   "Footer": {
     "rights": "Все права защищены."
   },
-  "ModeToggle": {
+  "ThemeSwitch": {
     "dark": "Тёмный",
     "light": "Светлый",
     "system": "Системный"

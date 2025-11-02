@@ -1,17 +1,31 @@
+import { isClient } from "@/lib/utils";
+
 const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
 
-// Helper to handle refresh token logic
 export async function fetchWithRefresh(input: RequestInfo, init?: RequestInit): Promise<Response> {
   let response = await fetch(input, { ...init, credentials: "include" });
-  if (response.status === 401) {
-    // Try to refresh the access token
-    const refreshRes = await fetch(`${url}/auth/refresh`, { method: "POST", credentials: "include" });
-    if (refreshRes.ok) {
-      // Optionally update any in-memory access token here if you use one
-      // Retry the original request
-      response = await fetch(input, { ...init, credentials: "include" });
+
+  if (isClient && response.status === 401) {
+    try {
+      const refreshRes = await fetch(`${url}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (refreshRes.ok) {
+        response = await fetch(input, {
+          ...init,
+          credentials: "include",
+        });
+      } else {
+        window.location.href = "/login";
+      }
+    } catch (err) {
+      console.error("refresh failed", err);
+      window.location.href = "/login";
     }
   }
+
   return response;
 }
 

@@ -1,42 +1,52 @@
-import type React from "react";
+"use client";
+
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "next-intl";
+import { login } from "@/lib/api/auth";
 
-interface Props extends React.ComponentPropsWithoutRef<"div"> {
-  email: string;
-  password: string;
-  onEmailChange: (v: string) => void;
-  onPasswordChange: (v: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
-}
-
-export function LoginForm({ email, password, onEmailChange, onPasswordChange, onSubmit, className, ...props }: Props) {
+export function LoginForm({ className }: { className?: string }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const t = useTranslations("Login");
+  const router = useRouter();
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await login({ username: email, password });
+      toast.success("Login Success");
+      router.push("/admin");
+      router.refresh();
+    } catch {
+      toast.error("Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
+    <div className={cn("flex flex-col gap-6", className)}>
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">{t("title")}</CardTitle>
           <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit}>
+          <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
                 <Label htmlFor="login">{t("username")}</Label>
-                <Input
-                  id="login"
-                  type="text"
-                  placeholder=""
-                  value={email}
-                  onChange={(e) => onEmailChange(e.target.value)}
-                  required
-                />
+                <Input id="login" type="text" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">{t("password")}</Label>
@@ -44,11 +54,11 @@ export function LoginForm({ email, password, onEmailChange, onPasswordChange, on
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => onPasswordChange(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={loading}>
                 {t("loginButton")}
               </Button>
             </div>
