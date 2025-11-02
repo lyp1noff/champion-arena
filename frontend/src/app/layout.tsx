@@ -1,12 +1,15 @@
-import { NextIntlClientProvider } from "next-intl";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import { ThemeProvider } from "@/components/theme-provider";
-import { Header } from "@/components/header";
-import { Toaster } from "@/components/ui/sonner";
-import { verifyTokenFromCookie } from "@/lib/auth";
-import "@/styles/globals.css";
+import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
+import { Inter } from "next/font/google";
+
+import "@/styles/globals.css";
+
+import { Header } from "@/components/header";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+
+import { verifyTokenFromCookie } from "@/lib/auth";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 

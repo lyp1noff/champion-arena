@@ -1,8 +1,10 @@
-import { BracketMatch, BracketMatchAthlete } from "@/lib/interfaces";
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent } from "@/components/ui/context-menu";
-import ParticipantMiniCard from "@/components/participant-mini-card";
 import React, { useRef } from "react";
+
+import ParticipantMiniCard from "@/components/participant-mini-card";
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { useMatchUpdate } from "@/components/websocket-provider";
+
+import { BracketMatch, BracketMatchAthlete } from "@/lib/interfaces";
 
 interface MatchCardProps {
   bracketMatch: BracketMatch;

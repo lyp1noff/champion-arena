@@ -1,11 +1,14 @@
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Bracket } from "@/lib/interfaces";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { ChevronsUpDown } from "lucide-react";
 import React, { useState } from "react";
+
+import { ChevronsUpDown } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+import { Bracket } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
 interface DeleteBracketDialogProps {

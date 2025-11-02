@@ -1,21 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { RefreshCcw, X } from "lucide-react";
-import { WebSocketProvider } from "@/components/websocket-provider";
-import { BracketView } from "@/components/bracket/bracket-view";
-import { ParticipantsView } from "./ParticipantsView";
-import { getBracketMatchesById } from "@/lib/api/brackets";
-import { getBracketDisplayName } from "@/lib/utils";
-import { useDebounce } from "use-debounce";
-import { Bracket, BracketMatches, Tournament } from "@/lib/interfaces";
+
 import { useTranslations } from "next-intl";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { RefreshCcw, X } from "lucide-react";
+import { useDebounce } from "use-debounce";
+
+import { BracketView } from "@/components/bracket/bracket-view";
 import { SkeletonBracketView } from "@/components/bracket/skeleton-bracket";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WebSocketProvider } from "@/components/websocket-provider";
+
+import { getBracketMatchesById } from "@/lib/api/brackets";
+import { Bracket, BracketMatches, Tournament } from "@/lib/interfaces";
+import { getBracketDisplayName } from "@/lib/utils";
+
+import { ParticipantsView } from "./ParticipantsView";
 
 interface TournamentPageContentProps {
   tournament: Tournament | null;

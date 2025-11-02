@@ -1,9 +1,12 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import DataTableColumnHeader from "@/components/table/data-table-column-header";
-import { DataTableRowActions } from "./row-actions";
-import { Tournament } from "@/lib/interfaces";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+
+import { Tournament } from "@/lib/interfaces";
+
+import { DataTableRowActions } from "./row-actions";
 
 export function columns(onDataChanged: () => void): ColumnDef<Tournament>[] {
   return [

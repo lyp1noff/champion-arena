@@ -1,13 +1,16 @@
-export const dynamic = "force-dynamic";
-
+import { getLocale, getTranslations } from "next-intl/server";
 import Image from "next/image";
 import Link from "next/link";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+
 import { CalendarIcon, MapPinIcon } from "lucide-react";
-import { getTournaments } from "@/lib/api/tournaments";
+
 import { DateRange } from "@/components/date-range";
-import { getLocale, getTranslations } from "next-intl/server";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+
+import { getTournaments } from "@/lib/api/tournaments";
 import { Tournament } from "@/lib/interfaces";
+
+export const dynamic = "force-dynamic";
 
 const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
 

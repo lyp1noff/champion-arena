@@ -1,8 +1,14 @@
 import { useState } from "react";
+
+import { useTranslations } from "next-intl";
+
 import { Row } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
 
+import AthleteForm from "@/components/athlete-form";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,12 +16,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Athlete } from "@/lib/interfaces";
-import { toast } from "sonner";
+
 import { deleteAthlete } from "@/lib/api/athletes";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { useTranslations } from "next-intl";
-import AthleteForm from "@/components/athlete-form";
+import { Athlete } from "@/lib/interfaces";
 
 interface DataTableRowActionsProps {
   row: Row<Athlete>;

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
-import { getTournamentById, getTournamentBracketsById } from "@/lib/api/tournaments";
-import TournamentCard from "@/app/(main)/tournaments/[id]/components/TournamentCard";
+
 import TournamentBrackets from "@/app/(main)/tournaments/[id]/components/TournamentBrackets";
+import TournamentCard from "@/app/(main)/tournaments/[id]/components/TournamentCard";
+
+import { getTournamentBracketsById, getTournamentById } from "@/lib/api/tournaments";
 
 export default async function TournamentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

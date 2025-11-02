@@ -1,5 +1,6 @@
-import { clsx, type ClassValue } from "clsx";
+import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+
 import { BracketMatchAthlete, BracketMatches } from "@/lib/interfaces";
 
 export const isServer = typeof window === "undefined";

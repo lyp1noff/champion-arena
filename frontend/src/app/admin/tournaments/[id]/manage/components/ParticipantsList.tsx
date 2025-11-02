@@ -1,6 +1,8 @@
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+
+import { Bracket, Participant } from "@/lib/interfaces";
+
 import DraggableParticipant from "./DraggableParticipant";
-import { Participant, Bracket } from "@/lib/interfaces";
 
 interface ParticipantsListProps {
   participants: Participant[];

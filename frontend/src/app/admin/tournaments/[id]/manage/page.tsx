@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useParams } from "next/navigation";
-import { getTournamentBracketsById } from "@/lib/api/tournaments";
-import { getBracketMatchesById, updateBracket } from "@/lib/api/brackets";
+
 import { toast } from "sonner";
+
+import { getBracketMatchesById, updateBracket } from "@/lib/api/brackets";
+import { getTournamentBracketsById } from "@/lib/api/tournaments";
 import { Bracket, BracketMatches, BracketType } from "@/lib/interfaces";
-import ManageTournamentPage from "./ManageTournamentPage";
 import { formatTimeToISO } from "@/lib/utils";
+
+import ManageTournamentPage from "./ManageTournamentPage";
 
 export default function Page() {
   const { id } = useParams();

@@ -1,8 +1,9 @@
-import Link from "next/link";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
+import Link from "next/link";
+
 import { ThemeSwitch } from "@/components/theme-switch";
 import { Button } from "@/components/ui/button";
-import { useTranslations } from "next-intl";
 
 interface HeaderProps {
   user?: {

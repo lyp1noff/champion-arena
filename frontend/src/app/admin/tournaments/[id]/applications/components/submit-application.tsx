@@ -1,17 +1,21 @@
 "use client";
 
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { useCallback, useEffect, useState } from "react";
+
+import { useTranslations } from "next-intl";
+
+import { toast } from "sonner";
+
+import AthleteForm from "@/components/athlete-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
-import { useCallback, useEffect, useState } from "react";
-import { ApplicationResponse, Athlete, Category, Coach } from "@/lib/interfaces";
-import { approveAllApplications, createApplication, getApplications } from "@/lib/api/applications";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import AthleteForm from "@/components/athlete-form";
-import { useTranslations } from "next-intl";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+import { approveAllApplications, createApplication, getApplications } from "@/lib/api/applications";
+import { ApplicationResponse, Athlete, Category, Coach } from "@/lib/interfaces";
 
 interface Props {
   tournamentId: number;

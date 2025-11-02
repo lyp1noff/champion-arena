@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+import { useRouter, useSearchParams } from "next/navigation";
+
 import { PaginationState, SortingState } from "@tanstack/react-table";
+
 import { getTournaments } from "@/lib/api/tournaments";
-import { useSearchParams, useRouter } from "next/navigation";
-import { Tournament } from "@/lib/interfaces";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import { Tournament } from "@/lib/interfaces";
+
 import { columns } from "../components/columns";
 
 export default function useDataTable() {

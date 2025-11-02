@@ -1,5 +1,6 @@
-import { Footer } from "@/components/footer";
 import Script from "next/script";
+
+import { Footer } from "@/components/footer";
 
 export default function MainLayout({
   children,

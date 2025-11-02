@@ -1,45 +1,49 @@
 import { useEffect, useState } from "react";
-import { Bracket, BracketMatches, BracketType, Category, Participant } from "@/lib/interfaces";
-import { BracketView } from "@/components/bracket/bracket-view";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Plus, RefreshCw, Save } from "lucide-react";
+
+import BracketFormDialog from "@/app/admin/tournaments/[id]/manage/components/BracketFormDialog";
+import {
+  CreateBracketSchema,
+  defaultBracketValues,
+} from "@/app/admin/tournaments/[id]/manage/components/bracketSchema";
 import {
   DndContext,
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  closestCenter,
   useSensor,
   useSensors,
-  closestCenter,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import { Plus, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
-import BracketCard from "./components/BracketCard";
-import ParticipantsList from "./components/ParticipantsList";
-import CreateCategoryDialog from "./components/CreateCategoryDialog";
-import UnsavedChangesDialog from "./components/UnsavedChangesDialog";
+
+import { BracketView } from "@/components/bracket/bracket-view";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { WebSocketProvider } from "@/components/websocket-provider";
+
 import {
+  createBracket,
+  createCategory,
+  deleteBracket,
+  getCategories,
+  moveParticipant,
   regenerateBracket,
   reorderParticipants,
-  createBracket,
-  getCategories,
-  createCategory,
-  moveParticipant,
-  deleteBracket,
 } from "@/lib/api/brackets";
+import { deleteParticipant } from "@/lib/api/tournaments";
+import { Bracket, BracketMatches, BracketType, Category, Participant } from "@/lib/interfaces";
+import { getBracketDisplayName } from "@/lib/utils";
+
+import BracketCard from "./components/BracketCard";
+import CreateCategoryDialog from "./components/CreateCategoryDialog";
 import DeleteBracketDialog from "./components/DeleteBracketDialog";
 import DeleteParticipantDialog from "./components/DeleteParticipantDialog";
-import { deleteParticipant } from "@/lib/api/tournaments";
-import {
-  CreateBracketSchema,
-  defaultBracketValues,
-} from "@/app/admin/tournaments/[id]/manage/components/bracketSchema";
-import BracketFormDialog from "@/app/admin/tournaments/[id]/manage/components/BracketFormDialog";
-import { WebSocketProvider } from "@/components/websocket-provider";
-import { getBracketDisplayName } from "@/lib/utils";
+import ParticipantsList from "./components/ParticipantsList";
+import UnsavedChangesDialog from "./components/UnsavedChangesDialog";
 
 interface Props {
   tournamentId: number;

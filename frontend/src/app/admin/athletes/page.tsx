@@ -1,12 +1,15 @@
 "use client";
 
 import { Suspense } from "react";
-import DataTable from "@/components/table/data-table";
-import ScreenLoader from "@/components/loader";
-import useDataTable from "./hooks/use-data-table";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+
 import Link from "next/link";
+
+import ScreenLoader from "@/components/loader";
+import DataTable from "@/components/table/data-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+import useDataTable from "./hooks/use-data-table";
 
 function AthletesTableWrapper() {
   const {

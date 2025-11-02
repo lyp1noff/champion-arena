@@ -1,14 +1,16 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useTranslations } from "next-intl";
+
 import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
   ColumnDef,
   PaginationState,
   SortingState,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
 } from "@tanstack/react-table";
+
 import DataTablePagination from "@/components/table/data-table-pagination";
-import { useTranslations } from "next-intl";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData>[];

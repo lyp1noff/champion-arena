@@ -1,5 +1,6 @@
-import { Participant, BracketMatchAthlete } from "@/lib/interfaces";
 import React from "react";
+
+import { BracketMatchAthlete, Participant } from "@/lib/interfaces";
 
 // Accept both Participant and BracketMatchAthlete
 interface ParticipantMiniCardProps {

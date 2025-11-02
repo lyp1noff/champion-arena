@@ -1,19 +1,22 @@
+import React, { useState } from "react";
+
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Participant, Bracket } from "@/lib/interfaces";
-import { GripVertical, ChevronsUpDown } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronsUpDown, GripVertical } from "lucide-react";
+
 import ParticipantMiniCard from "@/components/participant-mini-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   ContextMenu,
-  ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuSeparator,
+  ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import React, { useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+import { Bracket, Participant } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
 interface DraggableParticipantProps {

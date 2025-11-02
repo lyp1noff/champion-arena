@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { FormEvent, useState } from "react";
+
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useTranslations } from "next-intl";
+
 import { login } from "@/lib/api/auth";
+import { cn } from "@/lib/utils";
 
 export function LoginForm({ className }: { className?: string }) {
   const [email, setEmail] = useState("");

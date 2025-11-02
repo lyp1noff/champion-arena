@@ -1,7 +1,8 @@
-import { BracketMatches } from "@/lib/interfaces";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { getUniqueAthletes } from "@/lib/utils";
 import { useMatchUpdate } from "@/components/websocket-provider";
+
+import { BracketMatches } from "@/lib/interfaces";
+import { getUniqueAthletes } from "@/lib/utils";
 
 const TR_HEIGHT = undefined;
 

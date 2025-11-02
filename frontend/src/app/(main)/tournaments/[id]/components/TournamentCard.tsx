@@ -1,9 +1,12 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { DateRange } from "@/components/date-range";
 import { getLocale, getTranslations } from "next-intl/server";
-import { CalendarDays, MapPin, Trophy, Users } from "lucide-react";
-import { Tournament } from "@/lib/interfaces";
 import Image from "next/image";
+
+import { CalendarDays, MapPin, Trophy, Users } from "lucide-react";
+
+import { DateRange } from "@/components/date-range";
+import { Card, CardContent } from "@/components/ui/card";
+
+import { Tournament } from "@/lib/interfaces";
 
 const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
 

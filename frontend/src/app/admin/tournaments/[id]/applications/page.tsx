@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useParams } from "next/navigation";
-import SubmitApplication from "./components/submit-application";
-import { getAllAthletes } from "@/lib/api/athletes";
-import { getCoaches } from "@/lib/api/api";
-import { getCategories } from "@/lib/api/categories";
-import { Coach, Athlete, Category } from "@/lib/interfaces";
+
 import { toast } from "sonner";
+
+import { getCoaches } from "@/lib/api/api";
+import { getAllAthletes } from "@/lib/api/athletes";
+import { getCategories } from "@/lib/api/categories";
+import { Athlete, Category, Coach } from "@/lib/interfaces";
+
+import SubmitApplication from "./components/submit-application";
 
 export default function Page() {
   const params = useParams();

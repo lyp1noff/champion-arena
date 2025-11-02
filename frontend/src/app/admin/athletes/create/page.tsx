@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createAthlete } from "@/lib/api/athletes";
-import AthleteForm from "@/components/athlete-form";
-import { AthleteCreate } from "@/lib/interfaces";
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+
+import AthleteForm from "@/components/athlete-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { createAthlete } from "@/lib/api/athletes";
+import { AthleteCreate } from "@/lib/interfaces";
 
 export default function CreateAthletePage() {
   const router = useRouter();

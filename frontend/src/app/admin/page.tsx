@@ -1,11 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
-import { logout } from "@/lib/api/auth";
-import { toast } from "sonner";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+
+import { logout } from "@/lib/api/auth";
 
 export default function Admin() {
   const t = useTranslations("Admin");

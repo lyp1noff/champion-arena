@@ -1,6 +1,8 @@
 import { Skeleton } from "@/components/ui/skeleton";
+
 import { BracketType } from "@/lib/interfaces";
 import { getBracketDimensions } from "@/lib/utils";
+
 import { ScrollArea } from "../ui/scroll-area";
 
 interface SkeletonBracketViewProps {

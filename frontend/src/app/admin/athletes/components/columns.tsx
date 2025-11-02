@@ -1,8 +1,11 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import DataTableColumnHeader from "@/components/table/data-table-column-header";
-import { DataTableRowActions } from "./row-actions";
+import { Checkbox } from "@/components/ui/checkbox";
+
 import { Athlete } from "@/lib/interfaces";
+
+import { DataTableRowActions } from "./row-actions";
 
 export function columns(onDataChanged: () => void): ColumnDef<Athlete>[] {
   return [
