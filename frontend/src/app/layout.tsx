@@ -30,13 +30,11 @@ export default async function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <NextIntlClientProvider>
-            <div className="relative flex flex-col min-h-screen">
-              <div className="relative z-10 flex flex-col min-h-screen">
-                <Header user={payload} />
-                {children}
-                <Toaster />
-              </div>
+            <div className={"flex flex-col min-h-screen"}>
+              <Header user={payload} />
+              {children}
             </div>
+            <Toaster />
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>
