@@ -1,7 +1,7 @@
+import { BACKEND_URL } from "@/lib/config";
+
 import { Athlete, AthleteCreate, AthleteUpdate } from "../interfaces";
 import { fetchWithRefresh } from "./api";
-
-const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
 
 export async function getAthletes(
   page: number = 1,
@@ -12,7 +12,7 @@ export async function getAthletes(
   coach_search: string = "",
 ) {
   const res = await fetchWithRefresh(
-    `${url}/athletes?page=${page}&limit=${limit}&order_by=${orderBy}&order=${order}&search=${search}&coach_search=${coach_search}`,
+    `${BACKEND_URL}/athletes?page=${page}&limit=${limit}&order_by=${orderBy}&order=${order}&search=${search}&coach_search=${coach_search}`,
     { cache: "no-store" },
   );
 
@@ -24,7 +24,7 @@ export async function getAthletes(
 }
 
 export async function createAthlete(data: AthleteCreate): Promise<Athlete> {
-  const res = await fetchWithRefresh(`${url}/athletes`, {
+  const res = await fetchWithRefresh(`${BACKEND_URL}/athletes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -38,7 +38,7 @@ export async function createAthlete(data: AthleteCreate): Promise<Athlete> {
 }
 
 export async function getAllAthletes(): Promise<Athlete[]> {
-  const res = await fetchWithRefresh(`${url}/athletes/all`, { cache: "no-store" });
+  const res = await fetchWithRefresh(`${BACKEND_URL}/athletes/all`, { cache: "no-store" });
 
   if (!res.ok) throw new Error("Failed to load athletes");
 
@@ -46,7 +46,7 @@ export async function getAllAthletes(): Promise<Athlete[]> {
 }
 
 export async function getAthleteById(id: number): Promise<Athlete> {
-  const res = await fetchWithRefresh(`${url}/athletes/${id}`, { cache: "no-store" });
+  const res = await fetchWithRefresh(`${BACKEND_URL}/athletes/${id}`, { cache: "no-store" });
 
   if (!res.ok) {
     throw new Error("Failed to load athlete");
@@ -56,7 +56,7 @@ export async function getAthleteById(id: number): Promise<Athlete> {
 }
 
 export async function updateAthlete(id: number, data: AthleteUpdate): Promise<Athlete> {
-  const res = await fetchWithRefresh(`${url}/athletes/${id}`, {
+  const res = await fetchWithRefresh(`${BACKEND_URL}/athletes/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -70,7 +70,7 @@ export async function updateAthlete(id: number, data: AthleteUpdate): Promise<At
 }
 
 export async function deleteAthlete(id: number): Promise<{ success: boolean }> {
-  const res = await fetchWithRefresh(`${url}/athletes/${id}`, { method: "DELETE" });
+  const res = await fetchWithRefresh(`${BACKEND_URL}/athletes/${id}`, { method: "DELETE" });
 
   if (!res.ok) {
     throw new Error("Error deleting athlete");

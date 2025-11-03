@@ -1,7 +1,7 @@
-const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
+import { BACKEND_URL } from "@/lib/config";
 
 export async function login({ username, password }: { username: string; password: string }) {
-  const res = await fetch(`${url}/auth/login`, {
+  const res = await fetch(`${BACKEND_URL}/auth/login`, {
     method: "POST",
     credentials: "include",
     headers: {
@@ -19,7 +19,7 @@ export async function login({ username, password }: { username: string; password
 }
 
 export async function logout() {
-  const res = await fetch(`${url}/auth/logout`, {
+  const res = await fetch(`${BACKEND_URL}/auth/logout`, {
     method: "POST",
     credentials: "include",
   });

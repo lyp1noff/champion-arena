@@ -1,3 +1,5 @@
+import { BACKEND_URL } from "@/lib/config";
+
 import {
   Bracket,
   BracketCreate,
@@ -10,10 +12,8 @@ import {
 } from "../interfaces";
 import { fetchWithRefresh } from "./api";
 
-const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
-
 export async function getBracketsById(id: number): Promise<Bracket> {
-  const res = await fetchWithRefresh(`${url}/brackets/${id}`, { cache: "no-store" });
+  const res = await fetchWithRefresh(`${BACKEND_URL}/brackets/${id}`, { cache: "no-store" });
 
   if (!res.ok) {
     throw new Error("Failed to load bracket");
@@ -23,7 +23,7 @@ export async function getBracketsById(id: number): Promise<Bracket> {
 }
 
 export async function getBracketMatchesById(id: number): Promise<BracketMatches> {
-  const res = await fetchWithRefresh(`${url}/brackets/${id}/matches`, { cache: "no-store" });
+  const res = await fetchWithRefresh(`${BACKEND_URL}/brackets/${id}/matches`, { cache: "no-store" });
 
   if (!res.ok) {
     throw new Error("Failed to load bracket");
@@ -33,7 +33,7 @@ export async function getBracketMatchesById(id: number): Promise<BracketMatches>
 }
 
 export async function updateBracket(bracketId: number, updateData: BracketUpdate) {
-  const response = await fetchWithRefresh(`${url}/brackets/${bracketId}`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/brackets/${bracketId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updateData),
@@ -47,7 +47,7 @@ export async function updateBracket(bracketId: number, updateData: BracketUpdate
 }
 
 export async function regenerateBracket(bracketId: number) {
-  const response = await fetchWithRefresh(`${url}/brackets/${bracketId}/regenerate`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/brackets/${bracketId}/regenerate`, {
     method: "POST",
   });
 
@@ -59,7 +59,7 @@ export async function regenerateBracket(bracketId: number) {
 }
 
 export async function moveParticipant(moveData: ParticipantMove) {
-  const response = await fetchWithRefresh(`${url}/brackets/participants/move`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/brackets/participants/move`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(moveData),
@@ -74,7 +74,7 @@ export async function moveParticipant(moveData: ParticipantMove) {
 }
 
 export async function reorderParticipants(participantsData: ParticipantReorder) {
-  const response = await fetchWithRefresh(`${url}/brackets/participants/reorder`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/brackets/participants/reorder`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(participantsData),
@@ -89,7 +89,7 @@ export async function reorderParticipants(participantsData: ParticipantReorder) 
 }
 
 export async function createBracket(bracketData: BracketCreate) {
-  const response = await fetchWithRefresh(`${url}/brackets/create`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/brackets/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(bracketData),
@@ -103,7 +103,7 @@ export async function createBracket(bracketData: BracketCreate) {
 }
 
 export async function deleteBracket(bracketId: number, bracketData: BracketDelete) {
-  const response = await fetchWithRefresh(`${url}/brackets/${bracketId}/delete`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/brackets/${bracketId}/delete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(bracketData),
@@ -118,7 +118,7 @@ export async function deleteBracket(bracketId: number, bracketData: BracketDelet
 }
 
 export async function getCategories() {
-  const response = await fetchWithRefresh(`${url}/categories`);
+  const response = await fetchWithRefresh(`${BACKEND_URL}/categories`);
 
   if (!response.ok) {
     throw new Error("Failed to fetch categories");
@@ -128,7 +128,7 @@ export async function getCategories() {
 }
 
 export async function createCategory(categoryData: CategoryCreate) {
-  const response = await fetchWithRefresh(`${url}/categories`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/categories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(categoryData),
@@ -142,7 +142,7 @@ export async function createCategory(categoryData: CategoryCreate) {
 }
 
 export async function updateBracketStatus(bracketId: number, status: string) {
-  const response = await fetchWithRefresh(`${url}/brackets/${bracketId}/status`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/brackets/${bracketId}/status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),
@@ -156,7 +156,7 @@ export async function updateBracketStatus(bracketId: number, status: string) {
 }
 
 export async function startBracket(bracketId: number) {
-  const response = await fetchWithRefresh(`${url}/brackets/${bracketId}/start`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/brackets/${bracketId}/start`, {
     method: "POST",
   });
 

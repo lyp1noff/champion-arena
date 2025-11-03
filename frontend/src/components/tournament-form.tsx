@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 
+import { useLocale } from "next-intl";
+
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -19,34 +22,33 @@ import { uploadImage } from "@/lib/api/api";
 import { createTournament, getTournamentById, importCbrFile, updateTournament } from "@/lib/api/tournaments";
 import { formatDateToISO } from "@/lib/utils";
 
+import { DateRange as DateRangeComponent } from "./date-range";
+
 const formSchema = z
   .object({
     name: z.string().trim().min(3, { message: "Tournament name must be at least 3 characters." }),
     location: z.string().trim().min(3, { message: "Location must be at least 3 characters." }),
-    start_date: z.date({ required_error: "Start date is required." }),
-    end_date: z.date({ required_error: "End date is required." }),
-    registration_start_date: z.date({ required_error: "Registration start date is required." }),
-    registration_end_date: z.date({ required_error: "Registration end date is required." }),
+    tournament_range: z.object({
+      from: z.date({ required_error: "Start date is required." }),
+      to: z.date({ required_error: "End date is required." }),
+    }),
+    registration_range: z.object({
+      from: z.date({ required_error: "Registration start date is required." }),
+      to: z.date({ required_error: "Registration end date is required." }),
+    }),
   })
-  .refine((data) => data.end_date >= data.start_date, {
+  .refine((data) => data.tournament_range.to >= data.tournament_range.from, {
     message: "End date must be after start date",
-    path: ["end_date"],
+    path: ["tournament_range.to"],
   })
-  .refine((data) => data.registration_end_date >= data.registration_start_date, {
+  .refine((data) => data.registration_range.to >= data.registration_range.from, {
     message: "Registration end date must be after registration start date",
-    path: ["registration_end_date"],
+    path: ["registration_range.to"],
   })
-  .refine((data) => data.start_date >= data.registration_end_date, {
+  .refine((data) => data.tournament_range.from >= data.registration_range.to, {
     message: "Tournament must start after registration ends",
-    path: ["start_date"],
+    path: ["tournament_range.from"],
   });
-
-const dateFields: (keyof z.infer<typeof formSchema>)[] = [
-  "start_date",
-  "end_date",
-  "registration_start_date",
-  "registration_end_date",
-];
 
 interface TournamentFormProps {
   tournamentId?: number;
@@ -54,6 +56,7 @@ interface TournamentFormProps {
 }
 
 export function TournamentForm({ tournamentId, onSuccess }: TournamentFormProps) {
+  const locale = useLocale();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [structureFile, setStructureFile] = useState<File | null>(null);
@@ -63,12 +66,11 @@ export function TournamentForm({ tournamentId, onSuccess }: TournamentFormProps)
     defaultValues: {
       name: "",
       location: "",
-      start_date: new Date(),
-      end_date: new Date(),
-      registration_start_date: new Date(),
-      registration_end_date: new Date(),
+      tournament_range: { from: new Date(), to: new Date() },
+      registration_range: { from: new Date(), to: new Date() },
     },
   });
+
   useEffect(() => {
     if (tournamentId) {
       (async () => {
@@ -77,10 +79,14 @@ export function TournamentForm({ tournamentId, onSuccess }: TournamentFormProps)
           form.reset({
             name: tournament.name,
             location: tournament.location,
-            start_date: parseISO(tournament.start_date),
-            end_date: parseISO(tournament.end_date),
-            registration_start_date: parseISO(tournament.registration_start_date),
-            registration_end_date: parseISO(tournament.registration_end_date),
+            tournament_range: {
+              from: parseISO(tournament.start_date),
+              to: parseISO(tournament.end_date),
+            },
+            registration_range: {
+              from: parseISO(tournament.registration_start_date),
+              to: parseISO(tournament.registration_end_date),
+            },
           });
         } catch (err) {
           console.error(err);
@@ -92,41 +98,25 @@ export function TournamentForm({ tournamentId, onSuccess }: TournamentFormProps)
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-
     try {
       let uploadedImageUrl = "";
+      if (selectedImage) uploadedImageUrl = (await uploadImage(selectedImage, "champion/tournaments")) || "";
 
-      if (selectedImage) {
-        uploadedImageUrl = (await uploadImage(selectedImage, "champion/tournaments")) || "";
-      }
+      const payload = {
+        name: values.name,
+        location: values.location,
+        start_date: formatDateToISO(values.tournament_range.from),
+        end_date: formatDateToISO(values.tournament_range.to),
+        registration_start_date: formatDateToISO(values.registration_range.from),
+        registration_end_date: formatDateToISO(values.registration_range.to),
+        ...(uploadedImageUrl && { image_url: uploadedImageUrl }),
+      };
 
-      let result;
-      if (!tournamentId) {
-        const payload = {
-          ...values,
-          start_date: formatDateToISO(values.start_date),
-          end_date: formatDateToISO(values.end_date),
-          registration_start_date: formatDateToISO(values.registration_start_date),
-          registration_end_date: formatDateToISO(values.registration_end_date),
-          image_url: uploadedImageUrl,
-        };
-        result = await createTournament(payload);
-        toast.success("Tournament created");
-      } else {
-        const payload = {
-          ...values,
-          start_date: formatDateToISO(values.start_date),
-          end_date: formatDateToISO(values.end_date),
-          registration_start_date: formatDateToISO(values.registration_start_date),
-          registration_end_date: formatDateToISO(values.registration_end_date),
-          ...(uploadedImageUrl && { image_url: uploadedImageUrl }),
-        };
-        result = await updateTournament(tournamentId, payload);
-        toast.success("Tournament updated");
-      }
+      const result = tournamentId ? await updateTournament(tournamentId, payload) : await createTournament(payload);
+
+      toast.success(tournamentId ? "Tournament updated" : "Tournament created");
 
       const finalId = tournamentId || result?.id;
-
       if (structureFile && finalId) {
         await importCbrFile(finalId, structureFile);
         toast.success("Structure file imported");
@@ -144,111 +134,108 @@ export function TournamentForm({ tournamentId, onSuccess }: TournamentFormProps)
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="space-y-6">
-          {/* Name & Location */}
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tournament Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Karate Junior Tournament" {...field} />
-                </FormControl>
-                <FormDescription>The official name of your tournament.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
+        {/* Name & Location */}
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tournament Name</FormLabel>
+              <FormControl>
+                <Input placeholder="Karate Junior Tournament" {...field} />
+              </FormControl>
+              <FormDescription>The official name of your tournament.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="location"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Location</FormLabel>
+              <FormControl>
+                <Input placeholder="Kyiv" {...field} />
+              </FormControl>
+              <FormDescription>Where the tournament will take place.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Date Ranges */}
+        <div className="grid gap-6 sm:grid-cols-2">
+          {(["registration_range", "tournament_range"] as const).map((name) => (
+            <FormField
+              key={name}
+              control={form.control}
+              name={name}
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>{name === "registration_range" ? "Registration Period" : "Tournament Dates"}</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          className={`w-full pl-3 text-left font-normal ${
+                            !field.value?.from && "text-muted-foreground"
+                          }`}
+                        >
+                          {field.value?.from ? (
+                            field.value.to ? (
+                              <>
+                                <DateRangeComponent start={field.value.from} end={field.value.to} locale={locale} />
+                              </>
+                            ) : (
+                              <DateRangeComponent start={field.value.from} end={field.value.from} locale={locale} />
+                            )
+                          ) : (
+                            <span>Select date range</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="range"
+                        selected={field.value as DateRange | undefined}
+                        onSelect={field.onChange}
+                        numberOfMonths={2}
+                        weekStartsOn={1}
+                        className="rounded-lg border shadow-sm"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ))}
+        </div>
+
+        {/* Image & File Uploads */}
+        <div>
+          <label className="text-sm font-medium">Upload Tournament Image</label>
+          <Input
+            type="file"
+            accept="image/*"
+            className={"mt-2"}
+            onChange={(e) => e.target.files?.[0] && setSelectedImage(e.target.files[0])}
           />
+          <p className="mt-2 text-xs text-muted-foreground">Recommended size: 800x600px.</p>
+        </div>
 
-          <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <FormControl>
-                  <Input placeholder="Kyiv" {...field} />
-                </FormControl>
-                <FormDescription>Where the tournament will take place.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
+        <div>
+          <label className="text-sm font-medium">Bracket Structure File (*.cbr)</label>
+          <Input
+            type="file"
+            accept=".json,.cbr"
+            className={"mt-2"}
+            onChange={(e) => e.target.files?.[0] && setStructureFile(e.target.files[0])}
           />
-
-          {/* Dates */}
-          <div className="grid gap-6 sm:grid-cols-2">
-            {dateFields.map((name) => (
-              <FormField
-                key={name}
-                control={form.control}
-                name={name}
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>{name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
-                          >
-                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value instanceof Date ? field.value : undefined}
-                          onSelect={(date) => {
-                            if (date) field.onChange(date);
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ))}
-          </div>
-
-          {/* Image */}
-          <FormItem>
-            <FormLabel>Upload Tournament Image</FormLabel>
-            <FormControl>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  if (e.target.files?.length) {
-                    setSelectedImage(e.target.files[0]);
-                  }
-                }}
-              />
-            </FormControl>
-            <FormDescription>Recommended size: 800x600px.</FormDescription>
-            <FormMessage />
-          </FormItem>
-
-          <FormItem>
-            <FormLabel>Bracket Structure File (*.cbr)</FormLabel>
-            <FormControl>
-              <Input
-                type="file"
-                accept=".json,.cbr"
-                onChange={(e) => {
-                  if (e.target.files?.length) {
-                    setStructureFile(e.target.files[0]);
-                  }
-                }}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
         </div>
 
         <div className="flex justify-between">

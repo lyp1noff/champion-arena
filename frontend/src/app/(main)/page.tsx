@@ -8,11 +8,10 @@ import { DateRange } from "@/components/date-range";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 
 import { getTournaments } from "@/lib/api/tournaments";
+import { CDN_URL } from "@/lib/config";
 import { Tournament } from "@/lib/interfaces";
 
 export const dynamic = "force-dynamic";
-
-const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
 
 export default async function TournamentsPage() {
   const locale = await getLocale();
@@ -54,7 +53,7 @@ export default async function TournamentsPage() {
               <Card className="h-full overflow-hidden">
                 <div className="relative h-72 w-full overflow-hidden">
                   <Image
-                    src={tournament.image_url ? `${cdnUrl}/${tournament.image_url}` : "/tournament.svg"}
+                    src={tournament.image_url ? `${CDN_URL}/${tournament.image_url}` : "/tournament.svg"}
                     alt=""
                     className="absolute inset-0 object-cover blur-md scale-110"
                     fill
@@ -63,7 +62,7 @@ export default async function TournamentsPage() {
                     priority
                   />
                   <Image
-                    src={tournament.image_url ? `${cdnUrl}/${tournament.image_url}` : "/tournament.svg"}
+                    src={tournament.image_url ? `${CDN_URL}/${tournament.image_url}` : "/tournament.svg"}
                     alt={tournament.name}
                     className="relative object-contain z-10"
                     fill

@@ -6,9 +6,8 @@ import { CalendarDays, FileUser, MapPin, Trophy, Users } from "lucide-react";
 import { DateRange } from "@/components/date-range";
 import { Card, CardContent } from "@/components/ui/card";
 
+import { CDN_URL } from "@/lib/config";
 import { Tournament } from "@/lib/interfaces";
-
-const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
 
 interface TournamentCardProps {
   tournament: Tournament;
@@ -31,7 +30,7 @@ export default async function TournamentCard({
       <CardContent className="p-0 flex flex-col sm:flex-row">
         <div className="relative w-full h-auto sm:w-64 sm:h-64 bg-muted flex items-center justify-center">
           <Image
-            src={tournament.image_url ? `${cdnUrl}/${tournament.image_url}` : "/tournament.svg"}
+            src={tournament.image_url ? `${CDN_URL}/${tournament.image_url}` : "/tournament.svg"}
             alt={tournament.name}
             width={500}
             height={500}

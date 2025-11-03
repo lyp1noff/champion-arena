@@ -1,8 +1,7 @@
+import { BACKEND_URL } from "@/lib/config";
 import { Bracket, Tournament, TournamentCreate, TournamentUpdate } from "@/lib/interfaces";
 
 import { fetchWithRefresh } from "./api";
-
-const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
 
 export async function getTournaments(
   page: number = 1,
@@ -12,7 +11,7 @@ export async function getTournaments(
   search: string = "",
 ): Promise<{ data: Tournament[]; total: number; page: number; limit: number }> {
   const res = await fetchWithRefresh(
-    `${url}/tournaments?page=${page}&limit=${limit}&order_by=${orderBy}&order=${order}&search=${search}`,
+    `${BACKEND_URL}/tournaments?page=${page}&limit=${limit}&order_by=${orderBy}&order=${order}&search=${search}`,
     { cache: "no-store" },
   );
 
@@ -24,7 +23,7 @@ export async function getTournaments(
 }
 
 export async function getTournamentById(id: number): Promise<Tournament> {
-  const res = await fetchWithRefresh(`${url}/tournaments/${id}`, { cache: "no-store" });
+  const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${id}`, { cache: "no-store" });
 
   if (!res.ok) {
     throw new Error("Failed to load tournament");
@@ -34,7 +33,7 @@ export async function getTournamentById(id: number): Promise<Tournament> {
 }
 
 export async function createTournament(tournamentData: TournamentCreate): Promise<Tournament> {
-  const res = await fetchWithRefresh(`${url}/tournaments`, {
+  const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(tournamentData),
@@ -48,7 +47,7 @@ export async function createTournament(tournamentData: TournamentCreate): Promis
 }
 
 export async function updateTournament(id: number, updateData: TournamentUpdate): Promise<Tournament> {
-  const res = await fetchWithRefresh(`${url}/tournaments/${id}`, {
+  const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updateData),
@@ -62,7 +61,7 @@ export async function updateTournament(id: number, updateData: TournamentUpdate)
 }
 
 export async function deleteTournament(id: number): Promise<{ success: boolean }> {
-  const res = await fetchWithRefresh(`${url}/tournaments/${id}`, { method: "DELETE" });
+  const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${id}`, { method: "DELETE" });
 
   if (!res.ok) {
     throw new Error("Error deleting tournament");
@@ -72,7 +71,9 @@ export async function deleteTournament(id: number): Promise<{ success: boolean }
 }
 
 export async function getTournamentBracketsById(id: number, sorted: boolean = true): Promise<Bracket[]> {
-  const res = await fetchWithRefresh(`${url}/tournaments/${id}/brackets?sorted=${sorted}`, { cache: "no-store" });
+  const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${id}/brackets?sorted=${sorted}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     throw new Error("Failed to load tournament brackets");
@@ -82,21 +83,21 @@ export async function getTournamentBracketsById(id: number, sorted: boolean = tr
 }
 
 export async function downloadTournamentDocx(tournamentId: number): Promise<string> {
-  const res = await fetchWithRefresh(`${url}/tournaments/${tournamentId}/export_file`, { cache: "no-store" });
+  const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${tournamentId}/export_file`, { cache: "no-store" });
 
   if (!res.ok) {
     throw new Error("Failed to export tournament file");
   }
 
   const data = await res.json();
-  return `${url}/${data.filename}`;
+  return `${BACKEND_URL}/${data.filename}`;
 }
 
 export async function importCbrFile(tournamentId: number, file: File): Promise<void> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetchWithRefresh(`${url}/tournaments/${tournamentId}/import`, {
+  const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${tournamentId}/import`, {
     method: "POST",
     body: formData,
   });
@@ -107,7 +108,7 @@ export async function importCbrFile(tournamentId: number, file: File): Promise<v
 }
 
 export async function deleteParticipant(participant_id: number): Promise<void> {
-  const response = await fetchWithRefresh(`${url}/tournaments/participants/${participant_id}`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/tournaments/participants/${participant_id}`, {
     method: "DELETE",
   });
 
@@ -119,7 +120,7 @@ export async function deleteParticipant(participant_id: number): Promise<void> {
 }
 
 export async function updateTournamentStatus(tournamentId: number, status: string) {
-  const response = await fetchWithRefresh(`${url}/tournaments/${tournamentId}/status`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${tournamentId}/status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),
@@ -133,7 +134,7 @@ export async function updateTournamentStatus(tournamentId: number, status: strin
 }
 
 export async function startTournament(tournamentId: number) {
-  const response = await fetchWithRefresh(`${url}/tournaments/${tournamentId}/start`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${tournamentId}/start`, {
     method: "POST",
   });
 

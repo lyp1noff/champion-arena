@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || "https://cdn.example.com";
+import { CDN_URL } from "@/lib/config";
 
 const nextConfig: NextConfig = {
   images: {

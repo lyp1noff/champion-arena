@@ -24,7 +24,10 @@ export interface Tournament {
   image_url: string;
 }
 
-export type TournamentCreate = Omit<Tournament, "id" | "status">;
+export type TournamentCreate = Omit<Tournament, "id" | "status" | "image_url"> & {
+  image_url?: string;
+};
+
 export type TournamentUpdate = Partial<TournamentCreate>;
 
 export interface Application {

@@ -1,13 +1,12 @@
+import { BACKEND_URL } from "@/lib/config";
 import { isClient } from "@/lib/utils";
-
-const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
 
 export async function fetchWithRefresh(input: RequestInfo, init?: RequestInit): Promise<Response> {
   let response = await fetch(input, { ...init, credentials: "include" });
 
   if (isClient && response.status === 401) {
     try {
-      const refreshRes = await fetch(`${url}/auth/refresh`, {
+      const refreshRes = await fetch(`${BACKEND_URL}/auth/refresh`, {
         method: "POST",
         credentials: "include",
       });
@@ -30,7 +29,7 @@ export async function fetchWithRefresh(input: RequestInfo, init?: RequestInit): 
 }
 
 export async function getCoaches() {
-  const res = await fetchWithRefresh(`${url}/coaches`, { cache: "no-store" });
+  const res = await fetchWithRefresh(`${BACKEND_URL}/coaches`, { cache: "no-store" });
 
   if (!res.ok) {
     throw new Error("Failed to load coaches");
@@ -45,7 +44,7 @@ export async function uploadImage(file: File, path: string): Promise<string | nu
   formData.append("path", path);
 
   try {
-    const response = await fetchWithRefresh(`${url}/upload/photo`, {
+    const response = await fetchWithRefresh(`${BACKEND_URL}/upload/photo`, {
       method: "POST",
       body: formData,
     });

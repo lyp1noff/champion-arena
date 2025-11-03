@@ -2,13 +2,15 @@ import { cookies } from "next/headers";
 
 import { jwtVerify } from "jose";
 
+import { JWT_SECRET } from "@/lib/config";
+
 interface AuthPayload {
   sub: string;
   exp: number;
   role?: string;
 }
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
+const secret = new TextEncoder().encode(JWT_SECRET!);
 
 export async function verifyTokenFromCookie(): Promise<AuthPayload | null> {
   const cookiesInstance = await cookies();

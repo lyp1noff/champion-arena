@@ -1,9 +1,9 @@
+import { BACKEND_URL } from "@/lib/config";
+
 import { fetchWithRefresh } from "./api";
 
-const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
-
 export async function updateMatchStatus(matchId: string, status: string) {
-  const response = await fetchWithRefresh(`${url}/matches/${matchId}/status`, {
+  const response = await fetchWithRefresh(`${BACKEND_URL}/matches/${matchId}/status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),

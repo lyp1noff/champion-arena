@@ -59,26 +59,6 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
   };
 
   useEffect(() => {
-    if (urlDay) {
-      setSelectedDay(urlDay);
-    } else if (tournament) {
-      const start = new Date(tournament.start_date);
-      const end = new Date(tournament.end_date);
-      const now = new Date();
-
-      const toDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
-      const startDay = toDay(start);
-      const endDay = toDay(end);
-      const nowDay = toDay(now);
-
-      setSelectedDay(
-        nowDay >= startDay && nowDay <= endDay ? String(Math.floor((+nowDay - +startDay) / 86400000) + 1) : "1",
-      );
-    }
-  }, [urlDay, tournament]);
-
-  useEffect(() => {
     if (!brackets.length) return;
     const searchLower = (debouncedSearch ?? "").trim().toLowerCase();
     if (!searchLower) {
@@ -126,6 +106,33 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
     },
     {},
   );
+
+  useEffect(() => {
+    if (urlDay) {
+      setSelectedDay(urlDay);
+    } else if (tournament) {
+      const start = new Date(tournament.start_date);
+      const end = new Date(tournament.end_date);
+      const now = new Date();
+
+      const toDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const startDay = toDay(start);
+      const endDay = toDay(end);
+      const nowDay = toDay(now);
+
+      const computedDay = nowDay >= startDay && nowDay <= endDay ? Math.floor((+nowDay - +startDay) / 86400000) + 1 : 1;
+
+      const existingDays = Object.keys(bracketsByDayTatami).map(Number);
+
+      const validDay = existingDays.includes(computedDay)
+        ? computedDay
+        : existingDays.length > 0
+          ? Math.min(...existingDays)
+          : 1;
+
+      setSelectedDay(String(validDay));
+    }
+  }, [urlDay, tournament, bracketsByDayTatami]);
 
   return (
     <div>

@@ -2,7 +2,9 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { jwtVerify } from "jose";
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
+import { JWT_SECRET } from "@/lib/config";
+
+const secret = new TextEncoder().encode(JWT_SECRET!);
 
 export const config = {
   matcher: "/admin/:path*",

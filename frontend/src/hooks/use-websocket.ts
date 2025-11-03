@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { BACKEND_URL } from "@/lib/config";
+
 interface MatchUpdate {
   match_id: string;
   score_athlete1: number | null;
@@ -29,8 +31,7 @@ export function useWebSocket({ tournamentId, onMatchUpdate, onConnect, onDisconn
     }
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
-      const wsUrl = backendUrl.replace(/^http/, "ws") + `/ws/tournament/${tournamentId}`;
+      const wsUrl = BACKEND_URL.replace(/^http/, "ws") + `/ws/tournament/${tournamentId}`;
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
