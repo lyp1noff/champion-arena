@@ -32,7 +32,7 @@ export default async function TournamentsPage() {
     <div className="container py-10">
       <h1 className="text-black dark:text-white text-3xl font-bold mb-8">
         <span className="dark:text-blue-500">Champion </span>Karate
-        <span className="dark:text-championYellow"> Club </span>
+        <span className="dark:text-champion-yellow"> Club </span>
         {t("tournaments")}
       </h1>
       {isFallback ? (

@@ -112,7 +112,7 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
               {selectedCoach ? `${selectedCoach.last_name}` : t("selectCoach")}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <PopoverContent className="w-(--radix-popover-trigger-width) p-0">
             <Command>
               <CommandInput placeholder="Search coaches..." />
               <CommandList>
@@ -143,7 +143,7 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
               {selectedAthlete ? `${selectedAthlete.last_name} ${selectedAthlete.first_name}` : t("selectAthlete")}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <PopoverContent className="w-(--radix-popover-trigger-width) p-0">
             <Command>
               <CommandInput placeholder="Search athletes..." />
               <CommandList>
@@ -188,7 +188,7 @@ export default function SubmitApplication({ tournamentId, coaches, athletes, cat
               {selectedCategory ? selectedCategory.name : t("selectCategory")}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <PopoverContent className="w-(--radix-popover-trigger-width) p-0">
             <Command>
               <CommandInput placeholder="Search categories..." />
               <CommandList>

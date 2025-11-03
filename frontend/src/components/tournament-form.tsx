@@ -205,7 +205,6 @@ export function TournamentForm({ tournamentId, onSuccess }: TournamentFormProps)
                           onSelect={(date) => {
                             if (date) field.onChange(date);
                           }}
-                          initialFocus
                         />
                       </PopoverContent>
                     </Popover>
@@ -217,38 +216,25 @@ export function TournamentForm({ tournamentId, onSuccess }: TournamentFormProps)
           </div>
 
           {/* Image */}
-          <FormItem>
-            <FormLabel>Upload Tournament Image</FormLabel>
-            <FormControl>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  if (e.target.files?.length) {
-                    setSelectedImage(e.target.files[0]);
-                  }
-                }}
-              />
-            </FormControl>
-            <FormDescription>Recommended size: 800x600px.</FormDescription>
-            <FormMessage />
-          </FormItem>
+          <Input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              if (e.target.files?.length) {
+                setSelectedImage(e.target.files[0]);
+              }
+            }}
+          />
 
-          <FormItem>
-            <FormLabel>Bracket Structure File (*.cbr)</FormLabel>
-            <FormControl>
-              <Input
-                type="file"
-                accept=".json,.cbr"
-                onChange={(e) => {
-                  if (e.target.files?.length) {
-                    setStructureFile(e.target.files[0]);
-                  }
-                }}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
+          <Input
+            type="file"
+            accept=".json,.cbr"
+            onChange={(e) => {
+              if (e.target.files?.length) {
+                setStructureFile(e.target.files[0]);
+              }
+            }}
+          />
         </div>
 
         <div className="flex justify-between">

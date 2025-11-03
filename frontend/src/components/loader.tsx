@@ -10,7 +10,7 @@ export default function ScreenLoader({ fullscreen = false, className }: ScreenLo
     <div
       className={cn(
         "flex items-center justify-center z-50 transition-opacity duration-300",
-        fullscreen ? "fixed inset-0 backdrop-blur-sm bg-black/5" : "",
+        fullscreen ? "fixed inset-0 backdrop-blur-xs bg-black/5" : "",
         className,
       )}
     >
