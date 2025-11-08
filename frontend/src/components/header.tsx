@@ -1,7 +1,9 @@
 import { useTranslations } from "next-intl";
 import Image from "next/image";
-import Link from "next/link";
 
+import { Link } from "@/i18n/navigation";
+
+import { LangSwitch } from "@/components/lang-switch";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { Button } from "@/components/ui/button";
 
@@ -25,7 +27,8 @@ export function Header({ user }: HeaderProps) {
           <Image src="/full_logo.svg" alt="Champion Logo" height={29} width={185} />
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <LangSwitch />
           <ThemeSwitch />
           <Link href={buttonHref}>
             <Button variant="outline">{buttonLabel}</Button>
