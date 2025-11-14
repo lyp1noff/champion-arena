@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import HTTPException, Request
 from jose import JWTError, jwt
 
-from src.config import JWT_SECRET
+from src.config import JWT_SECRET, SERVICE_TOKEN
 
 
 def get_current_user(request: Request) -> dict[str, Any]:
@@ -19,7 +19,7 @@ def get_current_user(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     # TO-DO: Use proper db handling
-    if token == "service_token":
+    if token == SERVICE_TOKEN:
         return {"sub": "service", "role": "admin"}
 
     try:

@@ -17,6 +17,7 @@ SQLALCHEMY_DATABASE_URL = (
 )
 DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("+asyncpg", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+SERVICE_TOKEN = os.getenv("SERVICE_TOKEN", "service_token")
 JWT_SECRET = os.getenv("JWT_SECRET", "secret")
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("1", "true", "yes")
 R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
