@@ -21,7 +21,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(
-    root_path="/api",
     docs_url="/docs" if DEV_MODE else None,
     redoc_url="/redoc" if DEV_MODE else None,
     openapi_url="/openapi.json" if DEV_MODE else None,
