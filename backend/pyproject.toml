@@ -18,7 +18,6 @@ dependencies = [
     "python-multipart (>=0.0.20,<0.0.21)",
     "passlib (>=1.7.4,<2.0.0)",
     "python-jose (>=3.5.0,<4.0.0)",
-    "gunicorn (>=23.0.0,<24.0.0)",
     "pillow (>=11.3.0,<12.0.0)",
     "cairosvg (>=2.8.2,<3.0.0)",
     "cairocffi (>=1.7.1,<2.0.0)",
