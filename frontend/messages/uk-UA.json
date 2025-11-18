@@ -30,7 +30,9 @@
     "tournament": "Турнір",
     "fetchError": "Помилка під час завантаження даних турніру",
     "unknownTatami": "Невідомо",
-    "day": "День {number}"
+    "day": "День {number}",
+    "started": "Триває",
+    "finished": "Закінчено"
   },
   "Login": {
     "title": "Вхід",

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { BracketHeader } from "@/app/(main)/tournaments/[id]/components/BracketHeader";
 import { RefreshCcw, X } from "lucide-react";
 import { useDebounce } from "use-debounce";
 
@@ -186,27 +187,10 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
                     {tatamiBrackets.map((bracket) => (
                       <AccordionItem key={bracket.id} value={String(bracket.id)}>
                         <AccordionTrigger
-                          className="group flex w-full items-center justify-between text-lg font-medium hover:no-underline"
+                          className="group hover:no-underline"
                           onClick={() => loadBracketData(bracket.id)}
                         >
-                          <div className="flex w-full flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 sm:justify-between">
-                            <span className="text-base font-semibold group-hover:underline underline-offset-4">
-                              {getBracketDisplayName(bracket.category, bracket.group_id)}
-                            </span>
-
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground sm:justify-end pr-4">
-                              <span className="tabular-nums">
-                                {(bracket.start_time && bracket.start_time.slice(0, 5)) || "-"}
-                              </span>
-                              <span>|</span>
-                              <span className="tabular-nums">
-                                {t("participantsCountFallback")}:{" "}
-                                <span className="inline-block" style={{ minWidth: "3ch" }}>
-                                  {bracket.participants.length || 0}
-                                </span>
-                              </span>
-                            </div>
-                          </div>
+                          <BracketHeader bracket={bracket} />
                         </AccordionTrigger>
                         <AccordionContent>
                           {tab !== "brackets" ? (
