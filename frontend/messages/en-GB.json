@@ -30,7 +30,9 @@
     "tournament": "Tournament",
     "fetchError": "Error fetching tournament data",
     "unknownTatami": "Unknown",
-    "day": "Day {number}"
+    "day": "Day {number}",
+    "started": "Started",
+    "finished": "Finished"
   },
   "Login": {
     "title": "Login",
