@@ -25,7 +25,11 @@ export function BracketHeader({ bracket }: BracketHeaderProps) {
 
         <div className="flex flex-row items-center w-full">
           <BracketMeta time={time} count={count} />
-          {showStatus && <BracketStatus status={bracket.status} />}
+          {showStatus && (
+            <div className="ml-auto">
+              <BracketStatus status={bracket.status} />
+            </div>
+          )}
         </div>
       </div>
 
