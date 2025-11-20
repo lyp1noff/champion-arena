@@ -1,19 +1,15 @@
 import os
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
-from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
-from starlette.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, HTTPException, Request, Response
+from starlette.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
-from src.config import DEV_MODE
 from src.dependencies.auth import get_current_user
 from src.middleware import add_cors_middleware
 from src.routers import routers
 from src.services.broadcast import broadcast
-
-OPENAPI_URL = "/api/openapi.json"  # TO-DO: need to use env or find a better way to do this dynamically
 
 
 @asynccontextmanager
@@ -25,14 +21,32 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         await broadcast.disconnect()
 
 
-app = FastAPI(
-    docs_url="/docs" if DEV_MODE else None,
-    redoc_url="/redoc" if DEV_MODE else None,
-    openapi_url="/openapi.json" if DEV_MODE else None,
-    lifespan=lifespan,
-)
-
+app = FastAPI(lifespan=lifespan)
 add_cors_middleware(app)
+
+
+@app.middleware("http")
+async def protect_docs(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    root = request.scope.get("root_path", "")
+    path = request.url.path
+
+    protected_prefixes = [
+        f"{root}/docs",
+        f"{root}/redoc",
+        f"{root}/openapi.json",
+    ]
+
+    if any(path.startswith(p) for p in protected_prefixes):
+        try:
+            get_current_user(request)
+        except HTTPException:
+            return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+
+    return await call_next(request)
+
 
 BASE_DIR = os.getcwd()
 pdf_storage_path = os.path.join(BASE_DIR, "pdf_storage")
@@ -41,20 +55,6 @@ os.makedirs(pdf_storage_path, exist_ok=True)
 app.mount("/pdf_storage", StaticFiles(directory=pdf_storage_path), name="static")
 for router in routers:
     app.include_router(router)
-
-if not DEV_MODE:
-
-    @app.get("/openapi.json", include_in_schema=False, dependencies=[Depends(get_current_user)])
-    async def custom_openapi() -> JSONResponse:
-        return JSONResponse(app.openapi())
-
-    @app.get("/docs", include_in_schema=False, dependencies=[Depends(get_current_user)])
-    async def custom_docs() -> HTMLResponse:
-        return get_swagger_ui_html(openapi_url=OPENAPI_URL, title="API Docs")
-
-    @app.get("/redoc", include_in_schema=False, dependencies=[Depends(get_current_user)])
-    async def custom_redoc() -> HTMLResponse:
-        return get_redoc_html(openapi_url=OPENAPI_URL, title="API ReDoc")
 
 
 @app.get("/ping", tags=["Health"])

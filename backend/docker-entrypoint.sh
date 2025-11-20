@@ -12,4 +12,7 @@ exec uvicorn src.main:app \
   --workers "${BACKEND_WORKERS:-1}" \
   --host 0.0.0.0 \
   --port 8000 \
+  --proxy-headers \
+  --forwarded-allow-ips="*" \
+  --root-path /api \
   --log-level info
