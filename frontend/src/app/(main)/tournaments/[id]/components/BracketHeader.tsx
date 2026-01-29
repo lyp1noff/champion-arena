@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 
-import { Bracket } from "@/lib/interfaces";
+import { BRACKET_STATUS, Bracket } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
 interface BracketHeaderProps {
@@ -15,7 +15,7 @@ export function BracketHeader({ bracket }: BracketHeaderProps) {
   const title = getBracketDisplayName(bracket.category, bracket.group_id);
   const time = bracket.start_time?.slice(0, 5) ?? "-";
   const count = bracket.participants.length;
-  const showStatus = ["started", "finished"].includes(bracket.status);
+  const showStatus = bracket.status === BRACKET_STATUS.STARTED || bracket.status === BRACKET_STATUS.FINISHED;
 
   return (
     <>

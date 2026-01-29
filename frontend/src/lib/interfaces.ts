@@ -1,3 +1,37 @@
+export const TOURNAMENT_STATUS = {
+  DRAFT: "draft",
+  UPCOMING: "upcoming",
+  STARTED: "started",
+  FINISHED: "finished",
+} as const;
+
+export type TOURNAMENT_STATUS = (typeof TOURNAMENT_STATUS)[keyof typeof TOURNAMENT_STATUS];
+
+export const ROUND_TYPE = {
+  FINAL: "final",
+  SEMIFINAL: "semifinal",
+  QUARTERFINAL: "quarterfinal",
+  OTHER: "",
+} as const;
+
+export type ROUND_TYPE = (typeof ROUND_TYPE)[keyof typeof ROUND_TYPE];
+
+export const MATCH_STATUS = {
+  NOT_STARTED: "not_started",
+  STARTED: "started",
+  FINISHED: "finished",
+} as const;
+
+export type MATCH_STATUS = (typeof MATCH_STATUS)[keyof typeof MATCH_STATUS];
+
+export const BRACKET_STATUS = {
+  PENDING: "pending",
+  STARTED: "started",
+  FINISHED: "finished",
+} as const;
+
+export type BRACKET_STATUS = (typeof BRACKET_STATUS)[keyof typeof BRACKET_STATUS];
+
 export interface Athlete {
   id: number;
   last_name: string;
@@ -16,7 +50,7 @@ export interface Tournament {
   id: number;
   name: string;
   location: string;
-  status: "draft" | "upcoming" | "started" | "finished";
+  status: TOURNAMENT_STATUS;
   start_date: string;
   end_date: string;
   registration_start_date: string;
@@ -62,7 +96,7 @@ export type Bracket = {
   day: number;
   tatami: number;
   group_id?: number;
-  status: "pending" | "started" | "finished";
+  status: BRACKET_STATUS;
   participants: Participant[];
 };
 export type BracketUpdate = Partial<Bracket>;
@@ -80,17 +114,15 @@ export type BracketMatchAthlete = {
   coaches_last_name: string[];
 };
 
-export type RoundType = "final" | "semifinal" | "quarterfinal" | "";
-
 export type Match = {
   id: string;
-  round_type: RoundType;
+  round_type: ROUND_TYPE;
   athlete1: BracketMatchAthlete | null;
   athlete2: BracketMatchAthlete | null;
   winner: BracketMatchAthlete | null;
   score_athlete1: number | null;
   score_athlete2: number | null;
-  status: "not_started" | "started" | "finished";
+  status: MATCH_STATUS;
   started_at?: string | null;
   ended_at?: string | null;
 };
