@@ -37,9 +37,7 @@ async def test_athlete_response_includes_computed_fields(client: AsyncClient) ->
 
 
 @pytest.mark.asyncio
-async def test_bracket_response_participants_sorted_and_display_name(
-    client: AsyncClient, db_session
-) -> None:
+async def test_bracket_response_participants_sorted_and_display_name(client: AsyncClient, db_session) -> None:
     category_response = await client.post(
         "/categories",
         json={"name": "U18 Kata", "min_age": 14, "max_age": 18, "gender": "female"},

@@ -18,12 +18,11 @@ class TokenResponse(BaseModel):
     refresh_token: Optional[str] = None
 
 
-# TODO: ensure that all models are using this base model
-class CustomBaseModel(BaseModel):
+class OrmResponseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True, populate_by_name=True)
 
 
-class AthleteBase(CustomBaseModel):
+class AthleteBase(OrmResponseModel):
     last_name: str
     first_name: str
     gender: str
@@ -38,17 +37,17 @@ class AthleteResponse(AthleteBase):
     id: int
     coach_links: list[Any] = Field(default_factory=list, exclude=True)
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def coaches_id(self) -> list[int]:
         return [link.coach.id for link in self.coach_links if getattr(link, "coach", None) is not None]
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def coaches_last_name(self) -> list[str]:
         return [link.coach.last_name for link in self.coach_links if getattr(link, "coach", None) is not None]
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def age(self) -> Optional[int]:
         if self.birth_date is None:
@@ -64,14 +63,14 @@ class AthleteUpdate(BaseModel):
     coaches_id: list[int] = []
 
 
-class PaginatedAthletesResponse(CustomBaseModel):
+class PaginatedAthletesResponse(OrmResponseModel):
     data: list[AthleteResponse]
     total: int
     page: int
     limit: int
 
 
-class CoachBase(CustomBaseModel):
+class CoachBase(OrmResponseModel):
     last_name: str
     first_name: str
     credentials: Optional[str] = None
@@ -85,7 +84,7 @@ class CoachResponse(CoachBase):
     id: int
 
 
-class CategoryBase(CustomBaseModel):
+class CategoryBase(OrmResponseModel):
     name: str
     min_age: int
     max_age: int
@@ -100,7 +99,7 @@ class CategoryResponse(CategoryBase):
     id: int
 
 
-class TournamentBase(CustomBaseModel):
+class TournamentBase(OrmResponseModel):
     name: str
     location: str
     start_date: date
@@ -119,7 +118,7 @@ class TournamentResponse(TournamentBase):
     status: str
 
 
-class PaginatedTournamentResponse(CustomBaseModel):
+class PaginatedTournamentResponse(OrmResponseModel):
     data: list[TournamentResponse]
     total: int
     page: int
@@ -136,7 +135,7 @@ class TournamentUpdate(BaseModel):
     image_url: Optional[str] = None
 
 
-class ApplicationResponse(CustomBaseModel):
+class ApplicationResponse(OrmResponseModel):
     id: int
     tournament_id: int
     athlete_id: int
@@ -154,7 +153,7 @@ class ApplicationCreate(BaseModel):
     comment: Optional[str] = None
 
 
-class BracketBase(CustomBaseModel):
+class BracketBase(OrmResponseModel):
     category: str = Field(validation_alias=AliasPath("category", "name"))
     type: str
     start_time: Optional[time] = None
@@ -165,25 +164,25 @@ class BracketBase(CustomBaseModel):
     status: str
 
 
-class BracketParticipantSchema(CustomBaseModel):
+class BracketParticipantSchema(OrmResponseModel):
     id: int
     athlete_id: int
     seed: int
     athlete: Any = Field(default=None, exclude=True)
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def first_name(self) -> str:
         athlete = self.athlete
         return athlete.first_name if athlete is not None else ""
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def last_name(self) -> str:
         athlete = self.athlete
         return athlete.last_name if athlete is not None else ""
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def coaches_last_name(self) -> list[str]:
         athlete = self.athlete
@@ -202,7 +201,7 @@ class BracketResponse(BracketBase):
     tournament_id: int
     participants_raw: list[Any] = Field(default_factory=list, validation_alias="participants", exclude=True)
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def participants(self) -> list[BracketParticipantSchema]:
         participants = [
@@ -213,7 +212,7 @@ class BracketResponse(BracketBase):
         return sorted(participants, key=lambda participant: participant.seed)
 
 
-class BracketUpdateSchema(CustomBaseModel):
+class BracketUpdateSchema(BaseModel):
     type: Optional[str] = None
     start_time: Optional[time] = None
     day: Optional[int] = None
@@ -222,19 +221,19 @@ class BracketUpdateSchema(CustomBaseModel):
     category_id: Optional[int] = None
 
 
-class BracketMatchAthlete(CustomBaseModel):
+class BracketMatchAthlete(OrmResponseModel):
     id: int
     first_name: str
     last_name: str
     coach_links: list[Any] = Field(default_factory=list, exclude=True)
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def coaches_last_name(self) -> list[str]:
         return [link.coach.last_name for link in self.coach_links if getattr(link, "coach", None) is not None]
 
 
-class MatchSchema(CustomBaseModel):
+class MatchSchema(OrmResponseModel):
     id: uuid.UUID
     round_type: Optional[str] = None
     athlete1: Optional[BracketMatchAthlete]
@@ -258,7 +257,7 @@ class MatchFinishRequest(BaseModel):
     winner_id: int
 
 
-class BracketMatchResponse(CustomBaseModel):
+class BracketMatchResponse(OrmResponseModel):
     id: uuid.UUID
     round_number: int
     position: int
