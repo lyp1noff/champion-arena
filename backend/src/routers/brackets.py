@@ -34,7 +34,6 @@ from src.services.brackets import (
     regenerate_round_bracket_matches,
     reorder_seeds_and_get_next,
 )
-from src.services.serialize import serialize_bracket, serialize_bracket_info, serialize_bracket_match
 
 router = APIRouter(prefix="/brackets", tags=["Brackets"])
 
@@ -51,7 +50,7 @@ async def get_all_brackets(db: AsyncSession = Depends(get_db)) -> list[BracketRe
         )
     )
     brackets = result.scalars().all()
-    return [serialize_bracket(b) for b in brackets]
+    return [BracketResponse.model_validate(b) for b in brackets]
 
 
 @router.get("/{bracket_id}", response_model=BracketResponse)
@@ -72,7 +71,7 @@ async def get_bracket(bracket_id: int, db: AsyncSession = Depends(get_db)) -> Br
     if not bracket:
         raise HTTPException(status_code=404, detail="Bracket not found")
 
-    return serialize_bracket(bracket)
+    return BracketResponse.model_validate(bracket)
 
 
 @router.put("/{bracket_id}", dependencies=[Depends(get_current_user)])
@@ -118,7 +117,7 @@ async def update_bracket(
     if update_data.type and update_data.type != old_type:
         await regenerate_matches_endpoint(bracket_id, db)
 
-    return serialize_bracket_info(bracket)
+    return BracketInfoResponse.model_validate(bracket)
 
 
 @router.get("/{bracket_id}/matches", response_model=list[BracketMatchResponse])
@@ -143,7 +142,7 @@ async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db
         .order_by(BracketMatch.round_number, BracketMatch.position)
     )
     matches = result.scalars().all()
-    return [serialize_bracket_match(match) for match in matches]
+    return [BracketMatchResponse.model_validate(match) for match in matches]
 
 
 @router.post("/{bracket_id}/regenerate", dependencies=[Depends(get_current_user)])
@@ -283,7 +282,7 @@ async def create_bracket(
     )
     bracket_full = result.unique().scalar_one()
 
-    return serialize_bracket(bracket_full)
+    return BracketResponse.model_validate(bracket_full)
 
 
 @router.post("/{bracket_id}/delete", dependencies=[Depends(get_current_user)])
@@ -363,7 +362,7 @@ async def update_bracket_status(
     bracket.status = status
     await db.commit()
     await db.refresh(bracket)
-    return serialize_bracket(bracket)
+    return BracketResponse.model_validate(bracket)
 
 
 @router.post("/{id}/start", dependencies=[Depends(get_current_user)])

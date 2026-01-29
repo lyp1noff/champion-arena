@@ -22,7 +22,6 @@ from src.models import (
 )
 from src.schemas import MatchFinishRequest, MatchSchema, MatchScoreUpdate, MatchUpdate
 from src.services.broadcast import broadcast
-from src.services.serialize import serialize_match
 
 router = APIRouter(prefix="/matches", tags=["Matches"], dependencies=[Depends(get_current_user)])
 
@@ -67,7 +66,7 @@ async def get_match(
     match = result.scalar_one_or_none()
     if not match:
         raise HTTPException(404, "Match not found")
-    return serialize_match(match)
+    return MatchSchema.model_validate(match)
 
 
 @router.post("/{id}/start")
@@ -113,7 +112,7 @@ async def start_match(
     # Broadcast the update via WebSocket
     await broadcast_match_update(match, db)
 
-    return serialize_match(match)
+    return MatchSchema.model_validate(match)
 
 
 @router.post("/{id}/finish")
@@ -202,7 +201,7 @@ async def finish_match(
     await db.refresh(match)
 
     await broadcast_match_update(match, db)
-    return serialize_match(match)
+    return MatchSchema.model_validate(match)
 
 
 @router.patch("/{id}/scores")
@@ -240,7 +239,7 @@ async def update_match_scores(
     # Broadcast the update via WebSocket
     await broadcast_match_update(match, db)
 
-    return serialize_match(match)
+    return MatchSchema.model_validate(match)
 
 
 # TODO: only for admin
@@ -274,4 +273,4 @@ async def update_match_status(
     # Broadcast the update via WebSocket
     await broadcast_match_update(match, db)
 
-    return serialize_match(match)
+    return MatchSchema.model_validate(match)

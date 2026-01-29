@@ -194,6 +194,10 @@ class Bracket(Base, TimestampMixin):
             return f"{category_name} (Group {group_id})"
         return category_name
 
+    @property
+    def display_name(self) -> str:
+        return self.get_display_name()
+
     tournament: Mapped["Tournament"] = relationship(back_populates="brackets")
     category: Mapped["Category"] = relationship(back_populates="brackets")
     matches: Mapped[list["BracketMatch"]] = relationship(back_populates="bracket", cascade="all, delete-orphan")

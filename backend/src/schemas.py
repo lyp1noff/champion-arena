@@ -1,8 +1,8 @@
 import uuid
-from datetime import date, datetime, time
-from typing import Optional
+from datetime import UTC, date, datetime, time
+from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import AliasPath, BaseModel, ConfigDict, Field, computed_field
 
 from src.models import BracketType, MatchStatus
 
@@ -20,7 +20,7 @@ class TokenResponse(BaseModel):
 
 # TODO: ensure that all models are using this base model
 class CustomBaseModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True, populate_by_name=True)
 
 
 class AthleteBase(CustomBaseModel):
@@ -35,10 +35,25 @@ class AthleteCreate(AthleteBase):
 
 
 class AthleteResponse(AthleteBase):
-    coaches_id: list[int] = []
-    coaches_last_name: list[str] = []
-    age: Optional[int] = None
     id: int
+    coach_links: list[Any] = Field(default_factory=list, exclude=True)
+
+    @computed_field
+    @property
+    def coaches_id(self) -> list[int]:
+        return [link.coach.id for link in self.coach_links if getattr(link, "coach", None) is not None]
+
+    @computed_field
+    @property
+    def coaches_last_name(self) -> list[str]:
+        return [link.coach.last_name for link in self.coach_links if getattr(link, "coach", None) is not None]
+
+    @computed_field
+    @property
+    def age(self) -> Optional[int]:
+        if self.birth_date is None:
+            return None
+        return int((datetime.now(UTC).date() - self.birth_date).days // 365)
 
 
 class AthleteUpdate(BaseModel):
@@ -121,7 +136,7 @@ class TournamentUpdate(BaseModel):
     image_url: Optional[str] = None
 
 
-class ApplicationResponse(BaseModel):
+class ApplicationResponse(CustomBaseModel):
     id: int
     tournament_id: int
     athlete_id: int
@@ -130,9 +145,6 @@ class ApplicationResponse(BaseModel):
     comment: Optional[str] = None
     athlete: AthleteResponse
     category: CategoryResponse
-
-    class Config:
-        from_attributes = True
 
 
 class ApplicationCreate(BaseModel):
@@ -143,7 +155,7 @@ class ApplicationCreate(BaseModel):
 
 
 class BracketBase(CustomBaseModel):
-    category: str
+    category: str = Field(validation_alias=AliasPath("category", "name"))
     type: str
     start_time: Optional[time] = None
     day: Optional[int] = None
@@ -157,23 +169,48 @@ class BracketParticipantSchema(CustomBaseModel):
     id: int
     athlete_id: int
     seed: int
-    last_name: str
-    first_name: str
-    coaches_last_name: list[str] = []
+    athlete: Any = Field(default=None, exclude=True)
+
+    @computed_field
+    @property
+    def first_name(self) -> str:
+        athlete = self.athlete
+        return athlete.first_name if athlete is not None else ""
+
+    @computed_field
+    @property
+    def last_name(self) -> str:
+        athlete = self.athlete
+        return athlete.last_name if athlete is not None else ""
+
+    @computed_field
+    @property
+    def coaches_last_name(self) -> list[str]:
+        athlete = self.athlete
+        if athlete is None:
+            return []
+        return [link.coach.last_name for link in athlete.coach_links if getattr(link, "coach", None) is not None]
 
 
 class BracketInfoResponse(BracketBase):
     id: int
     tournament_id: int
 
-    class Config:
-        from_attributes = True
-
 
 class BracketResponse(BracketBase):
     id: int
     tournament_id: int
-    participants: list[BracketParticipantSchema]
+    participants_raw: list[Any] = Field(default_factory=list, validation_alias="participants", exclude=True)
+
+    @computed_field
+    @property
+    def participants(self) -> list[BracketParticipantSchema]:
+        participants = [
+            BracketParticipantSchema.model_validate(participant)
+            for participant in self.participants_raw
+            if getattr(participant, "athlete_id", None) is not None
+        ]
+        return sorted(participants, key=lambda participant: participant.seed)
 
 
 class BracketUpdateSchema(CustomBaseModel):
@@ -189,7 +226,12 @@ class BracketMatchAthlete(CustomBaseModel):
     id: int
     first_name: str
     last_name: str
-    coaches_last_name: list[str] = []
+    coach_links: list[Any] = Field(default_factory=list, exclude=True)
+
+    @computed_field
+    @property
+    def coaches_last_name(self) -> list[str]:
+        return [link.coach.last_name for link in self.coach_links if getattr(link, "coach", None) is not None]
 
 
 class MatchSchema(CustomBaseModel):
@@ -225,7 +267,7 @@ class BracketMatchResponse(CustomBaseModel):
 
 
 class BracketMatchesFull(BracketBase):
-    bracket_id: int
+    bracket_id: int = Field(validation_alias="id")
     matches: list[BracketMatchResponse]
 
 

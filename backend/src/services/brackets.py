@@ -304,5 +304,5 @@ async def reorder_seeds_and_get_next(db: AsyncSession, bracket_id: int) -> int:
     for index, participant in enumerate(participants, start=1):
         participant.seed = index
 
-    await db.commit()
+    await db.flush()
     return len(participants) + 1

@@ -27,7 +27,7 @@ async def get_coach(id: int, db: AsyncSession = Depends(get_db)) -> CoachRespons
 
 @router.post("", response_model=CoachResponse)
 async def create_coach(coach: CoachCreate, db: AsyncSession = Depends(get_db)) -> CoachResponse:
-    new_coach = Coach(**coach.model_dump())
+    new_coach = Coach(**coach.model_dump(exclude_none=True))
     db.add(new_coach)
     await db.commit()
     await db.refresh(new_coach)

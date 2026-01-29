@@ -27,7 +27,6 @@ from src.routers.brackets import regenerate_matches_endpoint
 from src.schemas import (
     ApplicationCreate,
     ApplicationResponse,
-    AthleteResponse,
     BracketMatchesFull,
     BracketResponse,
     PaginatedTournamentResponse,
@@ -41,7 +40,6 @@ from src.services.brackets import (
 )
 from src.services.export_file import generate_pdf
 from src.services.import_competitors import import_competitors_from_cbr
-from src.services.serialize import serialize_bracket, serialize_bracket_matches_full
 from src.utils import sanitize_filename
 
 router = APIRouter(
@@ -182,7 +180,7 @@ async def get_all_brackets(
 
         result = await db.execute(query)
         brackets = result.scalars().all()
-        return [serialize_bracket(b) for b in brackets]
+        return [BracketResponse.model_validate(b) for b in brackets]
     except Exception:
         raise HTTPException(status_code=500, detail="An error occurred while fetching brackets")
 
@@ -262,7 +260,7 @@ async def get_matches_for_tournament_full(
     )
 
     brackets = result.scalars().all()
-    return [serialize_bracket_matches_full(bracket) for bracket in brackets]
+    return [BracketMatchesFull.model_validate(bracket) for bracket in brackets]
 
 
 async def get_matches_for_tournament_raw(tournament_id: int, db: AsyncSession = Depends(get_db)) -> list[Bracket]:
@@ -397,25 +395,16 @@ async def get_applications(
         result = await db.execute(
             select(Application)
             .options(
-                selectinload(Application.athlete).selectinload(Athlete.coaches),  # <-- грузим тренеров
+                selectinload(Application.athlete)
+                .selectinload(Athlete.coach_links)
+                .joinedload(AthleteCoachLink.coach),
                 selectinload(Application.category),
             )
             .where(Application.tournament_id == tournament_id)
         )
         applications = result.scalars().all()
 
-        responses: list[ApplicationResponse] = []
-        for app in applications:
-            athlete = app.athlete
-            athlete_response = AthleteResponse.model_validate(athlete)
-            athlete_response.coaches_id = [c.id for c in athlete.coaches]
-            athlete_response.coaches_last_name = [c.last_name for c in athlete.coaches]
-
-            application_response = ApplicationResponse.model_validate(app)
-            application_response.athlete = athlete_response
-            responses.append(application_response)
-
-        return responses
+        return [ApplicationResponse.model_validate(app) for app in applications]
 
     except Exception:
         raise HTTPException(status_code=500, detail="An error occurred while fetching applications")
