@@ -34,6 +34,12 @@
     "started": "В процессе",
     "finished": "Завершён"
   },
+  "Round": {
+    "final": "Финал",
+    "semifinal": "Полуфинал",
+    "quarterfinal": "Четвертьфинал",
+    "round": "Раунд {number}"
+  },
   "Login": {
     "title": "Вход",
     "description": "Введите имя пользователя и пароль для продолжения",

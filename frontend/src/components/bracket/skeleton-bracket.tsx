@@ -1,6 +1,8 @@
+import { useTranslations } from "next-intl";
+
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { BracketType } from "@/lib/interfaces";
+import { BracketType, ROUND_TYPE } from "@/lib/interfaces";
 import { getBracketDimensions } from "@/lib/utils";
 
 import { ScrollArea } from "../ui/scroll-area";
@@ -57,6 +59,7 @@ function RoundRobinSkeleton({ count }: { count: number }) {
 }
 
 export function EliminationSkeleton({ count }: { count: number }) {
+  const t = useTranslations("Round");
   const rounds = Math.ceil(Math.log2(Math.max(count, 2)));
   const maxMatches = Math.pow(2, rounds - 1);
 
@@ -67,7 +70,14 @@ export function EliminationSkeleton({ count }: { count: number }) {
       <div className="flex items-start justify-center" style={{ columnGap }}>
         {Array.from({ length: rounds }).map((_, roundIndex) => {
           const matchesInRound = Math.ceil(maxMatches / Math.pow(2, roundIndex));
-          const label = roundIndex === rounds - 1 ? "Final" : `Round ${roundIndex + 1}`;
+          const label =
+            roundIndex === rounds - 1
+              ? t(ROUND_TYPE.FINAL)
+              : roundIndex === rounds - 2
+                ? t(ROUND_TYPE.SEMIFINAL)
+                : roundIndex === rounds - 3
+                  ? t(ROUND_TYPE.QUARTERFINAL)
+                  : t("round", { number: roundIndex + 1 });
 
           return (
             <ul

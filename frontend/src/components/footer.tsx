@@ -12,7 +12,7 @@ export function Footer() {
           © {currentYear} Andrii Paziuka. {t("rights")}
         </div>
         <div className="text-sm text-muted-foreground">
-          <Link href="https://t.me/lyp1noff" className="font-medium underline underline-offset-4 hover:text-primary">
+          <Link href="https://lyp1noff.com/" className="font-medium underline underline-offset-4 hover:text-primary">
             @lyp1noff
           </Link>
         </div>

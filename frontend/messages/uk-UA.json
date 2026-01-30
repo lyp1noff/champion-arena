@@ -34,6 +34,12 @@
     "started": "Триває",
     "finished": "Закінчено"
   },
+  "Round": {
+    "final": "Фінал",
+    "semifinal": "Півфінал",
+    "quarterfinal": "Чвертьфінал",
+    "round": "Раунд {number}"
+  },
   "Login": {
     "title": "Вхід",
     "description": "Введіть ім'я користувача та пароль для продовження",

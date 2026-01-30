@@ -34,6 +34,12 @@
     "started": "Started",
     "finished": "Finished"
   },
+  "Round": {
+    "final": "Final",
+    "semifinal": "Semifinal",
+    "quarterfinal": "Quarterfinal",
+    "round": "Round {number}"
+  },
   "Login": {
     "title": "Login",
     "description": "Enter your username and password to continue",

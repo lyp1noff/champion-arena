@@ -1,4 +1,6 @@
-import { BracketMatches } from "@/lib/interfaces";
+import { useTranslations } from "next-intl";
+
+import { BracketMatches, ROUND_TYPE } from "@/lib/interfaces";
 import { getBracketDimensions } from "@/lib/utils";
 
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
@@ -11,6 +13,7 @@ interface BracketCardProps {
 }
 
 export default function BracketContent({ bracketMatches, matchCardHeight = 80, matchCardWidth }: BracketCardProps) {
+  const t = useTranslations("Round");
   const {
     cardHeight: fallbackCardHeight,
     cardWidth: fallbackCardWidth,
@@ -55,7 +58,8 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
       {/* Bracket */}
       <div className="flex items-start justify-center" style={{ columnGap }}>
         {sortedRounds.map(({ round, bracketMatches }) => {
-          const label = bracketMatches.find((m) => m.match?.round_type)?.match.round_type ?? `round ${round}`;
+          const roundType = bracketMatches.find((m) => m.match?.round_type)?.match.round_type;
+          const label = roundType ? t(roundType) : t("round", { number: round });
 
           return (
             <ul
