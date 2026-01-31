@@ -96,6 +96,7 @@ export type Bracket = {
   day: number;
   tatami: number;
   group_id?: number;
+  display_name?: string;
   status: BRACKET_STATUS;
   participants: Participant[];
 };
@@ -135,6 +136,19 @@ export type BracketMatch = {
 };
 
 export type BracketMatches = BracketMatch[];
+
+export type BracketMatchesFull = {
+  category: string;
+  type: BracketType;
+  start_time: string | null;
+  day: number;
+  tatami: number;
+  group_id?: number;
+  display_name?: string;
+  status: BRACKET_STATUS;
+  bracket_id: number;
+  matches: BracketMatch[];
+};
 
 export interface Category {
   id: number;

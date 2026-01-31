@@ -66,6 +66,10 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
     router.push(`/admin/tournaments/${row.original.id}/applications`);
   };
 
+  const handleReports = () => {
+    router.push(`/admin/tournaments/${row.original.id}/reports`);
+  };
+
   const handleStartTournament = async () => {
     if (!tournament) return;
     try {
@@ -117,6 +121,7 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
           <DropdownMenuItem onClick={handleEdit}>{t("edit")}</DropdownMenuItem>
           <DropdownMenuItem onClick={handleApplications}>{t("applications")}</DropdownMenuItem>
           <DropdownMenuItem onClick={handleManage}>{t("manage")}</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleReports}>{t("reports")}</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>

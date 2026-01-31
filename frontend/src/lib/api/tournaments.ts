@@ -1,5 +1,5 @@
 import { BACKEND_URL } from "@/lib/config";
-import { Bracket, Tournament, TournamentCreate, TournamentUpdate } from "@/lib/interfaces";
+import { Bracket, BracketMatchesFull, Tournament, TournamentCreate, TournamentUpdate } from "@/lib/interfaces";
 
 import { fetchWithRefresh } from "./api";
 
@@ -77,6 +77,16 @@ export async function getTournamentBracketsById(id: number, sorted: boolean = tr
 
   if (!res.ok) {
     throw new Error("Failed to load tournament brackets");
+  }
+
+  return res.json();
+}
+
+export async function getTournamentMatchesFullById(id: number): Promise<BracketMatchesFull[]> {
+  const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${id}/matches_full`, { cache: "no-store" });
+
+  if (!res.ok) {
+    throw new Error("Failed to load tournament matches");
   }
 
   return res.json();
