@@ -1,5 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 
+import { DateRange } from "@/components/date-range";
 import DataTableColumnHeader from "@/components/table/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,7 +9,7 @@ import { Tournament } from "@/lib/interfaces";
 
 import { DataTableRowActions } from "./row-actions";
 
-export function columns(onDataChanged: () => void): ColumnDef<Tournament>[] {
+export function columns(onDataChanged: () => void, locale: string): ColumnDef<Tournament>[] {
   return [
     {
       id: "select",
@@ -39,18 +40,14 @@ export function columns(onDataChanged: () => void): ColumnDef<Tournament>[] {
       size: 200,
     },
     {
-      accessorKey: "location",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Location" />,
-      cell: ({ row }) => <div>{row.getValue("location")}</div>,
-      size: 200,
-    },
-    {
+      id: "start_date",
       accessorKey: "start_date",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Date" />,
-      cell: ({ row }) => <div>{row.getValue("start_date")}</div>,
+      cell: ({ row }) => <DateRange start={row.getValue("start_date")} end={row.original.end_date} locale={locale} />,
       size: 200,
     },
     {
+      id: "status",
       accessorKey: "status",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
       cell: ({ row }) => {
@@ -72,12 +69,6 @@ export function columns(onDataChanged: () => void): ColumnDef<Tournament>[] {
         return <Badge variant={getStatusVariant(status)}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
       },
       size: 200,
-    },
-    {
-      accessorKey: "participants",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Participants" />,
-      cell: ({ row }) => <div>{row.getValue("participants")}</div>,
-      size: 50,
     },
     {
       id: "actions",

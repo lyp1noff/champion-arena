@@ -53,7 +53,7 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
   };
 
   const handleOpen = () => {
-    router.push(`/tournaments/${row.original.id}`);
+    router.push(`/admin/tournaments/${row.original.id}`);
   };
 
   const handleEdit = () => setIsEditDialogOpen(true);
@@ -64,6 +64,10 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
 
   const handleApplications = () => {
     router.push(`/admin/tournaments/${row.original.id}/applications`);
+  };
+
+  const handleReports = () => {
+    router.push(`/admin/tournaments/${row.original.id}/reports`);
   };
 
   const handleStartTournament = async () => {
@@ -117,6 +121,7 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
           <DropdownMenuItem onClick={handleEdit}>{t("edit")}</DropdownMenuItem>
           <DropdownMenuItem onClick={handleApplications}>{t("applications")}</DropdownMenuItem>
           <DropdownMenuItem onClick={handleManage}>{t("manage")}</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleReports}>{t("reports")}</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
