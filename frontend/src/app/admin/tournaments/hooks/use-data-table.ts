@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { useLocale } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { PaginationState, SortingState } from "@tanstack/react-table";
@@ -13,11 +14,12 @@ import { columns } from "../components/columns";
 export default function useDataTable() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const locale = useLocale();
 
   const pageFromUrl = Number(searchParams.get("page")) || 1;
   const pageSizeFromUrl = Number(searchParams.get("size")) || 10;
   const sortFromUrl = searchParams.get("sort") || "start_date";
-  const orderFromUrl = searchParams.get("order") === "desc" ? "desc" : "asc";
+  const orderFromUrl = searchParams.get("order") === "asc" ? "asc" : "desc";
   const searchFromUrl = searchParams.get("search") || "";
 
   const [data, setData] = useState<Tournament[]>([]);
@@ -90,6 +92,6 @@ export default function useDataTable() {
     onSortingChange,
     search,
     setSearch,
-    columns: columns(fetchData),
+    columns: columns(fetchData, locale),
   };
 }

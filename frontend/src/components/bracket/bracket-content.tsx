@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 
-import { BracketMatches, ROUND_TYPE } from "@/lib/interfaces";
+import { BracketMatches } from "@/lib/interfaces";
 import { getBracketDimensions } from "@/lib/utils";
 
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";

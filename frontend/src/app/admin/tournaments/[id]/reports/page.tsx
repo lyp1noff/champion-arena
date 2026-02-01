@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
@@ -17,11 +17,6 @@ import { Bracket, BracketMatchAthlete, BracketMatchesFull } from "@/lib/interfac
 import { getBracketDisplayName } from "@/lib/utils";
 
 type ReportType = "kids_by_coach" | "fights_by_bracket" | "participants_by_bracket";
-
-const athleteName = (athlete: BracketMatchAthlete | null, fallback: string) => {
-  if (!athlete) return fallback;
-  return `${athlete.last_name} ${athlete.first_name}`.trim();
-};
 
 const athleteNameWithCoaches = (athlete: BracketMatchAthlete | null, fallback: string) => {
   if (!athlete) return fallback;
@@ -66,69 +61,78 @@ export default function TournamentReportsPage() {
       .finally(() => setLoading(false));
   }, [reportTemplates, reportType, t, tournamentId]);
 
-  const buildKidsByCoach = (source: Bracket[]) => {
-    if (!source.length) return t("reportEmpty");
-    const coachMap = new Map<string, Map<number, string>>();
-    const unknownCoach = t("reportCoachUnknown");
+  const buildKidsByCoach = useCallback(
+    (source: Bracket[]) => {
+      if (!source.length) return t("reportEmpty");
+      const coachMap = new Map<string, Map<number, string>>();
+      const unknownCoach = t("reportCoachUnknown");
 
-    source.forEach((bracket) => {
-      bracket.participants.forEach((participant) => {
-        const coaches = participant.coaches_last_name?.length ? participant.coaches_last_name : [unknownCoach];
-        const name = `${participant.last_name} ${participant.first_name}`.trim();
-        coaches.forEach((coach) => {
-          const key = coach || unknownCoach;
-          if (!coachMap.has(key)) coachMap.set(key, new Map());
-          coachMap.get(key)?.set(participant.athlete_id, name);
+      source.forEach((bracket) => {
+        bracket.participants.forEach((participant) => {
+          const coaches = participant.coaches_last_name?.length ? participant.coaches_last_name : [unknownCoach];
+          const name = `${participant.last_name} ${participant.first_name}`.trim();
+          coaches.forEach((coach) => {
+            const key = coach || unknownCoach;
+            if (!coachMap.has(key)) coachMap.set(key, new Map());
+            coachMap.get(key)?.set(participant.athlete_id, name);
+          });
         });
       });
-    });
 
-    if (!coachMap.size) return t("reportEmpty");
+      if (!coachMap.size) return t("reportEmpty");
 
-    return Array.from(coachMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b, "ru"))
-      .map(([coach, athletes]) => {
-        const athleteLines = Array.from(athletes.values())
-          .sort((a, b) => a.localeCompare(b, "ru"))
-          .map((name) => `- ${name}`)
-          .join("\n");
-        return `${t("reportCoachLabel")}: ${coach} (${athletes.size})\n${athleteLines}`;
-      })
-      .join("\n\n");
-  };
+      return Array.from(coachMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b, "ru"))
+        .map(([coach, athletes]) => {
+          const athleteLines = Array.from(athletes.values())
+            .sort((a, b) => a.localeCompare(b, "ru"))
+            .map((name) => `- ${name}`)
+            .join("\n");
+          return `${t("reportCoachLabel")}: ${coach} (${athletes.size})\n${athleteLines}`;
+        })
+        .join("\n\n");
+    },
+    [t],
+  );
 
-  const buildParticipantsByBracket = (source: Bracket[]) => {
-    if (!source.length) return t("reportEmpty");
-    return source
-      .map((bracket) => {
-        const title = bracket.display_name ?? getBracketDisplayName(bracket.category, bracket.group_id);
-        const participants = bracket.participants
-          .slice()
-          .sort((a, b) => a.seed - b.seed)
-          .map((participant) => `- ${participant.last_name} ${participant.first_name}`.trim())
-          .join("\n");
-        return `${title}\n${participants || t("reportEmpty")}`;
-      })
-      .join("\n\n");
-  };
+  const buildParticipantsByBracket = useCallback(
+    (source: Bracket[]) => {
+      if (!source.length) return t("reportEmpty");
+      return source
+        .map((bracket) => {
+          const title = bracket.display_name ?? getBracketDisplayName(bracket.category, bracket.group_id);
+          const participants = bracket.participants
+            .slice()
+            .sort((a, b) => a.seed - b.seed)
+            .map((participant) => `- ${participant.last_name} ${participant.first_name}`.trim())
+            .join("\n");
+          return `${title}\n${participants || t("reportEmpty")}`;
+        })
+        .join("\n\n");
+    },
+    [t],
+  );
 
-  const buildFightsByBracket = (source: BracketMatchesFull[]) => {
-    if (!source.length) return t("reportEmpty");
-    const tbd = t("reportAthleteTbd");
-    return source
-      .map((bracket) => {
-        const title = bracket.display_name ?? getBracketDisplayName(bracket.category, bracket.group_id);
-        const fights = bracket.matches
-          .map((match, index) => {
-            const left = athleteNameWithCoaches(match.match.athlete1, tbd);
-            const right = athleteNameWithCoaches(match.match.athlete2, tbd);
-            return `${index + 1}) ${left} vs ${right}`;
-          })
-          .join("\n");
-        return `${title}\n${fights || t("reportEmpty")}`;
-      })
-      .join("\n\n");
-  };
+  const buildFightsByBracket = useCallback(
+    (source: BracketMatchesFull[]) => {
+      if (!source.length) return t("reportEmpty");
+      const tbd = t("reportAthleteTbd");
+      return source
+        .map((bracket) => {
+          const title = bracket.display_name ?? getBracketDisplayName(bracket.category, bracket.group_id);
+          const fights = bracket.matches
+            .map((match, index) => {
+              const left = athleteNameWithCoaches(match.match.athlete1, tbd);
+              const right = athleteNameWithCoaches(match.match.athlete2, tbd);
+              return `${index + 1}) ${left} vs ${right}`;
+            })
+            .join("\n");
+          return `${title}\n${fights || t("reportEmpty")}`;
+        })
+        .join("\n\n");
+    },
+    [t],
+  );
 
   useEffect(() => {
     if (!tournamentId) return;
@@ -148,7 +152,16 @@ export default function TournamentReportsPage() {
     }
 
     setReportText(buildFightsByBracket(matchesFull));
-  }, [brackets, matchesFull, reportTemplates, reportType, tournamentId]);
+  }, [
+    brackets,
+    matchesFull,
+    reportTemplates,
+    reportType,
+    tournamentId,
+    buildFightsByBracket,
+    buildKidsByCoach,
+    buildParticipantsByBracket,
+  ]);
 
   const handleCopy = async () => {
     if (!reportText.trim()) {

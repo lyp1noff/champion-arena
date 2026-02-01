@@ -53,7 +53,7 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
   };
 
   const handleOpen = () => {
-    router.push(`/tournaments/${row.original.id}`);
+    router.push(`/admin/tournaments/${row.original.id}`);
   };
 
   const handleEdit = () => setIsEditDialogOpen(true);
