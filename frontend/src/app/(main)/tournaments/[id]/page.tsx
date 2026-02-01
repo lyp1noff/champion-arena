@@ -5,14 +5,16 @@ import TournamentBrackets from "@/app/(main)/tournaments/[id]/components/Tournam
 
 import TournamentCard from "@/components/tournament-card";
 
-import { getTournamentBracketsById, getTournamentById } from "@/lib/api/tournaments";
+import { getTournamentBracketsById, getTournamentById, getTournamentTimetableById } from "@/lib/api/tournaments";
 
 export default async function TournamentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const tournamentId = Number(id);
 
-  const [tournament, brackets] = await Promise.all([
-    getTournamentById(Number(id)).catch(() => null),
-    getTournamentBracketsById(Number(id)).catch(() => []),
+  const [tournament, brackets, timetableEntries] = await Promise.all([
+    getTournamentById(tournamentId).catch(() => null),
+    getTournamentBracketsById(tournamentId).catch(() => []),
+    getTournamentTimetableById(tournamentId).catch(() => []),
   ]);
 
   if (!tournament) {
@@ -39,7 +41,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
         participantsCount={t("participantsCount", { count: uniqueParticipantsCount })}
         categoriesCount={t("categoriesCount", { count: brackets.length })}
       />
-      <TournamentBrackets tournament={tournament} brackets={brackets} />
+      <TournamentBrackets tournament={tournament} brackets={brackets} timetableEntries={timetableEntries} />
     </div>
   );
 }

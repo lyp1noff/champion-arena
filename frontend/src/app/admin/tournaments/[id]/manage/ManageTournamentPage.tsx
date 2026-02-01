@@ -52,14 +52,7 @@ interface Props {
   bracketMatches?: BracketMatches;
   loading: boolean;
   onSelectBracket: (bracket: Bracket | null) => Promise<void>;
-  onSaveBracket: (updated: {
-    id: number;
-    type: BracketType;
-    start_time: string;
-    tatami: number;
-    group_id: number;
-    category_id?: string;
-  }) => Promise<void>;
+  onSaveBracket: (updated: { id: number; type: BracketType; group_id: number; category_id?: string }) => Promise<void>;
 }
 
 export default function ManageTournamentPage({
@@ -110,9 +103,6 @@ export default function ManageTournamentPage({
       category_id: matchedCategory?.id?.toString() ?? defaultBracketValues.category_id,
       group_id: selectedBracket.group_id ?? defaultBracketValues.group_id,
       type: selectedBracket.type ?? defaultBracketValues.type,
-      start_time: selectedBracket.start_time ?? defaultBracketValues.start_time,
-      day: selectedBracket.day ?? defaultBracketValues.day,
-      tatami: selectedBracket.tatami ?? defaultBracketValues.tatami,
     });
   }, [categories, selectedBracket]);
 
@@ -215,9 +205,6 @@ export default function ManageTournamentPage({
         category_id: Number(data.category_id),
         group_id: data.group_id,
         type: data.type,
-        start_time: data.start_time,
-        day: data.day,
-        tatami: data.tatami,
       };
       const newBracketObj = await createBracket(bracketData);
       toast.success("Bracket created successfully");

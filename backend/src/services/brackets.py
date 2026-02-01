@@ -475,9 +475,6 @@ async def create_bracket(db: AsyncSession, bracket_data: BracketCreateSchema) ->
         category_id=bracket_data.category_id,
         group_id=bracket_data.group_id,
         type=bracket_data.type,
-        start_time=bracket_data.start_time,
-        day=bracket_data.day,
-        tatami=bracket_data.tatami,
     )
 
     db.add(new_bracket)

@@ -63,8 +63,6 @@ async def test_bracket_response_participants_sorted_and_display_name(client: Asy
         "category_id": category_id,
         "group_id": 2,
         "type": "single_elimination",
-        "day": 1,
-        "tatami": 1,
     }
     bracket_response = await client.post("/brackets/create", json=bracket_payload)
     assert bracket_response.status_code == 200

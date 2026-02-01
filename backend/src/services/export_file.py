@@ -100,9 +100,14 @@ def build_entries(data: list[Bracket], tournament_title: str) -> list[dict[str, 
     all_entries = []
 
     for bracket in data:
-        start_time_tatami = (
-            f"Day: {bracket.day} | Start time: {bracket.start_time.strftime('%H:%M')} | Tatami: {bracket.tatami}"
-        )
+        timetable_entry = getattr(bracket, "timetable_entry", None)
+        if timetable_entry:
+            start_time_value = timetable_entry.start_time.strftime("%H:%M")
+            start_time_tatami = (
+                f"Day: {timetable_entry.day} | Start time: {start_time_value} | Tatami: {timetable_entry.tatami}"
+            )
+        else:
+            start_time_tatami = "Day: - | Start time: - | Tatami: -"
         matches = bracket.matches
         if not matches:
             continue

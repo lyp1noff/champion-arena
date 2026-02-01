@@ -10,6 +10,8 @@ from src.schemas import (
     BracketMatchesFull,
     BracketResponse,
     PaginatedTournamentResponse,
+    TimetableEntryResponse,
+    TimetableReplace,
     TournamentCreate,
     TournamentResponse,
     TournamentUpdate,
@@ -25,9 +27,11 @@ from src.services.tournaments import get_matches_for_tournament_full as get_matc
 from src.services.tournaments import get_participant_count_per_coach as get_participant_count_per_coach_service
 from src.services.tournaments import get_tournament as get_tournament_service
 from src.services.tournaments import get_tournament_brackets as get_tournament_brackets_service
+from src.services.tournaments import list_timetable_entries as list_timetable_entries_service
 from src.services.tournaments import list_tournaments as list_tournaments_service
 from src.services.tournaments import regenerate_tournament as regenerate_tournament_service
 from src.services.tournaments import remove_competitor as remove_competitor_service
+from src.services.tournaments import replace_timetable_entries as replace_timetable_entries_service
 from src.services.tournaments import start_tournament as start_tournament_service
 from src.services.tournaments import submit_application as submit_application_service
 from src.services.tournaments import update_tournament as update_tournament_service
@@ -85,7 +89,7 @@ async def delete_tournament(id: int, db: AsyncSession = Depends(get_db)) -> None
 @router.get("/{tournament_id}/brackets", response_model=list[BracketResponse])
 async def get_all_brackets(
     tournament_id: int,
-    sorted: bool = Query(True, description="Sort brackets by tatami and start_time"),
+    sorted: bool = Query(True, description="Sort brackets by category and id"),
     db: AsyncSession = Depends(get_db),
 ) -> list[BracketResponse]:
     brackets = await get_tournament_brackets_service(db, tournament_id, sorted)
@@ -134,6 +138,29 @@ async def import_competitors(
         return await import_competitors_from_cbr(db, tournament_id, content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred while importing competitors: {str(e)}")
+
+
+@router.get("/{tournament_id}/timetable", response_model=list[TimetableEntryResponse])
+async def get_timetable(
+    tournament_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> list[TimetableEntryResponse]:
+    entries = await list_timetable_entries_service(db, tournament_id)
+    return [TimetableEntryResponse.model_validate(entry) for entry in entries]
+
+
+@router.put(
+    "/{tournament_id}/timetable/replace",
+    dependencies=[Depends(get_current_user)],
+    response_model=list[TimetableEntryResponse],
+)
+async def replace_timetable(
+    tournament_id: int,
+    payload: TimetableReplace,
+    db: AsyncSession = Depends(get_db),
+) -> list[TimetableEntryResponse]:
+    entries = await replace_timetable_entries_service(db, tournament_id, payload)
+    return [TimetableEntryResponse.model_validate(entry) for entry in entries]
 
 
 @router.get("/{id}/status")

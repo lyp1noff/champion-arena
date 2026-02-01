@@ -33,7 +33,9 @@
     "unknownTatami": "Unknown",
     "day": "Day {number}",
     "started": "Started",
-    "finished": "Finished"
+    "finished": "Finished",
+    "customEntry": "Custom entry",
+    "unknownBracket": "Unknown bracket"
   },
   "Round": {
     "final": "Final",
@@ -63,6 +65,7 @@
     "open": "Open",
     "edit": "Edit",
     "manage": "Manage",
+    "timetable": "Timetable",
     "exportToFile": "Export to File",
     "applications": "Applications",
     "reports": "Reports",

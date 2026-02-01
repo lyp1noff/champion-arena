@@ -152,6 +152,9 @@ class Tournament(Base, TimestampMixin):
     export_last_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     brackets: Mapped[list["Bracket"]] = relationship(back_populates="tournament", cascade="all, delete-orphan")
+    timetable_entries: Mapped[list["TimetableEntry"]] = relationship(
+        back_populates="tournament", cascade="all, delete-orphan"
+    )
 
 
 class Application(Base, TimestampMixin):
@@ -180,9 +183,6 @@ class Bracket(Base, TimestampMixin):
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"), index=True)
     group_id: Mapped[int] = mapped_column(default=1)
     type: Mapped[str] = mapped_column(String(50), default=BracketType.SINGLE_ELIMINATION.value)
-    start_time: Mapped[time] = mapped_column(Time, default=lambda: time(9, 0))
-    day: Mapped[int] = mapped_column(default=1)
-    tatami: Mapped[int] = mapped_column(default=1)
     status: Mapped[str] = mapped_column(String(20), default=BracketStatus.PENDING.value)
 
     def get_display_name(self) -> str:
@@ -203,6 +203,9 @@ class Bracket(Base, TimestampMixin):
     matches: Mapped[list["BracketMatch"]] = relationship(back_populates="bracket", cascade="all, delete-orphan")
     participants: Mapped[list["BracketParticipant"]] = relationship(
         back_populates="bracket", cascade="all, delete-orphan"
+    )
+    timetable_entry: Mapped[Optional["TimetableEntry"]] = relationship(
+        back_populates="bracket", uselist=False, cascade="all, delete-orphan"
     )
 
 
@@ -258,3 +261,26 @@ class Match(Base, TimestampMixin):
     athlete2: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[athlete2_id])
     winner: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[winner_id])
     bracket_match: Mapped[Optional["BracketMatch"]] = relationship(back_populates="match", uselist=False)
+
+
+class TimetableEntry(Base, TimestampMixin):
+    __tablename__ = "timetable_entries"
+    __table_args__ = (
+        CheckConstraint("end_time >= start_time", name="check_timetable_end_time"),
+        UniqueConstraint("bracket_id", name="uix_timetable_bracket_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    tournament_id: Mapped[int] = mapped_column(ForeignKey("tournaments.id", ondelete="CASCADE"), index=True)
+    bracket_id: Mapped[Optional[int]] = mapped_column(ForeignKey("brackets.id", ondelete="CASCADE"), nullable=True)
+    entry_type: Mapped[str] = mapped_column(String(20))
+    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    day: Mapped[int] = mapped_column()
+    tatami: Mapped[int] = mapped_column()
+    start_time: Mapped[time] = mapped_column(Time)
+    end_time: Mapped[time] = mapped_column(Time)
+    order_index: Mapped[int] = mapped_column()
+
+    tournament: Mapped["Tournament"] = relationship(back_populates="timetable_entries")
+    bracket: Mapped[Optional["Bracket"]] = relationship(back_populates="timetable_entry")

@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import HTTPException
-from sqlalchemy import asc, desc, distinct, func, select
+from sqlalchemy import asc, delete, desc, distinct, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -20,10 +20,17 @@ from src.models import (
     BracketParticipant,
     Coach,
     Match,
+    TimetableEntry,
     Tournament,
     TournamentStatus,
 )
-from src.schemas import ApplicationCreate, TournamentCreate, TournamentUpdate
+from src.schemas import (
+    ApplicationCreate,
+    TimetableEntryCreate,
+    TimetableReplace,
+    TournamentCreate,
+    TournamentUpdate,
+)
 from src.services.brackets import regenerate_tournament_brackets, reorder_seeds_and_get_next
 from src.services.export_file import generate_pdf
 from src.utils import sanitize_filename
@@ -118,7 +125,7 @@ async def delete_tournament(db: AsyncSession, tournament_id: int) -> None:
 async def get_tournament_brackets(db: AsyncSession, tournament_id: int, sorted_brackets: bool) -> list[Bracket]:
     query = (
         select(Bracket)
-        .filter_by(tournament_id=tournament_id)
+        .filter(Bracket.tournament_id == tournament_id)
         .options(
             selectinload(Bracket.category),
             selectinload(Bracket.participants)
@@ -129,9 +136,9 @@ async def get_tournament_brackets(db: AsyncSession, tournament_id: int, sorted_b
     )
 
     if sorted_brackets:
-        query = query.order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
+        query = query.order_by(Bracket.category_id.asc().nullslast(), Bracket.id.asc())
     else:
-        query = query.order_by(Bracket.category_id.asc().nullslast())
+        query = query.order_by(Bracket.id.asc())
 
     result = await db.execute(query)
     return list(result.scalars().all())
@@ -180,6 +187,7 @@ async def get_matches_for_tournament_full(db: AsyncSession, tournament_id: int) 
         .filter(Bracket.tournament_id == tournament_id)
         .options(
             selectinload(Bracket.category),
+            selectinload(Bracket.timetable_entry),
             selectinload(Bracket.matches)
             .joinedload(BracketMatch.match)
             .joinedload(Match.athlete1)
@@ -196,7 +204,7 @@ async def get_matches_for_tournament_full(db: AsyncSession, tournament_id: int) 
             .selectinload(Athlete.coach_links)
             .joinedload(AthleteCoachLink.coach),
         )
-        .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
+        .order_by(Bracket.id.asc())
     )
 
     return list(result.scalars().all())
@@ -208,6 +216,7 @@ async def get_matches_for_tournament_raw(db: AsyncSession, tournament_id: int) -
         .filter(Bracket.tournament_id == tournament_id)
         .options(
             selectinload(Bracket.category),
+            selectinload(Bracket.timetable_entry),
             selectinload(Bracket.matches)
             .joinedload(BracketMatch.match)
             .joinedload(Match.athlete1)
@@ -224,7 +233,7 @@ async def get_matches_for_tournament_raw(db: AsyncSession, tournament_id: int) -
             .selectinload(Athlete.coach_links)
             .joinedload(AthleteCoachLink.coach),
         )
-        .order_by(Bracket.day.asc(), Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
+        .order_by(Bracket.id.asc())
     )
 
     return list(result.scalars().all())
@@ -482,3 +491,103 @@ async def remove_competitor(db: AsyncSession, participant_id: int) -> int | None
     except Exception:
         await db.rollback()
         raise HTTPException(status_code=500, detail="An error occurred while removing the competitor")
+
+
+async def list_timetable_entries(db: AsyncSession, tournament_id: int) -> list[TimetableEntry]:
+    result = await db.execute(
+        select(TimetableEntry)
+        .where(TimetableEntry.tournament_id == tournament_id)
+        .options(selectinload(TimetableEntry.bracket).selectinload(Bracket.category))
+        .order_by(
+            TimetableEntry.day.asc(),
+            TimetableEntry.tatami.asc(),
+            TimetableEntry.start_time.asc(),
+            TimetableEntry.order_index.asc(),
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def replace_timetable_entries(
+    db: AsyncSession, tournament_id: int, payload: TimetableReplace
+) -> list[TimetableEntry]:
+    entries_payload = payload.entries
+    bracket_ids = [entry.bracket_id for entry in entries_payload if entry.bracket_id is not None]
+    if len(bracket_ids) != len(set(bracket_ids)):
+        raise HTTPException(status_code=400, detail="Duplicate bracket_id in timetable")
+
+    def _label(entry: TimetableEntryCreate) -> str:
+        if entry.bracket_id is not None:
+            return f"bracket_id {entry.bracket_id}"
+        if entry.title:
+            return f"title '{entry.title}'"
+        return f"entry_type {entry.entry_type}"
+
+    for entry in entries_payload:
+        if entry.end_time < entry.start_time:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"End time must be after start time (day {entry.day}, tatami {entry.tatami}, "
+                    f"{entry.start_time}-{entry.end_time}, {_label(entry)})"
+                ),
+            )
+
+    grouped: dict[tuple[int, int], list[TimetableEntryCreate]] = defaultdict(list)
+    for entry in entries_payload:
+        grouped[(entry.day, entry.tatami)].append(entry)
+
+    for (day, tatami), items in grouped.items():
+        by_time = sorted(items, key=lambda e: (e.start_time, e.end_time, e.order_index))
+        for prev, current in zip(by_time, by_time[1:]):
+            if prev.end_time > current.start_time:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Entries overlap on day {day}, tatami {tatami}: "
+                        f"{prev.start_time}-{prev.end_time} ({_label(prev)}) overlaps "
+                        f"{current.start_time}-{current.end_time} ({_label(current)})"
+                    ),
+                )
+
+        by_order = sorted(items, key=lambda e: e.order_index)
+        last_time = None
+        for entry in by_order:
+            current_time = (entry.start_time, entry.end_time)
+            if last_time and current_time < last_time:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Timetable order does not match time order (day {day}, tatami {tatami})",
+                )
+            last_time = current_time
+
+    await db.execute(delete(TimetableEntry).where(TimetableEntry.tournament_id == tournament_id))
+    entries = [
+        TimetableEntry(
+            tournament_id=tournament_id,
+            entry_type=item.entry_type,
+            day=item.day,
+            tatami=item.tatami,
+            start_time=item.start_time,
+            end_time=item.end_time,
+            order_index=item.order_index,
+            title=item.title,
+            notes=item.notes,
+            bracket_id=item.bracket_id,
+        )
+        for item in payload.entries
+    ]
+    db.add_all(entries)
+    await db.commit()
+    result = await db.execute(
+        select(TimetableEntry)
+        .where(TimetableEntry.tournament_id == tournament_id)
+        .options(selectinload(TimetableEntry.bracket).selectinload(Bracket.category))
+        .order_by(
+            TimetableEntry.day.asc(),
+            TimetableEntry.tatami.asc(),
+            TimetableEntry.start_time.asc(),
+            TimetableEntry.order_index.asc(),
+        )
+    )
+    return list(result.scalars().all())

@@ -92,9 +92,6 @@ export type Bracket = {
   tournament_id: number;
   category: string;
   type: BracketType;
-  start_time: string | null;
-  day: number;
-  tatami: number;
   group_id?: number;
   display_name?: string;
   status: BRACKET_STATUS;
@@ -140,9 +137,6 @@ export type BracketMatches = BracketMatch[];
 export type BracketMatchesFull = {
   category: string;
   type: BracketType;
-  start_time: string | null;
-  day: number;
-  tatami: number;
   group_id?: number;
   display_name?: string;
   status: BRACKET_STATUS;
@@ -176,12 +170,28 @@ export interface BracketCreate {
   category_id: number;
   group_id?: number;
   type?: string;
-  start_time?: string;
-  tatami?: number;
 }
 
 export interface BracketDelete {
   target_bracket_id?: number;
+}
+
+export type TimetableEntryType = "bracket" | "break" | "custom";
+
+export interface TimetableEntry {
+  id: number;
+  tournament_id: number;
+  entry_type: TimetableEntryType;
+  day: number;
+  tatami: number;
+  start_time: string;
+  end_time: string;
+  order_index: number;
+  title?: string | null;
+  notes?: string | null;
+  bracket_id?: number | null;
+  bracket_display_name?: string | null;
+  bracket_type?: BracketType | null;
 }
 
 // export interface CategoryCreate {

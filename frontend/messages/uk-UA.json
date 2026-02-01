@@ -33,7 +33,9 @@
     "unknownTatami": "Невідомо",
     "day": "День {number}",
     "started": "Триває",
-    "finished": "Закінчено"
+    "finished": "Закінчено",
+    "customEntry": "Кастомний запис",
+    "unknownBracket": "Невідома сітка"
   },
   "Round": {
     "final": "Фінал",
@@ -63,6 +65,7 @@
     "open": "Відкрити",
     "edit": "Редагувати",
     "manage": "Керувати",
+    "timetable": "Розклад",
     "exportToFile": "Експортувати у файл",
     "applications": "Заявки",
     "reports": "Виписки",

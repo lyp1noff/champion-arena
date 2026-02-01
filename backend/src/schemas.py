@@ -156,9 +156,6 @@ class ApplicationCreate(BaseModel):
 class BracketBase(OrmResponseModel):
     category: str = Field(validation_alias=AliasPath("category", "name"))
     type: str
-    start_time: Optional[time] = None
-    day: Optional[int] = None
-    tatami: Optional[int] = None
     group_id: Optional[int] = 1
     display_name: Optional[str] = None
     status: str
@@ -214,9 +211,6 @@ class BracketResponse(BracketBase):
 
 class BracketUpdateSchema(BaseModel):
     type: Optional[str] = None
-    start_time: Optional[time] = None
-    day: Optional[int] = None
-    tatami: Optional[int] = None
     group_id: Optional[int] = None
     category_id: Optional[int] = None
 
@@ -286,13 +280,58 @@ class BracketCreateSchema(BaseModel):
     category_id: int
     group_id: int = 1
     type: Optional[str] = BracketType.SINGLE_ELIMINATION.value
-    start_time: Optional[time] = None
-    day: Optional[int] = 1
-    tatami: Optional[int] = None
 
 
 class BracketDeleteRequest(BaseModel):
     target_bracket_id: Optional[int] = None
+
+
+class TimetableEntryBase(OrmResponseModel):
+    tournament_id: int
+    entry_type: str
+    day: int
+    tatami: int
+    start_time: time
+    end_time: time
+    order_index: int
+    title: Optional[str] = None
+    notes: Optional[str] = None
+    bracket_id: Optional[int] = None
+    bracket: Any = Field(default=None, exclude=True)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def bracket_display_name(self) -> Optional[str]:
+        if self.bracket is None:
+            return None
+        return getattr(self.bracket, "display_name", None)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def bracket_type(self) -> Optional[str]:
+        if self.bracket is None:
+            return None
+        return getattr(self.bracket, "type", None)
+
+
+class TimetableEntryResponse(TimetableEntryBase):
+    id: int
+
+
+class TimetableEntryCreate(BaseModel):
+    entry_type: str
+    day: int
+    tatami: int
+    start_time: time
+    end_time: time
+    order_index: int
+    title: Optional[str] = None
+    notes: Optional[str] = None
+    bracket_id: Optional[int] = None
+
+
+class TimetableReplace(BaseModel):
+    entries: list[TimetableEntryCreate]
 
 
 class CategoryCreateSchema(BaseModel):
