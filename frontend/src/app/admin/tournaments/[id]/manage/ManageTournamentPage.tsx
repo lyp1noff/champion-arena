@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import BracketFormDialog from "@/app/admin/tournaments/[id]/manage/components/BracketFormDialog";
 import {
@@ -19,7 +19,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { Plus, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 
-import { BracketView } from "@/components/bracket/bracket-view";
+import { BracketView, type Placement } from "@/components/bracket/bracket-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -90,6 +90,9 @@ export default function ManageTournamentPage({
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, { s1: string; s2: string }>>({});
   const [matchActionId, setMatchActionId] = useState<string | null>(null);
   const [bracketsSearch, setBracketsSearch] = useState("");
+  const selectedBracketRef = useRef<Bracket | null>(null);
+  const refreshInFlightRef = useRef(false);
+  const refreshQueuedRef = useRef(false);
 
   // --- Effects ---
   useEffect(() => {
@@ -128,6 +131,10 @@ export default function ManageTournamentPage({
     setScoreDrafts(next);
   }, [bracketMatches]);
 
+  useEffect(() => {
+    selectedBracketRef.current = selectedBracket;
+  }, [selectedBracket]);
+
   const loadCategories = async () => {
     try {
       const categoriesData = await getCategories();
@@ -153,6 +160,46 @@ export default function ManageTournamentPage({
       });
     });
   }, [brackets, bracketsSearch]);
+
+  const selectedBracketPlacements = useMemo<Placement[]>(() => {
+    if (!selectedBracket) return [];
+    const placements: Placement[] = [];
+    if (selectedBracket.place_1) placements.push({ place: 1, athlete: selectedBracket.place_1 });
+    if (selectedBracket.place_2) placements.push({ place: 2, athlete: selectedBracket.place_2 });
+    if (selectedBracket.place_3_a) placements.push({ place: 3, athlete: selectedBracket.place_3_a });
+    if (selectedBracket.place_3_b) placements.push({ place: 3, athlete: selectedBracket.place_3_b });
+    return placements;
+  }, [selectedBracket]);
+
+  const hasPendingChanges = useCallback(() => {
+    if (!selectedBracket) return false;
+    return JSON.stringify(participants) !== JSON.stringify(selectedBracket.participants);
+  }, [participants, selectedBracket]);
+
+  const refreshSelectedFromWebSocket = useCallback(() => {
+    const run = async () => {
+      const current = selectedBracketRef.current;
+      if (!current || hasPendingChanges()) return;
+
+      if (refreshInFlightRef.current) {
+        refreshQueuedRef.current = true;
+        return;
+      }
+
+      refreshInFlightRef.current = true;
+      try {
+        await onSelectBracket(current);
+      } finally {
+        refreshInFlightRef.current = false;
+        if (refreshQueuedRef.current) {
+          refreshQueuedRef.current = false;
+          void run();
+        }
+      }
+    };
+
+    void run();
+  }, [hasPendingChanges, onSelectBracket]);
 
   const refreshSelected = async () => {
     if (!selectedBracket) return;
@@ -243,12 +290,6 @@ export default function ManageTournamentPage({
         setParticipants(reordered);
       }
     }
-  };
-
-  // --- Unsaved Changes ---
-  const hasPendingChanges = () => {
-    if (!selectedBracket) return false;
-    return JSON.stringify(participants) !== JSON.stringify(selectedBracket.participants);
   };
 
   const handleBracketSelect = async (bracket: Bracket) => {
@@ -453,7 +494,7 @@ export default function ManageTournamentPage({
 
         {/* Middle Column - Bracket Preview */}
 
-        <WebSocketProvider tournamentId={tournamentId.toString()}>
+        <WebSocketProvider tournamentId={tournamentId.toString()} onAnyUpdate={refreshSelectedFromWebSocket}>
           <div className="flex-1 flex flex-col gap-4 h-full overflow-auto">
             {selectedBracket ? (
               <>
@@ -479,7 +520,11 @@ export default function ManageTournamentPage({
                   <CardContent className="flex-1 p-0 h-full">
                     <ScrollArea className="h-full w-full">
                       <div className="p-6 h-full w-full">
-                        <BracketView matches={bracketMatches ?? []} bracketType={selectedBracket.type} />
+                        <BracketView
+                          matches={bracketMatches ?? []}
+                          bracketType={selectedBracket.type}
+                          placements={selectedBracketPlacements}
+                        />
                       </div>
                       <ScrollBar orientation="horizontal" />
                       <ScrollBar orientation="vertical" />

@@ -221,7 +221,7 @@ async def _ensure_repechage_generated(db: AsyncSession, bracket_id: int) -> None
             rep_match = Match(
                 athlete1_id=athlete1_id,
                 athlete2_id=athlete2_id,
-                round_type=f"repechage_{side}_{step}",
+                round_type="round",
                 stage=MatchStage.REPECHAGE.value,
                 repechage_side=side,
                 repechage_step=step,

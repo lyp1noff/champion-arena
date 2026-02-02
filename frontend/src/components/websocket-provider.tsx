@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useMemo } from "react";
+import React from "react";
 
 import { useWebSocket } from "@/hooks/use-websocket";
 
@@ -10,13 +10,6 @@ interface MatchUpdate {
   score_athlete2: number | null;
   status: string | null;
 }
-
-interface WebSocketContextType {
-  isConnected: boolean;
-  error: string | null;
-}
-
-const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
 interface WebSocketProviderProps {
   children: React.ReactNode;
@@ -32,26 +25,10 @@ export function WebSocketProvider({ children, tournamentId, onAnyUpdate }: WebSo
     [onAnyUpdate],
   );
 
-  const { isConnected, error } = useWebSocket({
+  useWebSocket({
     tournamentId,
     onMatchUpdate: handleMatchUpdate,
   });
 
-  const contextValue = useMemo(
-    () => ({
-      isConnected,
-      error,
-    }),
-    [isConnected, error],
-  );
-
-  return <WebSocketContext.Provider value={contextValue}>{children}</WebSocketContext.Provider>;
-}
-
-export function useWebSocketContext() {
-  const context = useContext(WebSocketContext);
-  if (!context) {
-    throw new Error("useWebSocketContext must be used within a WebSocketProvider");
-  }
-  return context;
+  return <>{children}</>;
 }

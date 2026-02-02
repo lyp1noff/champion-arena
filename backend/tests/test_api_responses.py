@@ -3,7 +3,7 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from httpx import AsyncClient
 
-from src.models import Athlete, BracketParticipant
+from src.models import Athlete, Bracket, BracketParticipant
 
 
 @pytest.mark.asyncio
@@ -86,3 +86,74 @@ async def test_bracket_response_participants_sorted_and_display_name(client: Asy
 
     assert data["display_name"] == "U18 Kata (Group 2)"
     assert [p["seed"] for p in data["participants"]] == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_bracket_and_tournament_responses_include_placements(client: AsyncClient, db_session) -> None:
+    category_response = await client.post(
+        "/categories",
+        json={"name": "Senior Kumite", "min_age": 18, "max_age": 35, "gender": "male"},
+    )
+    assert category_response.status_code == 200
+    category_id = category_response.json()["id"]
+
+    tournament_response = await client.post(
+        "/tournaments",
+        json={
+            "name": "Placements API Cup",
+            "location": "Lviv",
+            "start_date": date(2025, 7, 10).isoformat(),
+            "end_date": date(2025, 7, 11).isoformat(),
+            "registration_start_date": date(2025, 6, 1).isoformat(),
+            "registration_end_date": date(2025, 6, 30).isoformat(),
+            "image_url": None,
+        },
+    )
+    assert tournament_response.status_code == 200
+    tournament_id = tournament_response.json()["id"]
+
+    bracket_response = await client.post(
+        "/brackets/create",
+        json={
+            "tournament_id": tournament_id,
+            "category_id": category_id,
+            "group_id": 1,
+            "type": "single_elimination",
+        },
+    )
+    assert bracket_response.status_code == 200
+    bracket_id = bracket_response.json()["id"]
+
+    athletes = [
+        Athlete(first_name="A1", last_name="L1", gender="male", birth_date=date(2000, 1, 1)),
+        Athlete(first_name="A2", last_name="L2", gender="male", birth_date=date(2000, 1, 1)),
+        Athlete(first_name="A3", last_name="L3", gender="male", birth_date=date(2000, 1, 1)),
+        Athlete(first_name="A4", last_name="L4", gender="male", birth_date=date(2000, 1, 1)),
+    ]
+    db_session.add_all(athletes)
+    await db_session.flush()
+
+    bracket = await db_session.get(Bracket, bracket_id)
+    assert bracket is not None
+    bracket.place_1_id = athletes[0].id
+    bracket.place_2_id = athletes[1].id
+    bracket.place_3_a_id = athletes[2].id
+    bracket.place_3_b_id = athletes[3].id
+    await db_session.commit()
+
+    single_bracket_response = await client.get(f"/brackets/{bracket_id}")
+    assert single_bracket_response.status_code == 200
+    single_data = single_bracket_response.json()
+    assert single_data["place_1"]["id"] == athletes[0].id
+    assert single_data["place_2"]["id"] == athletes[1].id
+    assert single_data["place_3_a"]["id"] == athletes[2].id
+    assert single_data["place_3_b"]["id"] == athletes[3].id
+
+    tournament_brackets_response = await client.get(f"/tournaments/{tournament_id}/brackets")
+    assert tournament_brackets_response.status_code == 200
+    data = tournament_brackets_response.json()
+    assert len(data) == 1
+    assert data[0]["place_1"]["id"] == athletes[0].id
+    assert data[0]["place_2"]["id"] == athletes[1].id
+    assert data[0]["place_3_a"]["id"] == athletes[2].id
+    assert data[0]["place_3_b"]["id"] == athletes[3].id
