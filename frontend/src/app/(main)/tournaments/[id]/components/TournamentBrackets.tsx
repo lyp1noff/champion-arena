@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WebSocketProvider } from "@/components/websocket-provider";
 
-import { getBracketMatchesById } from "@/lib/api/brackets";
+import { getBracketMatchesById, getBracketsById } from "@/lib/api/brackets";
 import { Bracket, BracketMatches, TimetableEntry, Tournament } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
@@ -39,9 +39,16 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
   const urlDay = searchParams.get("day");
 
   const [tab, setTab] = useState("brackets");
+  const [bracketsState, setBracketsState] = useState<Bracket[]>(brackets);
   const [loadedBracketMatches, setLoadedBracketMatches] = useState<Record<number, { matches: BracketMatches }>>({});
+  const loadedBracketIdsRef = useRef<number[]>([]);
+  const [wsVersion, setWsVersion] = useState(0);
   const [filteredEntries, setFilteredEntries] = useState<TimetableEntry[]>([]);
   const [selectedDay, setSelectedDay] = useState<string>("1");
+
+  useEffect(() => {
+    setBracketsState(brackets);
+  }, [brackets]);
 
   const loadBracketData = async (bracketId: number, force?: boolean) => {
     if (!force && loadedBracketMatches[bracketId]) return;
@@ -62,11 +69,11 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
 
   const bracketMap = useMemo(() => {
     const map = new Map<number, Bracket>();
-    for (const bracket of brackets) {
+    for (const bracket of bracketsState) {
       map.set(bracket.id, bracket);
     }
     return map;
-  }, [brackets]);
+  }, [bracketsState]);
 
   useEffect(() => {
     if (!timetableEntries.length) return;
@@ -110,6 +117,52 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
     params.set("day", v);
     router.replace(`?${params.toString()}`, { scroll: false });
   };
+
+  useEffect(() => {
+    loadedBracketIdsRef.current = Object.keys(loadedBracketMatches).map((id) => Number(id));
+  }, [loadedBracketMatches]);
+
+  const refreshLoadedBrackets = useCallback(async () => {
+    const ids = loadedBracketIdsRef.current;
+    if (!ids.length) return;
+
+    const [matchesResponses, bracketResponses] = await Promise.all([
+      Promise.allSettled(ids.map((id) => getBracketMatchesById(id))),
+      Promise.allSettled(ids.map((id) => getBracketsById(id))),
+    ]);
+
+    setLoadedBracketMatches((prev) => {
+      const next = { ...prev };
+      matchesResponses.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          next[ids[index]] = { matches: result.value };
+        }
+      });
+      return next;
+    });
+
+    setBracketsState((prev) => {
+      const byId = new Map(prev.map((b) => [b.id, b]));
+      bracketResponses.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          byId.set(ids[index], result.value);
+        }
+      });
+      return Array.from(byId.values());
+    });
+  }, []);
+
+  const handleAnyWsUpdate = useCallback(() => {
+    setWsVersion((prev) => prev + 1);
+  }, []);
+
+  useEffect(() => {
+    if (wsVersion === 0) return;
+    const timer = setTimeout(() => {
+      void refreshLoadedBrackets();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [wsVersion, refreshLoadedBrackets]);
 
   const bracketPlacements = (bracket: Bracket) => {
     const placements: Placement[] = [];
@@ -179,7 +232,7 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
         </Tabs>
       </div>
 
-      <WebSocketProvider tournamentId={String(tournament?.id)}>
+      <WebSocketProvider tournamentId={String(tournament?.id)} onAnyUpdate={handleAnyWsUpdate}>
         <Tabs value={selectedDay} onValueChange={handleDayChange}>
           {Object.keys(entriesByDayTatami).length > 1 && (
             <TabsList>

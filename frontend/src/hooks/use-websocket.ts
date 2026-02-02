@@ -17,6 +17,29 @@ interface UseWebSocketOptions {
   onError?: (error: Event) => void;
 }
 
+function buildWebSocketUrl(baseUrl: string, tournamentId: string): string {
+  const suffix = `/ws/tournament/${tournamentId}`;
+  const trimmed = baseUrl.replace(/\/+$/, "");
+
+  if (trimmed.startsWith("ws://") || trimmed.startsWith("wss://")) {
+    return `${trimmed}${suffix}`;
+  }
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return `${trimmed.replace(/^http/, "ws")}${suffix}`;
+  }
+
+  if (typeof window !== "undefined") {
+    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    if (trimmed.startsWith("/")) {
+      return `${wsProtocol}//${window.location.host}${trimmed}${suffix}`;
+    }
+    return `${wsProtocol}//${trimmed}${suffix}`;
+  }
+
+  return `${trimmed}${suffix}`;
+}
+
 export function useWebSocket({ tournamentId, onMatchUpdate, onConnect, onDisconnect, onError }: UseWebSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,12 +49,13 @@ export function useWebSocket({ tournamentId, onMatchUpdate, onConnect, onDisconn
   const maxReconnectAttempts = 5;
 
   const connect = useCallback(() => {
+    if (!tournamentId) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
 
     try {
-      const wsUrl = BACKEND_URL.replace(/^http/, "ws") + `/ws/tournament/${tournamentId}`;
+      const wsUrl = buildWebSocketUrl(BACKEND_URL, tournamentId);
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;

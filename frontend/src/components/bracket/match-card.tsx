@@ -1,6 +1,5 @@
 import { LiveBadge } from "@/components/bracket/live-badge";
 import { ParticipantNameWithMenu } from "@/components/bracket/participant-name-with-menu";
-import { useMatchUpdate } from "@/components/websocket-provider";
 
 import { BracketMatch, BracketMatchAthlete } from "@/lib/interfaces";
 
@@ -15,13 +14,9 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80, meda
   const calculatedHeight = (height - 3) / 2;
   const calculatedFontSize = height / 5;
 
-  // Get real-time updates for this match
-  const matchUpdate = useMatchUpdate(bracketMatch.match.id);
-
-  // Use real-time data if available, otherwise fall back to original data
-  const currentScore1 = matchUpdate?.score_athlete1 ?? bracketMatch.match.score_athlete1;
-  const currentScore2 = matchUpdate?.score_athlete2 ?? bracketMatch.match.score_athlete2;
-  const currentStatus = matchUpdate?.status ?? bracketMatch.match.status;
+  const currentScore1 = bracketMatch.match.score_athlete1;
+  const currentScore2 = bracketMatch.match.score_athlete2;
+  const currentStatus = bracketMatch.match.status;
 
   if (bracketMatch.round_number === 1 && (!bracketMatch.match?.athlete1 || !bracketMatch.match?.athlete2)) return;
   // return <div className="border border-dashed border-gray-500 rounded-md opacity-30" style={{ width, height }} />;
