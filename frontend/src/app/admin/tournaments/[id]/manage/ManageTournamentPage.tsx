@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { BracketView } from "@/components/bracket/bracket-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { WebSocketProvider } from "@/components/websocket-provider";
 
@@ -34,6 +35,7 @@ import {
   regenerateBracket,
   reorderParticipants,
 } from "@/lib/api/brackets";
+import { finishMatch, startMatch, updateMatchScores } from "@/lib/api/matches";
 import { deleteParticipant } from "@/lib/api/tournaments";
 import { Bracket, BracketMatches, BracketType, Category, Participant } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
@@ -84,6 +86,9 @@ export default function ManageTournamentPage({
   const [showDeleteParticipantDialog, setShowDeleteParticipantDialog] = useState(false);
   const [participantToDelete, setParticipantToDelete] = useState<Participant | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showMatchControl, setShowMatchControl] = useState(false);
+  const [scoreDrafts, setScoreDrafts] = useState<Record<string, { s1: string; s2: string }>>({});
+  const [matchActionId, setMatchActionId] = useState<string | null>(null);
 
   // --- Effects ---
   useEffect(() => {
@@ -110,12 +115,82 @@ export default function ManageTournamentPage({
     loadCategories();
   }, []);
 
+  useEffect(() => {
+    if (!bracketMatches) return;
+    const next: Record<string, { s1: string; s2: string }> = {};
+    for (const bm of bracketMatches) {
+      next[bm.match.id] = {
+        s1: bm.match.score_athlete1?.toString() ?? "0",
+        s2: bm.match.score_athlete2?.toString() ?? "0",
+      };
+    }
+    setScoreDrafts(next);
+  }, [bracketMatches]);
+
   const loadCategories = async () => {
     try {
       const categoriesData = await getCategories();
       setCategories(categoriesData);
     } catch (error) {
       console.error("Failed to load categories:", error);
+    }
+  };
+
+  const refreshSelected = async () => {
+    if (!selectedBracket) return;
+    await onSelectBracket(selectedBracket);
+  };
+
+  const handleStartMatch = async (matchId: string) => {
+    setMatchActionId(matchId);
+    try {
+      await startMatch(matchId);
+      await refreshSelected();
+      toast.success("Match started");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to start match");
+    } finally {
+      setMatchActionId(null);
+    }
+  };
+
+  const handleSaveScores = async (matchId: string) => {
+    const draft = scoreDrafts[matchId];
+    if (!draft) return;
+    setMatchActionId(matchId);
+    try {
+      await updateMatchScores(matchId, {
+        score_athlete1: Number(draft.s1),
+        score_athlete2: Number(draft.s2),
+      });
+      await refreshSelected();
+      toast.success("Scores updated");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update scores");
+    } finally {
+      setMatchActionId(null);
+    }
+  };
+
+  const handleFinishMatch = async (matchId: string, winnerId: number | undefined) => {
+    const draft = scoreDrafts[matchId];
+    if (!draft || !winnerId) return;
+    setMatchActionId(matchId);
+    try {
+      await finishMatch(matchId, {
+        score_athlete1: Number(draft.s1),
+        score_athlete2: Number(draft.s2),
+        winner_id: winnerId,
+      });
+      await refreshSelected();
+      toast.success("Match finished");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to finish match");
+    } finally {
+      setMatchActionId(null);
     }
   };
 
@@ -361,6 +436,9 @@ export default function ManageTournamentPage({
                     {getBracketDisplayName(selectedBracket.category, selectedBracket.group_id)}
                   </h2>
                   <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setShowMatchControl((prev) => !prev)}>
+                      {showMatchControl ? "Hide Match Control" : "Show Match Control"}
+                    </Button>
                     <Button variant="outline" onClick={handleRegenerate} disabled={loading}>
                       <RefreshCw className="h-4 w-4 mr-1" />
                       Regenerate
@@ -382,6 +460,88 @@ export default function ManageTournamentPage({
                     </ScrollArea>
                   </CardContent>
                 </Card>
+                {showMatchControl && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Matches Control</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3 max-h-72 overflow-auto">
+                        {(bracketMatches ?? []).map((bm) => {
+                          const draft = scoreDrafts[bm.match.id] ?? { s1: "0", s2: "0" };
+                          const athlete1 = bm.match.athlete1;
+                          const athlete2 = bm.match.athlete2;
+                          const disabled = matchActionId === bm.match.id;
+                          return (
+                            <div key={bm.id} className="rounded-md border p-3">
+                              <div className="text-xs text-muted-foreground mb-2">
+                                R{bm.round_number} • #{bm.position} • {bm.match.status}
+                              </div>
+                              <div className="grid grid-cols-[1fr_90px_90px_auto] gap-2 items-center">
+                                <div className="text-sm truncate">
+                                  {athlete1 ? `${athlete1.last_name} ${athlete1.first_name}` : "TBD"} vs{" "}
+                                  {athlete2 ? `${athlete2.last_name} ${athlete2.first_name}` : "TBD"}
+                                </div>
+                                <Input
+                                  type="number"
+                                  value={draft.s1}
+                                  onChange={(e) =>
+                                    setScoreDrafts((prev) => ({
+                                      ...prev,
+                                      [bm.match.id]: { ...draft, s1: e.target.value },
+                                    }))
+                                  }
+                                />
+                                <Input
+                                  type="number"
+                                  value={draft.s2}
+                                  onChange={(e) =>
+                                    setScoreDrafts((prev) => ({
+                                      ...prev,
+                                      [bm.match.id]: { ...draft, s2: e.target.value },
+                                    }))
+                                  }
+                                />
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={disabled || bm.match.status !== "not_started"}
+                                    onClick={() => handleStartMatch(bm.match.id)}
+                                  >
+                                    Start
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={disabled || bm.match.status !== "started"}
+                                    onClick={() => handleSaveScores(bm.match.id)}
+                                  >
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    disabled={disabled || bm.match.status !== "started" || !athlete1}
+                                    onClick={() => handleFinishMatch(bm.match.id, athlete1?.id)}
+                                  >
+                                    Finish A
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    disabled={disabled || bm.match.status !== "started" || !athlete2}
+                                    onClick={() => handleFinishMatch(bm.match.id, athlete2?.id)}
+                                  >
+                                    Finish B
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center text-muted-foreground">

@@ -41,6 +41,7 @@
     "final": "Final",
     "semifinal": "Semifinal",
     "quarterfinal": "Quarterfinal",
+    "group": "Group",
     "round": "Round {number}"
   },
   "Login": {

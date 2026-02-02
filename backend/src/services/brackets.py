@@ -18,6 +18,7 @@ from src.models import (
     BracketType,
     Category,
     Match,
+    MatchStage,
     MatchStatus,
     Tournament,
 )
@@ -86,6 +87,7 @@ async def generate_all_rounds(
             athlete2_id=a2,
             winner_id=winner_id,
             round_type=get_round_type(0, total_rounds),
+            stage=MatchStage.MAIN.value,
             status=MatchStatus.FINISHED.value if bye else MatchStatus.NOT_STARTED.value,
             ended_at=datetime.now(UTC) if bye else None,
         )
@@ -106,6 +108,7 @@ async def generate_all_rounds(
         for pos in range(1, num_matches + 1):
             match = Match(
                 round_type=get_round_type(round_num - 1, total_rounds),
+                stage=MatchStage.MAIN.value,
                 status=MatchStatus.NOT_STARTED.value,
             )
             db.add(match)
@@ -265,6 +268,7 @@ async def regenerate_round_bracket_matches(
                 athlete1_id=p1.athlete_id,
                 athlete2_id=p2.athlete_id,
                 round_type="group",
+                stage=MatchStage.MAIN.value,
             )
             db.add(match)
             await db.flush()

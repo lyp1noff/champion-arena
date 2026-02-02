@@ -230,6 +230,9 @@ class BracketMatchAthlete(OrmResponseModel):
 class MatchSchema(OrmResponseModel):
     id: uuid.UUID
     round_type: Optional[str] = None
+    stage: Optional[str] = None
+    repechage_side: Optional[str] = None
+    repechage_step: Optional[int] = None
     athlete1: Optional[BracketMatchAthlete]
     athlete2: Optional[BracketMatchAthlete]
     winner: Optional[BracketMatchAthlete]

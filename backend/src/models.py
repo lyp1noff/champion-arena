@@ -64,6 +64,11 @@ class MatchStatus(enum.Enum):
     FINISHED = "finished"
 
 
+class MatchStage(enum.Enum):
+    MAIN = "main"
+    REPECHAGE = "repechage"
+
+
 class TimestampMixin:
     @declared_attr
     def created_at(cls) -> Mapped[datetime]:
@@ -253,6 +258,9 @@ class Match(Base, TimestampMixin):
     score_athlete1: Mapped[Optional[int]] = mapped_column(nullable=True)
     score_athlete2: Mapped[Optional[int]] = mapped_column(nullable=True)
     round_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    stage: Mapped[str] = mapped_column(String(20), default=MatchStage.MAIN.value, index=True)
+    repechage_side: Mapped[Optional[str]] = mapped_column(String(1), nullable=True, index=True)
+    repechage_step: Mapped[Optional[int]] = mapped_column(nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(20), default=MatchStatus.NOT_STARTED.value)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

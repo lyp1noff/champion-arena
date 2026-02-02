@@ -41,6 +41,7 @@
     "final": "Финал",
     "semifinal": "Полуфинал",
     "quarterfinal": "Четвертьфинал",
+    "group": "Группа",
     "round": "Раунд {number}"
   },
   "Login": {

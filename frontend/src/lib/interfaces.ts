@@ -114,7 +114,10 @@ export type BracketMatchAthlete = {
 
 export type Match = {
   id: string;
-  round_type: ROUND_TYPE;
+  round_type: ROUND_TYPE | string;
+  stage?: "main" | "repechage";
+  repechage_side?: "A" | "B" | null;
+  repechage_step?: number | null;
   athlete1: BracketMatchAthlete | null;
   athlete2: BracketMatchAthlete | null;
   winner: BracketMatchAthlete | null;
