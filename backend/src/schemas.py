@@ -153,12 +153,28 @@ class ApplicationCreate(BaseModel):
     comment: Optional[str] = None
 
 
+class BracketMatchAthlete(OrmResponseModel):
+    id: int
+    first_name: str
+    last_name: str
+    coach_links: list[Any] = Field(default_factory=list, exclude=True)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def coaches_last_name(self) -> list[str]:
+        return [link.coach.last_name for link in self.coach_links if getattr(link, "coach", None) is not None]
+
+
 class BracketBase(OrmResponseModel):
     category: str = Field(validation_alias=AliasPath("category", "name"))
     type: str
     group_id: Optional[int] = 1
     display_name: Optional[str] = None
     status: str
+    place_1: Optional[BracketMatchAthlete] = Field(default=None, validation_alias="place_1_athlete")
+    place_2: Optional[BracketMatchAthlete] = Field(default=None, validation_alias="place_2_athlete")
+    place_3_a: Optional[BracketMatchAthlete] = Field(default=None, validation_alias="place_3_a_athlete")
+    place_3_b: Optional[BracketMatchAthlete] = Field(default=None, validation_alias="place_3_b_athlete")
 
 
 class BracketParticipantSchema(OrmResponseModel):
@@ -213,18 +229,6 @@ class BracketUpdateSchema(BaseModel):
     type: Optional[str] = None
     group_id: Optional[int] = None
     category_id: Optional[int] = None
-
-
-class BracketMatchAthlete(OrmResponseModel):
-    id: int
-    first_name: str
-    last_name: str
-    coach_links: list[Any] = Field(default_factory=list, exclude=True)
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def coaches_last_name(self) -> list[str]:
-        return [link.coach.last_name for link in self.coach_links if getattr(link, "coach", None) is not None]
 
 
 class MatchSchema(OrmResponseModel):

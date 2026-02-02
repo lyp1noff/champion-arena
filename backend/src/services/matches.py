@@ -35,6 +35,98 @@ def _match_loser_id(match: Match) -> int | None:
     return None
 
 
+def _final_loser_id(final_match: Match) -> int | None:
+    if final_match.winner_id is None:
+        return None
+    if final_match.athlete1_id == final_match.winner_id:
+        return final_match.athlete2_id
+    if final_match.athlete2_id == final_match.winner_id:
+        return final_match.athlete1_id
+    return None
+
+
+async def _recompute_bracket_placements(db: AsyncSession, bracket_id: int) -> None:
+    bracket = await db.get(Bracket, bracket_id)
+    if bracket is None:
+        return
+
+    rows = (
+        await db.execute(
+            select(BracketMatch, Match)
+            .join(Match, Match.id == BracketMatch.match_id)
+            .where(BracketMatch.bracket_id == bracket_id)
+        )
+    ).all()
+    if not rows:
+        bracket.place_1_id = None
+        bracket.place_2_id = None
+        bracket.place_3_a_id = None
+        bracket.place_3_b_id = None
+        return
+
+    main_rows = [(bm, match) for bm, match in rows if match.stage != MatchStage.REPECHAGE.value]
+    if not main_rows:
+        bracket.place_1_id = None
+        bracket.place_2_id = None
+        bracket.place_3_a_id = None
+        bracket.place_3_b_id = None
+        return
+
+    final_round = max(bm.round_number for bm, _ in main_rows)
+    final_row = next((row for row in main_rows if row[0].round_number == final_round), None)
+    if final_row is None:
+        return
+
+    _, final_match = final_row
+    if final_match.status != MatchStatus.FINISHED.value or final_match.winner_id is None:
+        bracket.place_1_id = None
+        bracket.place_2_id = None
+        bracket.place_3_a_id = None
+        bracket.place_3_b_id = None
+        return
+
+    bracket.place_1_id = final_match.winner_id
+    bracket.place_2_id = _final_loser_id(final_match)
+
+    def direct_bronze_from_main_side(finalist_id: int) -> int | None:
+        losses: list[tuple[int, int]] = []
+        for bm, match in main_rows:
+            if bm.round_number >= final_round:
+                continue
+            if match.status != MatchStatus.FINISHED.value:
+                continue
+            if match.winner_id != finalist_id:
+                continue
+            loser_id = _match_loser_id(match)
+            if loser_id is None:
+                continue
+            losses.append((bm.round_number, loser_id))
+        if len(losses) != 1:
+            return None
+        return losses[0][1]
+
+    def bronze_from_repechage_side(side: str, finalist_id: int) -> int | None:
+        side_rows = [
+            (bm, match)
+            for bm, match in rows
+            if match.stage == MatchStage.REPECHAGE.value and match.repechage_side == side
+        ]
+        if not side_rows:
+            return direct_bronze_from_main_side(finalist_id)
+        last_match = sorted(side_rows, key=lambda row: row[1].repechage_step or 0)[-1][1]
+        if last_match.status != MatchStatus.FINISHED.value:
+            return None
+        winner_id = last_match.winner_id
+        if winner_id is None:
+            return None
+        return int(winner_id)
+
+    finalist_a = final_match.athlete1_id
+    finalist_b = final_match.athlete2_id
+    bracket.place_3_a_id = bronze_from_repechage_side("A", finalist_a) if finalist_a is not None else None
+    bracket.place_3_b_id = bronze_from_repechage_side("B", finalist_b) if finalist_b is not None else None
+
+
 async def _ensure_repechage_generated(db: AsyncSession, bracket_id: int) -> None:
     bracket = await db.get(Bracket, bracket_id)
     if bracket is None or bracket.type != "single_elimination":
@@ -52,13 +144,25 @@ async def _ensure_repechage_generated(db: AsyncSession, bracket_id: int) -> None
     if repechage_exists:
         return
 
+    max_main_round = await db.scalar(
+        select(func.max(BracketMatch.round_number))
+        .join(Match, Match.id == BracketMatch.match_id)
+        .where(
+            BracketMatch.bracket_id == bracket_id,
+            Match.stage == MatchStage.MAIN.value,
+        )
+    )
+    if max_main_round is None:
+        return
+
     final_bm = (
         await db.execute(
             select(BracketMatch)
             .join(Match, Match.id == BracketMatch.match_id)
             .where(
                 BracketMatch.bracket_id == bracket_id,
-                Match.round_type == "final",
+                BracketMatch.round_number == max_main_round,
+                Match.stage == MatchStage.MAIN.value,
             )
         )
     ).scalar_one_or_none()
@@ -76,8 +180,8 @@ async def _ensure_repechage_generated(db: AsyncSession, bracket_id: int) -> None
             .where(
                 BracketMatch.bracket_id == bracket_id,
                 Match.status == MatchStatus.FINISHED.value,
-                Match.stage == MatchStage.MAIN.value,
-                Match.round_type != "final",
+                Match.stage != MatchStage.REPECHAGE.value,
+                BracketMatch.round_number < max_main_round,
             )
         )
     ).all()
@@ -147,7 +251,7 @@ async def _advance_repechage_winner(
             .where(
                 BracketMatch.bracket_id == bracket_id,
                 Match.stage == MatchStage.REPECHAGE.value,
-                Match.repechage_side == side,
+                Match.repechage_side == side.upper(),
                 Match.repechage_step == step + 1,
             )
         )
@@ -266,7 +370,8 @@ async def finish_match(db: AsyncSession, match_id: MatchId, result: MatchFinishR
     bm = bm_result.scalar_one_or_none()
 
     if bm:
-        if match.stage == MatchStage.REPECHAGE.value and match.winner_id is not None:
+        is_repechage_match = match.stage == MatchStage.REPECHAGE.value
+        if is_repechage_match and match.winner_id is not None:
             await _advance_repechage_winner(
                 db,
                 bm.bracket_id,
@@ -275,26 +380,30 @@ async def finish_match(db: AsyncSession, match_id: MatchId, result: MatchFinishR
                 match.repechage_step,
             )
         else:
-            next_position = (bm.position + 1) // 2
-            next_bm = (
-                await db.execute(
-                    select(BracketMatch).where(
-                        BracketMatch.bracket_id == bm.bracket_id,
-                        BracketMatch.round_number == bm.round_number + 1,
-                        BracketMatch.position == next_position,
+            # Advance winners only for main-bracket matches that have an explicit next slot.
+            # This prevents final winners from being written into repechage rows.
+            if bm.next_slot is not None:
+                next_position = (bm.position + 1) // 2
+                next_bm = (
+                    await db.execute(
+                        select(BracketMatch).where(
+                            BracketMatch.bracket_id == bm.bracket_id,
+                            BracketMatch.round_number == bm.round_number + 1,
+                            BracketMatch.position == next_position,
+                        )
                     )
-                )
-            ).scalar_one_or_none()
+                ).scalar_one_or_none()
 
-            if next_bm:
-                next_match = await db.get(Match, next_bm.match_id)
-                if next_match:
-                    if bm.position % 2 == 1:
-                        next_match.athlete1_id = match.winner_id
-                    else:
-                        next_match.athlete2_id = match.winner_id
+                if next_bm:
+                    next_match = await db.get(Match, next_bm.match_id)
+                    if next_match and next_match.stage == MatchStage.MAIN.value:
+                        if bm.next_slot == 1:
+                            next_match.athlete1_id = match.winner_id
+                        else:
+                            next_match.athlete2_id = match.winner_id
 
             await _ensure_repechage_generated(db, bm.bracket_id)
+        await _recompute_bracket_placements(db, bm.bracket_id)
 
         total_in_bracket = await db.scalar(
             select(func.count()).select_from(BracketMatch).where(BracketMatch.bracket_id == bm.bracket_id)

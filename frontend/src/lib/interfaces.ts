@@ -11,7 +11,7 @@ export const ROUND_TYPE = {
   FINAL: "final",
   SEMIFINAL: "semifinal",
   QUARTERFINAL: "quarterfinal",
-  OTHER: "",
+  ROUND: "round",
 } as const;
 
 export type ROUND_TYPE = (typeof ROUND_TYPE)[keyof typeof ROUND_TYPE];
@@ -96,6 +96,10 @@ export type Bracket = {
   display_name?: string;
   status: BRACKET_STATUS;
   participants: Participant[];
+  place_1?: BracketMatchAthlete | null;
+  place_2?: BracketMatchAthlete | null;
+  place_3_a?: BracketMatchAthlete | null;
+  place_3_b?: BracketMatchAthlete | null;
 };
 export type BracketUpdate = Partial<Bracket>;
 

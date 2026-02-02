@@ -189,6 +189,18 @@ class Bracket(Base, TimestampMixin):
     group_id: Mapped[int] = mapped_column(default=1)
     type: Mapped[str] = mapped_column(String(50), default=BracketType.SINGLE_ELIMINATION.value)
     status: Mapped[str] = mapped_column(String(20), default=BracketStatus.PENDING.value)
+    place_1_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    place_2_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    place_3_a_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    place_3_b_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     def get_display_name(self) -> str:
         """Generate display name combining category name and group number"""
@@ -205,6 +217,10 @@ class Bracket(Base, TimestampMixin):
 
     tournament: Mapped["Tournament"] = relationship(back_populates="brackets")
     category: Mapped["Category"] = relationship(back_populates="brackets")
+    place_1_athlete: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[place_1_id])
+    place_2_athlete: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[place_2_id])
+    place_3_a_athlete: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[place_3_a_id])
+    place_3_b_athlete: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[place_3_b_id])
     matches: Mapped[list["BracketMatch"]] = relationship(back_populates="bracket", cascade="all, delete-orphan")
     participants: Mapped[list["BracketParticipant"]] = relationship(
         back_populates="bracket", cascade="all, delete-orphan"

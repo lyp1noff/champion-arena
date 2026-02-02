@@ -128,6 +128,14 @@ async def get_tournament_brackets(db: AsyncSession, tournament_id: int, sorted_b
         .filter(Bracket.tournament_id == tournament_id)
         .options(
             selectinload(Bracket.category),
+            selectinload(Bracket.place_1_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_2_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_a_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_b_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
             selectinload(Bracket.participants)
             .selectinload(BracketParticipant.athlete)
             .selectinload(Athlete.coach_links)
@@ -187,6 +195,14 @@ async def get_matches_for_tournament_full(db: AsyncSession, tournament_id: int) 
         .filter(Bracket.tournament_id == tournament_id)
         .options(
             selectinload(Bracket.category),
+            selectinload(Bracket.place_1_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_2_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_a_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_b_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
             selectinload(Bracket.timetable_entry),
             selectinload(Bracket.matches)
             .joinedload(BracketMatch.match)
@@ -216,6 +232,14 @@ async def get_matches_for_tournament_raw(db: AsyncSession, tournament_id: int) -
         .filter(Bracket.tournament_id == tournament_id)
         .options(
             selectinload(Bracket.category),
+            selectinload(Bracket.place_1_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_2_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_a_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_b_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
             selectinload(Bracket.timetable_entry),
             selectinload(Bracket.matches)
             .joinedload(BracketMatch.match)

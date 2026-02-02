@@ -39,7 +39,7 @@ def get_round_type(round_index: int, total_rounds: int) -> str:
     elif round_index == total_rounds - 3:
         return "quarterfinal"
     else:
-        return ""
+        return "round"
 
 
 def distribute_byes_safely(athlete_ids: list[int]) -> list[tuple[Optional[int], Optional[int]]]:
@@ -170,6 +170,13 @@ def split_evenly(athletes: list[BracketParticipant], max_per_group: int = 4) -> 
 async def regenerate_bracket_matches(
     db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
 ) -> None:
+    bracket = await db.get(Bracket, bracket_id)
+    if bracket is not None:
+        bracket.place_1_id = None
+        bracket.place_2_id = None
+        bracket.place_3_a_id = None
+        bracket.place_3_b_id = None
+
     await db.execute(
         delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
     )
@@ -217,6 +224,13 @@ async def regenerate_bracket_matches(
 async def regenerate_round_bracket_matches(
     db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
 ) -> Optional[list[BracketMatch]]:
+    bracket = await db.get(Bracket, bracket_id)
+    if bracket is not None:
+        bracket.place_1_id = None
+        bracket.place_2_id = None
+        bracket.place_3_a_id = None
+        bracket.place_3_b_id = None
+
     await db.execute(
         delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
     )
@@ -329,6 +343,14 @@ async def get_all_brackets(db: AsyncSession) -> list[Bracket]:
     result = await db.execute(
         select(Bracket).options(
             selectinload(Bracket.category),
+            selectinload(Bracket.place_1_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_2_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_a_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_b_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
             selectinload(Bracket.participants)
             .selectinload(BracketParticipant.athlete)
             .selectinload(Athlete.coach_links)
@@ -344,6 +366,14 @@ async def get_bracket(db: AsyncSession, bracket_id: int) -> Bracket:
         .where(Bracket.id == bracket_id)
         .options(
             selectinload(Bracket.category),
+            selectinload(Bracket.place_1_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_2_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_a_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_b_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
             selectinload(Bracket.participants)
             .selectinload(BracketParticipant.athlete)
             .selectinload(Athlete.coach_links)
@@ -380,7 +410,21 @@ async def get_bracket_matches(db: AsyncSession, bracket_id: int) -> list[Bracket
 
 
 async def update_bracket(db: AsyncSession, bracket_id: int, update_data: BracketUpdateSchema) -> tuple[Bracket, bool]:
-    result = await db.execute(select(Bracket).where(Bracket.id == bracket_id).options(selectinload(Bracket.category)))
+    result = await db.execute(
+        select(Bracket)
+        .where(Bracket.id == bracket_id)
+        .options(
+            selectinload(Bracket.category),
+            selectinload(Bracket.place_1_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_2_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_a_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_b_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
+        )
+    )
     bracket = result.scalars().first()
     if not bracket:
         raise HTTPException(status_code=404, detail="Bracket not found")
@@ -488,6 +532,10 @@ async def create_bracket(db: AsyncSession, bracket_data: BracketCreateSchema) ->
         select(Bracket)
         .options(
             joinedload(Bracket.category),
+            joinedload(Bracket.place_1_athlete).joinedload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            joinedload(Bracket.place_2_athlete).joinedload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            joinedload(Bracket.place_3_a_athlete).joinedload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            joinedload(Bracket.place_3_b_athlete).joinedload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
             joinedload(Bracket.participants)
             .joinedload(BracketParticipant.athlete)
             .joinedload(Athlete.coach_links)
@@ -537,6 +585,14 @@ async def update_bracket_status(db: AsyncSession, bracket_id: int, status: str) 
         .where(Bracket.id == bracket_id)
         .options(
             selectinload(Bracket.category),
+            selectinload(Bracket.place_1_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_2_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_a_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
+            selectinload(Bracket.place_3_b_athlete)
+            .selectinload(Athlete.coach_links)
+            .joinedload(AthleteCoachLink.coach),
             selectinload(Bracket.participants)
             .selectinload(BracketParticipant.athlete)
             .selectinload(Athlete.coach_links)

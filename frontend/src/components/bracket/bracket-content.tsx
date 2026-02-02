@@ -10,9 +10,15 @@ interface BracketCardProps {
   bracketMatches: BracketMatches;
   matchCardHeight?: number;
   matchCardWidth?: number;
+  medalByAthleteId?: Record<number, "gold" | "silver" | "bronze">;
 }
 
-export default function BracketContent({ bracketMatches, matchCardHeight = 80, matchCardWidth }: BracketCardProps) {
+export default function BracketContent({
+  bracketMatches,
+  matchCardHeight = 80,
+  matchCardWidth,
+  medalByAthleteId,
+}: BracketCardProps) {
   const t = useTranslations("Round");
   const {
     cardHeight: fallbackCardHeight,
@@ -59,7 +65,7 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
       <div className="flex items-start justify-center" style={{ columnGap }}>
         {sortedRounds.map(({ round, bracketMatches }) => {
           const roundType = bracketMatches.find((m) => m.match?.round_type)?.match.round_type;
-          const label = roundType ? t(roundType) : t("round", { number: round });
+          const label = roundType && roundType !== "round" ? t(roundType) : t("round", { number: round });
 
           return (
             <ul
@@ -143,7 +149,12 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
                       </>
                     )}
 
-                    <MatchCard bracketMatch={bracketMatch} height={cardHeight} width={cardWidth} />
+                    <MatchCard
+                      bracketMatch={bracketMatch}
+                      height={cardHeight}
+                      width={cardWidth}
+                      medalByAthleteId={medalByAthleteId}
+                    />
                   </li>
                 );
               })}

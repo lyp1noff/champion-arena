@@ -8,9 +8,10 @@ interface MatchCardProps {
   bracketMatch: BracketMatch;
   width?: number;
   height?: number;
+  medalByAthleteId?: Record<number, "gold" | "silver" | "bronze">;
 }
 
-export default function MatchCard({ bracketMatch, width = 220, height = 80 }: MatchCardProps) {
+export default function MatchCard({ bracketMatch, width = 220, height = 80, medalByAthleteId }: MatchCardProps) {
   const calculatedHeight = (height - 3) / 2;
   const calculatedFontSize = height / 5;
 
@@ -36,8 +37,7 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
         <PlayerSlot
           player={bracketMatch.match.athlete1}
           score={currentScore1}
-          isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete1?.id}
-          isFirstRound={bracketMatch.round_number === 1}
+          medal={bracketMatch.match.athlete1 ? medalByAthleteId?.[bracketMatch.match.athlete1.id] : undefined}
           isTop={true}
           height={calculatedHeight}
           width={width}
@@ -47,8 +47,7 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
         <PlayerSlot
           player={bracketMatch.match.athlete2}
           score={currentScore2}
-          isWinner={bracketMatch.match.winner?.id === bracketMatch.match.athlete2?.id}
-          isFirstRound={bracketMatch.round_number === 1}
+          medal={bracketMatch.match.athlete2 ? medalByAthleteId?.[bracketMatch.match.athlete2.id] : undefined}
           isTop={false}
           height={calculatedHeight}
           width={width}
@@ -61,18 +60,19 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80 }: Ma
 
 interface PlayerSlotProps {
   player: BracketMatchAthlete | null | undefined;
-  isWinner: boolean;
+  medal?: "gold" | "silver" | "bronze";
   score: number | null | undefined;
-  isFirstRound: boolean;
   isTop: boolean;
   height?: number;
   width?: number;
   fontSize?: number;
 }
 
-function PlayerSlot({ player, score, isTop, height = 40, width = 220, fontSize = 14 }: PlayerSlotProps) {
+function PlayerSlot({ player, score, medal, isTop, height = 40, width = 220, fontSize = 14 }: PlayerSlotProps) {
   const bgColor = isTop ? "bg-red-800" : "bg-blue-800";
   const paddingX = Math.max(4, Math.floor(width / 25));
+  const medalStripColor =
+    medal === "gold" ? "#FFD700" : medal === "silver" ? "#C0C0C0" : medal === "bronze" ? "#CD7F32" : null;
 
   if (!player) {
     return (
@@ -89,13 +89,22 @@ function PlayerSlot({ player, score, isTop, height = 40, width = 220, fontSize =
 
   return (
     <div
-      className={`flex items-center justify-between text-white ${bgColor}`}
+      className={`relative flex items-center justify-between text-white ${bgColor}`}
       style={{ height, fontSize, paddingLeft: paddingX, paddingRight: paddingX }}
     >
       <span className="font-medium truncate">
         <ParticipantNameWithMenu participant={player} />
       </span>
-      <span className="ml-2 font-bold transition-all duration-300 ease-in-out">{score !== null ? score : "-"}</span>
+
+      <div className="ml-1 min-w-4 text-right font-bold transition-all duration-300 ease-in-out">
+        {score !== null ? score : "-"}
+      </div>
+      {medal ? (
+        <span
+          className="absolute right-0 top-0 h-full w-1.5"
+          style={{ backgroundColor: medalStripColor ?? undefined }}
+        />
+      ) : null}
     </div>
   );
 }

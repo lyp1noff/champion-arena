@@ -6,10 +6,10 @@ import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { BracketHeader } from "@/app/(main)/tournaments/[id]/components/BracketHeader";
-import { RefreshCcw, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useDebounce } from "use-debounce";
 
-import { BracketView } from "@/components/bracket/bracket-view";
+import { BracketView, type Placement } from "@/components/bracket/bracket-view";
 import { SkeletonBracketView } from "@/components/bracket/skeleton-bracket";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,15 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
     const params = new URLSearchParams(searchParams.toString());
     params.set("day", v);
     router.replace(`?${params.toString()}`, { scroll: false });
+  };
+
+  const bracketPlacements = (bracket: Bracket) => {
+    const placements: Placement[] = [];
+    if (bracket.place_1) placements.push({ place: 1 as const, athlete: bracket.place_1 });
+    if (bracket.place_2) placements.push({ place: 2 as const, athlete: bracket.place_2 });
+    if (bracket.place_3_a) placements.push({ place: 3 as const, athlete: bracket.place_3_a });
+    if (bracket.place_3_b) placements.push({ place: 3 as const, athlete: bracket.place_3_b });
+    return placements;
   };
 
   const entriesByDayTatami = filteredEntries.reduce<Record<string, Record<string, TimetableEntry[]>>>((acc, entry) => {
@@ -244,24 +253,25 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
                                 <ParticipantsView bracket={bracket} />
                               ) : (
                                 <>
-                                  <div className="pb-4 flex justify-end">
-                                    <button
-                                      className="p-2 border rounded-full"
-                                      onClick={async (e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        await loadBracketData(bracket.id, true);
-                                      }}
-                                      aria-label="Reload bracket"
-                                      type="button"
-                                    >
-                                      <RefreshCcw className="w-5 h-5" />
-                                    </button>
-                                  </div>
+                                  {/*<div className="pb-4 flex justify-end">*/}
+                                  {/*  <button*/}
+                                  {/*    className="p-2 border rounded-full"*/}
+                                  {/*    onClick={async (e) => {*/}
+                                  {/*      e.preventDefault();*/}
+                                  {/*      e.stopPropagation();*/}
+                                  {/*      await loadBracketData(bracket.id, true);*/}
+                                  {/*    }}*/}
+                                  {/*    aria-label="Reload bracket"*/}
+                                  {/*    type="button"*/}
+                                  {/*  >*/}
+                                  {/*    <RefreshCcw className="w-5 h-5" />*/}
+                                  {/*  </button>*/}
+                                  {/*</div>*/}
                                   {loadedBracketMatches[bracket.id] ? (
                                     <BracketView
                                       matches={loadedBracketMatches[bracket.id].matches}
                                       bracketType={bracket.type}
+                                      placements={bracketPlacements(bracket)}
                                     />
                                   ) : (
                                     <SkeletonBracketView
