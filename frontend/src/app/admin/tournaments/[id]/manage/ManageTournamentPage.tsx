@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import BracketFormDialog from "@/app/admin/tournaments/[id]/manage/components/BracketFormDialog";
 import {
@@ -89,6 +89,7 @@ export default function ManageTournamentPage({
   const [showMatchControl, setShowMatchControl] = useState(false);
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, { s1: string; s2: string }>>({});
   const [matchActionId, setMatchActionId] = useState<string | null>(null);
+  const [bracketsSearch, setBracketsSearch] = useState("");
 
   // --- Effects ---
   useEffect(() => {
@@ -135,6 +136,23 @@ export default function ManageTournamentPage({
       console.error("Failed to load categories:", error);
     }
   };
+
+  const filteredBrackets = useMemo(() => {
+    const q = bracketsSearch.trim().toLowerCase();
+    if (!q) return brackets;
+
+    return brackets.filter((bracket) => {
+      const displayName = getBracketDisplayName(bracket.category, bracket.group_id).toLowerCase();
+      if (displayName.includes(q)) return true;
+
+      return bracket.participants.some((participant) => {
+        const firstName = participant.first_name.toLowerCase();
+        const lastName = participant.last_name.toLowerCase();
+        const coaches = participant.coaches_last_name.join(" ").toLowerCase();
+        return firstName.includes(q) || lastName.includes(q) || coaches.includes(q);
+      });
+    });
+  }, [brackets, bracketsSearch]);
 
   const refreshSelected = async () => {
     if (!selectedBracket) return;
@@ -408,9 +426,14 @@ export default function ManageTournamentPage({
               New Bracket
             </Button>
           </div>
+          <Input
+            value={bracketsSearch}
+            onChange={(e) => setBracketsSearch(e.target.value)}
+            placeholder="Search bracket / participant / coach"
+          />
           <ScrollArea className="flex-1 max-h-full overflow-auto">
             <div className="space-y-3 p-1">
-              {brackets.map((bracket) => (
+              {filteredBrackets.map((bracket) => (
                 <BracketCard
                   key={bracket.id}
                   bracket={bracket}
@@ -421,6 +444,9 @@ export default function ManageTournamentPage({
                   onEditBracket={handleEditBracket}
                 />
               ))}
+              {filteredBrackets.length === 0 && (
+                <div className="text-sm text-muted-foreground px-2 py-1">No brackets found.</div>
+              )}
             </div>
           </ScrollArea>
         </div>
