@@ -9,9 +9,11 @@ import {
   DndContext,
   DragEndEvent,
   DragOverEvent,
+  DragOverlay,
   DragStartEvent,
   PointerSensor,
   closestCenter,
+  useDraggable,
   useDroppable,
   useSensor,
   useSensors,
@@ -38,10 +40,17 @@ import { Bracket, TimetableEntry, TimetableEntryType } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
 type ColumnKey = string;
+type ActiveMeta = { kind: "entry"; id: number; day: number; tatami: number } | { kind: "pool"; bracketId: number };
 
 function buildColumnKey(day: number, tatami: number) {
   return `${day}-${tatami}`;
 }
+
+function getBracketTypeLabel(type: string) {
+  return type === "round_robin" ? "Round Robin" : "Single Elim";
+}
+
+const SHOW_OVERLAY_FOR_POOL = true;
 
 export default function TimetablePage() {
   const { id } = useParams();
@@ -49,9 +58,17 @@ export default function TimetablePage() {
 
   const [entries, setEntries] = useState<TimetableEntry[]>([]);
   const [brackets, setBrackets] = useState<Bracket[]>([]);
-  const [activeMeta, setActiveMeta] = useState<{ id: number; day: number; tatami: number } | null>(null);
+  const [activeMeta, setActiveMeta] = useState<ActiveMeta | null>(null);
+  const [poolPreview, setPoolPreview] = useState<{
+    day: number;
+    tatami: number;
+    insertIndex: number;
+    bracketId: number;
+  } | null>(null);
   const tempIdRef = useRef(-1);
   const [selectedDay, setSelectedDay] = useState<number>(1);
+  const [dayCount, setDayCount] = useState(1);
+  const [tatamiCount, setTatamiCount] = useState(1);
   const [openDialog, setOpenDialog] = useState(false);
   const [editEntry, setEditEntry] = useState<TimetableEntry | null>(null);
   const [editPayload, setEditPayload] = useState({ day: 1, tatami: 1 });
@@ -83,6 +100,10 @@ export default function TimetablePage() {
         if (days.length) {
           setSelectedDay(days.sort()[0]);
         }
+        const maxDay = Math.max(1, ...timetable.map((entry) => entry.day));
+        const maxTatami = Math.max(1, ...timetable.map((entry) => entry.tatami));
+        setDayCount(maxDay);
+        setTatamiCount(maxTatami);
       })
       .catch(() => toast.error("Failed to load timetable"));
   }, [tournamentId]);
@@ -99,12 +120,14 @@ export default function TimetablePage() {
     const scheduled = new Set(entries.filter((e) => e.entry_type === "bracket").map((e) => e.bracket_id));
     return brackets.filter((b) => !scheduled.has(b.id));
   }, [entries, brackets]);
+  const activePoolBracket = useMemo(() => {
+    if (!activeMeta || activeMeta.kind !== "pool") return null;
+    return brackets.find((b) => b.id === activeMeta.bracketId) ?? null;
+  }, [activeMeta, brackets]);
 
   const dayOptions = useMemo(() => {
-    const days = new Set(entries.map((entry) => entry.day));
-    if (days.size === 0) days.add(1);
-    return Array.from(days).sort((a, b) => a - b);
-  }, [entries]);
+    return Array.from({ length: Math.max(1, dayCount) }, (_, index) => index + 1);
+  }, [dayCount]);
 
   const columns = useMemo(() => {
     const grouped: Record<ColumnKey, TimetableEntry[]> = {};
@@ -119,22 +142,70 @@ export default function TimetablePage() {
   }, [entries, selectedDay]);
 
   const tatamiList = useMemo(() => {
-    const tatamis = new Set(entries.filter((e) => e.day === selectedDay).map((e) => e.tatami));
-    if (tatamis.size === 0) tatamis.add(1);
-    return Array.from(tatamis).sort((a, b) => a - b);
-  }, [entries, selectedDay]);
+    return Array.from({ length: Math.max(1, tatamiCount) }, (_, index) => index + 1);
+  }, [tatamiCount]);
+
+  useEffect(() => {
+    if (selectedDay > dayCount) {
+      setSelectedDay(dayCount);
+    }
+  }, [selectedDay, dayCount]);
 
   const handleDragStart = (event: DragStartEvent) => {
-    const entryId = Number(event.active.id);
+    const activeId = String(event.active.id);
+    if (activeId.startsWith("pool-")) {
+      const bracketId = Number(activeId.replace("pool-", ""));
+      setActiveMeta({ kind: "pool", bracketId });
+      setPoolPreview(null);
+      return;
+    }
+    const entryId = Number(activeId);
     const entry = entries.find((item) => item.id === entryId);
     if (entry) {
-      setActiveMeta({ id: entry.id, day: entry.day, tatami: entry.tatami });
+      setActiveMeta({ kind: "entry", id: entry.id, day: entry.day, tatami: entry.tatami });
     }
   };
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
-    if (!over) return;
+    if (!over) {
+      setPoolPreview(null);
+      return;
+    }
+    if (!activeMeta) return;
+
+    if (activeMeta.kind === "pool") {
+      const overId = over.id;
+      const overEntry = entries.find((entry) => entry.id === Number(overId));
+      let targetDay: number | null = null;
+      let targetTatami: number | null = null;
+      if (typeof overId === "string" && overId.startsWith("column-")) {
+        const [, dayStr, tatamiStr] = overId.split("-");
+        targetDay = Number(dayStr);
+        targetTatami = Number(tatamiStr);
+      } else if (overEntry) {
+        targetDay = overEntry.day;
+        targetTatami = overEntry.tatami;
+      }
+      if (targetDay === null || targetTatami === null) {
+        setPoolPreview(null);
+        return;
+      }
+      const columnEntries = entries
+        .filter((entry) => entry.day === targetDay && entry.tatami === targetTatami)
+        .sort((a, b) => a.order_index - b.order_index);
+      const insertIndex =
+        overEntry && overEntry.day === targetDay && overEntry.tatami === targetTatami
+          ? Math.max(
+              0,
+              columnEntries.findIndex((entry) => entry.id === overEntry.id),
+            )
+          : columnEntries.length;
+      setPoolPreview({ day: targetDay, tatami: targetTatami, insertIndex, bracketId: activeMeta.bracketId });
+      return;
+    }
+
+    setPoolPreview(null);
     const activeId = Number(active.id);
     const overId = over.id;
 
@@ -170,19 +241,60 @@ export default function TimetablePage() {
     }
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { over } = event;
     const sourceMeta = activeMeta;
+    const preview = poolPreview;
     setActiveMeta(null);
+    setPoolPreview(null);
     if (!over) return;
 
-    const activeId = Number(active.id);
     const overId = over.id;
+    const overEntry = entries.find((entry) => entry.id === Number(overId));
+
+    if (sourceMeta?.kind === "pool") {
+      if (!preview) return;
+      const bracket = brackets.find((item) => item.id === preview.bracketId);
+      if (!bracket) return;
+      const columnEntries = entries
+        .filter((entry) => entry.day === preview.day && entry.tatami === preview.tatami)
+        .sort((a, b) => a.order_index - b.order_index);
+      const insertIndex = Math.min(Math.max(preview.insertIndex, 0), columnEntries.length);
+      const startTime = columnEntries[insertIndex]?.start_time ?? columnEntries.at(-1)?.end_time ?? "09:00:00";
+      const newEntry: TimetableEntry = {
+        id: tempIdRef.current--,
+        tournament_id: tournamentId,
+        entry_type: "bracket",
+        day: preview.day,
+        tatami: preview.tatami,
+        start_time: startTime,
+        end_time: startTime,
+        order_index: 1,
+        title: null,
+        notes: null,
+        bracket_id: bracket.id,
+        bracket_display_name: null,
+        bracket_type: bracket.type,
+      };
+      const reordered = [...columnEntries];
+      reordered.splice(insertIndex, 0, newEntry);
+      const normalized = reordered.map((entry, index) => ({ ...entry, order_index: index + 1 }));
+      const normalizedMap = new Map(normalized.map((entry) => [entry.id, entry]));
+      setEntries((prev) => {
+        const patched = prev.map((entry) => normalizedMap.get(entry.id) ?? entry);
+        const inserted = normalized.find((entry) => entry.id === newEntry.id) ?? newEntry;
+        return [...patched, inserted];
+      });
+      return;
+    }
+
+    if (!sourceMeta || sourceMeta.kind !== "entry") return;
+    const activeId = sourceMeta.id;
 
     const activeEntry = entries.find((entry) => entry.id === activeId);
     if (!activeEntry) return;
-    const sourceDay = sourceMeta?.day ?? activeEntry.day;
-    const sourceTatami = sourceMeta?.tatami ?? activeEntry.tatami;
+    const sourceDay = sourceMeta.day;
+    const sourceTatami = sourceMeta.tatami;
     const sourceKey = buildColumnKey(sourceDay, sourceTatami);
 
     if (typeof overId === "string" && overId.startsWith("column-")) {
@@ -210,7 +322,6 @@ export default function TimetablePage() {
     const overEntryId = Number(overId);
     if (activeId === overEntryId) return;
 
-    const overEntry = entries.find((entry) => entry.id === overEntryId);
     if (!activeEntry || !overEntry) return;
 
     const targetKey = buildColumnKey(overEntry.day, overEntry.tatami);
@@ -315,6 +426,28 @@ export default function TimetablePage() {
           <p className="text-sm text-muted-foreground">Drag and drop entries to reorder or move between tatamis.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="days-count">Days</Label>
+            <Input
+              id="days-count"
+              className="w-20"
+              type="number"
+              min={1}
+              value={dayCount}
+              onChange={(event) => setDayCount(Math.max(1, Number(event.target.value) || 1))}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="tatamis-count">Tatamis</Label>
+            <Input
+              id="tatamis-count"
+              className="w-20"
+              type="number"
+              min={1}
+              value={tatamiCount}
+              onChange={(event) => setTatamiCount(Math.max(1, Number(event.target.value) || 1))}
+            />
+          </div>
           <Button onClick={() => setOpenDialog(true)}>Add Entry</Button>
           <Button variant="outline" onClick={handleSaveTimes}>
             Save changes
@@ -322,27 +455,60 @@ export default function TimetablePage() {
         </div>
       </div>
 
-      <Tabs value={String(selectedDay)} onValueChange={(value) => setSelectedDay(Number(value))}>
-        <TabsList>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => {
+          setActiveMeta(null);
+          setPoolPreview(null);
+        }}
+      >
+        {SHOW_OVERLAY_FOR_POOL && activeMeta?.kind === "pool" && activePoolBracket ? (
+          <DragOverlay adjustScale={false}>
+            <div className="w-fit max-w-[260px] rounded-md border bg-background px-3 py-2 text-left shadow-sm">
+              <div className="text-sm font-medium">
+                {getBracketDisplayName(activePoolBracket.category, activePoolBracket.group_id)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {getBracketTypeLabel(activePoolBracket.type)} • {activePoolBracket.participants.length} people
+              </div>
+            </div>
+          </DragOverlay>
+        ) : null}
+        <Card className="overflow-visible">
+          <CardHeader>
+            <CardTitle>Unscheduled Brackets</CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-visible flex flex-wrap gap-2">
+            {unscheduledBrackets.length === 0 && (
+              <span className="text-sm text-muted-foreground">All brackets are scheduled.</span>
+            )}
+            {unscheduledBrackets.map((bracket) => (
+              <DraggableBracketChip key={bracket.id} bracket={bracket} />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Tabs value={String(selectedDay)} onValueChange={(value) => setSelectedDay(Number(value))}>
+          <TabsList>
+            {dayOptions.map((day) => (
+              <TabsTrigger key={day} value={String(day)}>
+                Day {day}
+              </TabsTrigger>
+            ))}
+          </TabsList>
           {dayOptions.map((day) => (
-            <TabsTrigger key={day} value={String(day)}>
-              Day {day}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {dayOptions.map((day) => (
-          <TabsContent key={day} value={String(day)}>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragEnd={handleDragEnd}
-            >
+            <TabsContent key={day} value={String(day)}>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {tatamiList.map((tatami) => {
                   const columnKey = buildColumnKey(day, tatami);
                   const columnEntries = columns[columnKey] ?? [];
+                  const previewForColumn =
+                    poolPreview && poolPreview.day === day && poolPreview.tatami === tatami ? poolPreview : null;
+                  const previewBracket = previewForColumn ? bracketMap.get(previewForColumn.bracketId) : undefined;
                   return (
                     <DroppableColumn key={columnKey} id={`column-${columnKey}`}>
                       <Card className="min-h-[320px]">
@@ -354,16 +520,31 @@ export default function TimetablePage() {
                             items={columnEntries.map((entry) => entry.id)}
                             strategy={verticalListSortingStrategy}
                           >
-                            {columnEntries.map((entry) => (
-                              <TimetableItem
-                                key={entry.id}
-                                entry={entry}
-                                bracket={entry.bracket_id ? bracketMap.get(entry.bracket_id) : undefined}
-                                onDelete={handleDelete}
-                                onEdit={handleEditOpen}
-                                setEntries={setEntries}
-                              />
+                            {columnEntries.map((entry, index) => (
+                              <div key={entry.id} className="space-y-3">
+                                {previewForColumn && previewForColumn.insertIndex === index && (
+                                  <div className="rounded-md border border-dashed border-primary/60 bg-primary/5 p-3 text-sm">
+                                    {previewBracket
+                                      ? `${getBracketDisplayName(previewBracket.category, previewBracket.group_id)}`
+                                      : "Drop here"}
+                                  </div>
+                                )}
+                                <TimetableItem
+                                  entry={entry}
+                                  bracket={entry.bracket_id ? bracketMap.get(entry.bracket_id) : undefined}
+                                  onDelete={handleDelete}
+                                  onEdit={handleEditOpen}
+                                  setEntries={setEntries}
+                                />
+                              </div>
                             ))}
+                            {previewForColumn && previewForColumn.insertIndex >= columnEntries.length && (
+                              <div className="rounded-md border border-dashed border-primary/60 bg-primary/5 p-3 text-sm">
+                                {previewBracket
+                                  ? `${getBracketDisplayName(previewBracket.category, previewBracket.group_id)}`
+                                  : "Drop here"}
+                              </div>
+                            )}
                           </SortableContext>
                         </CardContent>
                       </Card>
@@ -371,10 +552,10 @@ export default function TimetablePage() {
                   );
                 })}
               </div>
-            </DndContext>
-          </TabsContent>
-        ))}
-      </Tabs>
+            </TabsContent>
+          ))}
+        </Tabs>
+      </DndContext>
 
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent>
@@ -413,7 +594,8 @@ export default function TimetablePage() {
                   <SelectContent>
                     {unscheduledBrackets.map((bracket) => (
                       <SelectItem key={bracket.id} value={String(bracket.id)}>
-                        {getBracketDisplayName(bracket.category, bracket.group_id)}
+                        {getBracketDisplayName(bracket.category, bracket.group_id)} • {bracket.participants.length} •{" "}
+                        {getBracketTypeLabel(bracket.type)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -536,10 +718,14 @@ function TimetableItem({
   onEdit: (entry: TimetableEntry) => void;
   setEntries: Dispatch<SetStateAction<TimetableEntry[]>>;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: entry.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    // Keep native sortable card visible while moving between tatamis.
+    opacity: 1,
+    zIndex: isDragging ? 20 : "auto",
+    position: "relative" as const,
   };
 
   const title =
@@ -555,7 +741,11 @@ function TimetableItem({
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="text-sm font-semibold">{title}</div>
-            <div className="text-xs text-muted-foreground">{entry.entry_type}</div>
+            <div className="text-xs text-muted-foreground">
+              {entry.entry_type === "bracket" && bracket
+                ? `${getBracketTypeLabel(bracket.type)} • ${bracket.participants.length} people`
+                : entry.entry_type}
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -611,6 +801,32 @@ function TimetableItem({
         {entry.notes && <div className="text-xs text-muted-foreground">{entry.notes}</div>}
       </CardContent>
     </Card>
+  );
+}
+
+function DraggableBracketChip({ bracket }: { bracket: Bracket }) {
+  const id = `pool-${bracket.id}`;
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    opacity: isDragging ? 0 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      role="button"
+      tabIndex={0}
+      className="select-none rounded-md border bg-background px-3 py-2 text-left cursor-grab active:cursor-grabbing"
+    >
+      <div className="text-sm font-medium">{getBracketDisplayName(bracket.category, bracket.group_id)}</div>
+      <div className="text-xs text-muted-foreground">
+        {getBracketTypeLabel(bracket.type)} • {bracket.participants.length} people
+      </div>
+    </div>
   );
 }
 
