@@ -2,11 +2,6 @@ import math
 from datetime import UTC, datetime
 from typing import Optional
 
-from fastapi import HTTPException
-from sqlalchemy import delete, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
-
 from champion_domain import (
     IMMUTABLE_BRACKET_STATES,
     bump_bracket_version,
@@ -14,6 +9,11 @@ from champion_domain import (
     is_bracket_structurally_mutable,
 )
 from champion_domain.use_cases import plan_single_elimination
+from fastapi import HTTPException
+from sqlalchemy import delete, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
+
 from src.logger import logger
 from src.models import (
     Athlete,

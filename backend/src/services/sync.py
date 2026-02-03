@@ -1,12 +1,12 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from champion_domain import build_match_command, derive_bracket_state_from_status
+from champion_domain.use_cases import parse_structure_payload
 from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from champion_domain import derive_bracket_state_from_status
-from champion_domain.use_cases import parse_structure_payload
 from src.models import Bracket, BracketMatch, BracketParticipant, Match, SyncEdgeState, SyncInboxEvent
 from src.schemas import (
     MatchFinishRequest,
@@ -31,8 +31,6 @@ class SyncApplyConflict(Exception):
         self.received_version = received_version
 
 
-
-
 def _is_idempotent_http_conflict(event_type: str, detail: str) -> bool:
     normalized = detail.lower()
     if event_type == "match.started":
@@ -42,6 +40,7 @@ def _is_idempotent_http_conflict(event_type: str, detail: str) -> bool:
     if event_type == "match.score_updated":
         return "cannot update scores" in normalized or "not started" in normalized
     return False
+
 
 async def _get_or_create_edge_state(db: AsyncSession, edge_id: str) -> SyncEdgeState:
     edge_state = await db.get(SyncEdgeState, edge_id)
@@ -79,39 +78,35 @@ async def _apply_match_event(db: AsyncSession, event: SyncCommandEvent) -> int:
             received_version=event.aggregate_version,
         )
 
-    if event.event_type == "match.started":
+    try:
+        command = build_match_command(event.event_type, event.payload)
+    except ValueError as exc:
+        raise SyncApplyConflict(str(exc)) from exc
+
+    if command.kind == "start":
         await start_match_service(db, match_id)
-    elif event.event_type == "match.score_updated":
-        payload = event.payload
+    elif command.kind == "score_update":
         await update_match_scores_service(
             db,
             match_id,
             MatchScoreUpdate(
-                score_athlete1=payload.get("score_athlete1"),
-                score_athlete2=payload.get("score_athlete2"),
+                score_athlete1=command.score_athlete1,
+                score_athlete2=command.score_athlete2,
             ),
         )
-    elif event.event_type == "match.finished":
-        payload = event.payload
-        winner_id = payload.get("winner_id")
-        score_athlete1 = payload.get("score_athlete1")
-        score_athlete2 = payload.get("score_athlete2")
-        if not isinstance(winner_id, int) or not isinstance(score_athlete1, int) or not isinstance(score_athlete2, int):
-            raise SyncApplyConflict("invalid_payload")
+    elif command.kind == "finish":
         await finish_match_service(
             db,
             match_id,
             MatchFinishRequest(
-                score_athlete1=score_athlete1,
-                score_athlete2=score_athlete2,
-                winner_id=winner_id,
+                score_athlete1=command.score_athlete1,
+                score_athlete2=command.score_athlete2,
+                winner_id=command.winner_id,
             ),
+            origin="sync",
         )
-    elif event.event_type == "match.status_updated":
-        status = event.payload.get("status")
-        if not isinstance(status, str):
-            raise SyncApplyConflict("invalid_payload")
-        await update_match_status_service(db, match_id, status)
+    elif command.kind == "status_update":
+        await update_match_status_service(db, match_id, command.status)
     else:
         raise SyncApplyConflict("unsupported_event_type")
 
@@ -221,6 +216,17 @@ async def apply_commands(db: AsyncSession, payload: SyncCommandsRequest) -> Sync
         )
         if existing.scalar_one_or_none() is not None:
             duplicates.append(event.seq)
+            continue
+
+        expected_seq = edge_state.last_applied_seq + 1
+        if event.seq != expected_seq:
+            conflicts.append(
+                SyncConflict(
+                    seq=event.seq,
+                    reason="out_of_order",
+                )
+            )
+            await db.commit()
             continue
 
         inbox_event = SyncInboxEvent(
