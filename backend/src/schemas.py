@@ -171,6 +171,8 @@ class BracketBase(OrmResponseModel):
     group_id: Optional[int] = 1
     display_name: Optional[str] = None
     status: str
+    state: str
+    version: int
     place_1: Optional[BracketMatchAthlete] = Field(default=None, validation_alias="place_1_athlete")
     place_2: Optional[BracketMatchAthlete] = Field(default=None, validation_alias="place_2_athlete")
     place_3_a: Optional[BracketMatchAthlete] = Field(default=None, validation_alias="place_3_a_athlete")
@@ -352,3 +354,39 @@ class MatchUpdate(BaseModel):
     score_athlete1: int | None
     score_athlete2: int | None
     status: str | None
+
+
+class SyncCommandEvent(BaseModel):
+    event_id: uuid.UUID
+    seq: int = Field(ge=1)
+    event_type: str
+    aggregate_type: str
+    aggregate_id: str
+    aggregate_version: int = Field(ge=1)
+    occurred_at: datetime
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class SyncCommandsRequest(BaseModel):
+    edge_id: str = Field(min_length=1, max_length=100)
+    events: list[SyncCommandEvent] = Field(default_factory=list)
+
+
+class SyncConflict(BaseModel):
+    seq: int
+    reason: str
+    expected_version: int | None = None
+    received_version: int | None = None
+
+
+class SyncCommandsResponse(BaseModel):
+    accepted: list[int]
+    duplicates: list[int]
+    conflicts: list[SyncConflict]
+    last_applied_seq: int
+
+
+class SyncStatusResponse(BaseModel):
+    edge_id: str
+    last_applied_seq: int
+    server_time: datetime

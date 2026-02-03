@@ -85,6 +85,8 @@ async def regenerate_matches_endpoint(
         else:
             logger.warning(f"Bracket type: {bracket_type} not supported")
         return {"status": "ok"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to regenerate: {str(e)}")
 

@@ -4,11 +4,14 @@ from datetime import date, datetime, time
 from typing import Optional
 
 from sqlalchemy import (
+    BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
     String,
+    Text,
     Time,
     UniqueConstraint,
     func,
@@ -55,6 +58,13 @@ class BracketType(enum.Enum):
 class BracketStatus(enum.Enum):
     PENDING = "pending"
     STARTED = "started"
+    FINISHED = "finished"
+
+
+class BracketState(enum.Enum):
+    DRAFT = "draft"
+    LOCKED = "locked"
+    RUNNING = "running"
     FINISHED = "finished"
 
 
@@ -189,6 +199,8 @@ class Bracket(Base, TimestampMixin):
     group_id: Mapped[int] = mapped_column(default=1)
     type: Mapped[str] = mapped_column(String(50), default=BracketType.SINGLE_ELIMINATION.value)
     status: Mapped[str] = mapped_column(String(20), default=BracketStatus.PENDING.value)
+    state: Mapped[str] = mapped_column(String(20), default=BracketState.DRAFT.value, index=True)
+    version: Mapped[int] = mapped_column(default=1)
     place_1_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -308,3 +320,23 @@ class TimetableEntry(Base, TimestampMixin):
 
     tournament: Mapped["Tournament"] = relationship(back_populates="timetable_entries")
     bracket: Mapped[Optional["Bracket"]] = relationship(back_populates="timetable_entry")
+
+
+class SyncInboxEvent(Base):
+    __tablename__ = "sync_inbox_events"
+    __table_args__ = (UniqueConstraint("edge_id", "seq", name="uix_sync_inbox_edge_seq"),)
+
+    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    edge_id: Mapped[str] = mapped_column(String(100), index=True)
+    seq: Mapped[int] = mapped_column(BigInteger, index=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    applied: Mapped[bool] = mapped_column(Boolean, default=False)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class SyncEdgeState(Base):
+    __tablename__ = "sync_edge_state"
+
+    edge_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    last_applied_seq: Mapped[int] = mapped_column(BigInteger, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())

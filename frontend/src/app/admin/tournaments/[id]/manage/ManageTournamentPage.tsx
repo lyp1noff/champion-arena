@@ -16,12 +16,20 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { Plus, RefreshCw, Save } from "lucide-react";
+import { Plus, RefreshCw, Save, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { BracketView, type Placement } from "@/components/bracket/bracket-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { WebSocketProvider } from "@/components/websocket-provider";
@@ -87,6 +95,7 @@ export default function ManageTournamentPage({
   const [participantToDelete, setParticipantToDelete] = useState<Participant | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showMatchControl, setShowMatchControl] = useState(false);
+  const [showBracketId, setShowBracketId] = useState(false);
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, { s1: string; s2: string }>>({});
   const [matchActionId, setMatchActionId] = useState<string | null>(null);
   const [bracketsSearch, setBracketsSearch] = useState("");
@@ -499,13 +508,36 @@ export default function ManageTournamentPage({
             {selectedBracket ? (
               <>
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold pl-3">
+                  <h2 className="text-xl font-bold pl-3 flex items-center gap-2">
                     {getBracketDisplayName(selectedBracket.category, selectedBracket.group_id)}
+                    {showBracketId && (
+                      <span className="text-sm font-normal text-muted-foreground">#{selectedBracket.id}</span>
+                    )}
                   </h2>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setShowMatchControl((prev) => !prev)}>
-                      {showMatchControl ? "Hide Match Control" : "Show Match Control"}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" aria-label="Manage view options">
+                          <Settings2 className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Admin view</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuCheckboxItem
+                          checked={showMatchControl}
+                          onCheckedChange={(checked) => setShowMatchControl(Boolean(checked))}
+                        >
+                          Match Control
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                          checked={showBracketId}
+                          onCheckedChange={(checked) => setShowBracketId(Boolean(checked))}
+                        >
+                          Show ID
+                        </DropdownMenuCheckboxItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button variant="outline" onClick={handleRegenerate} disabled={loading}>
                       <RefreshCw className="h-4 w-4 mr-1" />
                       Regenerate

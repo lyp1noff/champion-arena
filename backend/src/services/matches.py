@@ -6,6 +6,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from champion_domain import (
+    bump_bracket_version,
+    can_finish_match,
+    can_start_match,
+    can_update_scores,
+    derive_bracket_state_from_status,
+    final_loser_id,
+    match_loser_id,
+)
 from src.logger import logger
 from src.models import (
     Athlete,
@@ -23,26 +32,6 @@ from src.schemas import MatchFinishRequest, MatchScoreUpdate, MatchUpdate
 from src.services.broadcast import broadcast
 
 MatchId = UUID
-
-
-def _match_loser_id(match: Match) -> int | None:
-    if match.winner_id is None:
-        return None
-    if match.athlete1_id == match.winner_id:
-        return match.athlete2_id
-    if match.athlete2_id == match.winner_id:
-        return match.athlete1_id
-    return None
-
-
-def _final_loser_id(final_match: Match) -> int | None:
-    if final_match.winner_id is None:
-        return None
-    if final_match.athlete1_id == final_match.winner_id:
-        return final_match.athlete2_id
-    if final_match.athlete2_id == final_match.winner_id:
-        return final_match.athlete1_id
-    return None
 
 
 async def _recompute_bracket_placements(db: AsyncSession, bracket_id: int) -> None:
@@ -86,7 +75,7 @@ async def _recompute_bracket_placements(db: AsyncSession, bracket_id: int) -> No
         return
 
     bracket.place_1_id = final_match.winner_id
-    bracket.place_2_id = _final_loser_id(final_match)
+    bracket.place_2_id = final_loser_id(final_match)
 
     def direct_bronze_from_main_side(finalist_id: int) -> int | None:
         losses: list[tuple[int, int]] = []
@@ -97,7 +86,7 @@ async def _recompute_bracket_placements(db: AsyncSession, bracket_id: int) -> No
                 continue
             if match.winner_id != finalist_id:
                 continue
-            loser_id = _match_loser_id(match)
+            loser_id = match_loser_id(match)
             if loser_id is None:
                 continue
             losses.append((bm.round_number, loser_id))
@@ -197,7 +186,7 @@ async def _ensure_repechage_generated(db: AsyncSession, bracket_id: int) -> None
         for bm_row, match in finished_main_rows:
             if match.winner_id != finalist_id:
                 continue
-            loser_id = _match_loser_id(match)
+            loser_id = match_loser_id(match)
             if loser_id is None:
                 continue
             losses.append((bm_row.round_number, loser_id))
@@ -319,10 +308,9 @@ async def start_match(db: AsyncSession, match_id: MatchId) -> Match:
 
     if not match:
         raise HTTPException(404, "Match not found")
-    if match.status != MatchStatus.NOT_STARTED.value:
-        raise HTTPException(400, "Match already started or finished")
-    if match.athlete1_id is None or match.athlete2_id is None:
-        raise HTTPException(400, "Match has no athletes")
+    can_start, start_error = can_start_match(match.status, match.athlete1_id, match.athlete2_id)
+    if not can_start:
+        raise HTTPException(400, start_error)
 
     match.status = MatchStatus.STARTED.value
     match.started_at = datetime.now(UTC)
@@ -332,6 +320,8 @@ async def start_match(db: AsyncSession, match_id: MatchId) -> Match:
     bracket = match.bracket_match.bracket if match.bracket_match else None
     if bracket and bracket.status != BracketStatus.FINISHED.value:
         bracket.status = BracketStatus.STARTED.value
+        bracket.state = derive_bracket_state_from_status(bracket.status, bracket.state)
+        bump_bracket_version(bracket)
         tournament = bracket.tournament
         if tournament and tournament.status != TournamentStatus.FINISHED.value:
             tournament.status = TournamentStatus.STARTED.value
@@ -357,8 +347,9 @@ async def finish_match(db: AsyncSession, match_id: MatchId, result: MatchFinishR
 
     if not match:
         raise HTTPException(404, "Match not found")
-    if match.status != MatchStatus.STARTED.value:
-        raise HTTPException(400, "Match not started or already finished")
+    can_finish, finish_error = can_finish_match(match.status)
+    if not can_finish:
+        raise HTTPException(400, finish_error)
 
     match.score_athlete1 = result.score_athlete1
     match.score_athlete2 = result.score_athlete2
@@ -370,6 +361,9 @@ async def finish_match(db: AsyncSession, match_id: MatchId, result: MatchFinishR
     bm = bm_result.scalar_one_or_none()
 
     if bm:
+        bracket = await db.get(Bracket, bm.bracket_id)
+        if bracket is not None:
+            bump_bracket_version(bracket)
         is_repechage_match = match.stage == MatchStage.REPECHAGE.value
         if is_repechage_match and match.winner_id is not None:
             await _advance_repechage_winner(
@@ -419,9 +413,9 @@ async def finish_match(db: AsyncSession, match_id: MatchId, result: MatchFinishR
         )
 
         if total_in_bracket and finished_in_bracket == total_in_bracket:
-            bracket = await db.get(Bracket, bm.bracket_id)
             if bracket and bracket.status != BracketStatus.FINISHED.value:
                 bracket.status = BracketStatus.FINISHED.value
+                bracket.state = derive_bracket_state_from_status(bracket.status, bracket.state)
                 unfinished_brackets = await db.scalar(
                     select(func.count())
                     .select_from(Bracket)
@@ -457,13 +451,20 @@ async def update_match_scores(db: AsyncSession, match_id: MatchId, scores: Match
     if not match:
         raise HTTPException(404, "Match not found")
 
-    if match.status != MatchStatus.STARTED.value:
-        raise HTTPException(400, "Cannot update scores of not started match")
+    can_update, update_error = can_update_scores(match.status)
+    if not can_update:
+        raise HTTPException(400, update_error)
 
     if scores.score_athlete1 is not None:
         match.score_athlete1 = scores.score_athlete1
     if scores.score_athlete2 is not None:
         match.score_athlete2 = scores.score_athlete2
+
+    bracket_id = await db.scalar(select(BracketMatch.bracket_id).where(BracketMatch.match_id == match.id))
+    if bracket_id is not None:
+        bracket = await db.get(Bracket, bracket_id)
+        if bracket is not None:
+            bump_bracket_version(bracket)
 
     await db.commit()
     await db.refresh(match)
@@ -490,6 +491,14 @@ async def update_match_status(db: AsyncSession, match_id: MatchId, status: str) 
         raise HTTPException(400, f"Invalid status: {status}")
 
     match.status = status
+    bracket_id = await db.scalar(select(BracketMatch.bracket_id).where(BracketMatch.match_id == match.id))
+    if bracket_id is not None:
+        bracket = await db.get(Bracket, bracket_id)
+        if bracket is not None:
+            bump_bracket_version(bracket)
+            if status == MatchStatus.STARTED.value:
+                bracket.state = derive_bracket_state_from_status(BracketStatus.STARTED.value, bracket.state)
+
     await db.commit()
     await db.refresh(match)
     await broadcast_match_update(match, db)

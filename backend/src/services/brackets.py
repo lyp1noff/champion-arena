@@ -7,6 +7,13 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from champion_domain import (
+    IMMUTABLE_BRACKET_STATES,
+    bump_bracket_version,
+    derive_bracket_state_from_status,
+    is_bracket_structurally_mutable,
+)
+from champion_domain.use_cases import plan_single_elimination
 from src.logger import logger
 from src.models import (
     Athlete,
@@ -31,97 +38,45 @@ from src.schemas import (
 )
 
 
-def get_round_type(round_index: int, total_rounds: int) -> str:
-    if round_index == total_rounds - 1:
-        return "final"
-    elif round_index == total_rounds - 2:
-        return "semifinal"
-    elif round_index == total_rounds - 3:
-        return "quarterfinal"
-    else:
-        return "round"
-
-
-def distribute_byes_safely(athlete_ids: list[int]) -> list[tuple[Optional[int], Optional[int]]]:
-    num_players = len(athlete_ids)
-    next_power_of_two = 2 ** math.ceil(math.log2(max(num_players, 2)))
-    total_matches = next_power_of_two // 2
-    byes_needed = next_power_of_two - num_players
-
-    pairs: list[tuple[Optional[int], Optional[int]]] = []
-    ids = athlete_ids.copy()
-
-    bye_positions = set()
-    if byes_needed > 0:
-        step = total_matches / byes_needed
-        for k in range(byes_needed):
-            pos = round(k * step)
-            bye_positions.add(pos)
-
-    idx = 0
-    for match_idx in range(total_matches):
-        if match_idx in bye_positions and idx < len(ids):
-            pairs.append((ids[idx], None))
-            idx += 1
-        else:
-            a1 = ids[idx] if idx < len(ids) else None
-            a2 = ids[idx + 1] if (idx + 1) < len(ids) else None
-            pairs.append((a1, a2))
-            idx += 2
-
-    return pairs
+async def _ensure_bracket_editable(db: AsyncSession, bracket_id: int) -> Bracket:
+    bracket = await db.get(Bracket, bracket_id)
+    if bracket is None:
+        raise HTTPException(status_code=404, detail="Bracket not found")
+    if not is_bracket_structurally_mutable(bracket.state):
+        raise HTTPException(status_code=409, detail="Running or finished bracket is structurally immutable")
+    return bracket
 
 
 async def generate_all_rounds(
     db: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
 ) -> list[list[BracketMatch]]:
     match_matrix: list[list[BracketMatch]] = [[] for _ in range(total_rounds)]
+    planned_rounds = plan_single_elimination(athlete_ids)
 
-    pairs = distribute_byes_safely(athlete_ids)
-    for position, (a1, a2) in enumerate(pairs, start=1):
-        bye = (a1 is None) != (a2 is None)
-        winner_id = a1 or a2 if bye else None
-
-        match = Match(
-            athlete1_id=a1,
-            athlete2_id=a2,
-            winner_id=winner_id,
-            round_type=get_round_type(0, total_rounds),
-            stage=MatchStage.MAIN.value,
-            status=MatchStatus.FINISHED.value if bye else MatchStatus.NOT_STARTED.value,
-            ended_at=datetime.now(UTC) if bye else None,
-        )
-        db.add(match)
-        await db.flush()
-
-        bracket_match = BracketMatch(
-            bracket_id=bracket_id,
-            round_number=1,
-            position=position,
-            match_id=match.id,
-        )
-        db.add(bracket_match)
-        match_matrix[0].append(bracket_match)
-
-    for round_num in range(2, total_rounds + 1):
-        num_matches = 2 ** (total_rounds - round_num)
-        for pos in range(1, num_matches + 1):
+    for round_index, planned_round in enumerate(planned_rounds):
+        for planned in planned_round:
+            is_bye_win = planned.status == MatchStatus.FINISHED.value and planned.winner_id is not None
             match = Match(
-                round_type=get_round_type(round_num - 1, total_rounds),
+                athlete1_id=planned.athlete1_id,
+                athlete2_id=planned.athlete2_id,
+                winner_id=planned.winner_id,
+                round_type=planned.round_type,
                 stage=MatchStage.MAIN.value,
-                status=MatchStatus.NOT_STARTED.value,
+                status=planned.status,
+                ended_at=datetime.now(UTC) if is_bye_win else None,
             )
             db.add(match)
             await db.flush()
 
             bracket_match = BracketMatch(
                 bracket_id=bracket_id,
-                round_number=round_num,
-                position=pos,
+                round_number=planned.round_number,
+                position=planned.position,
                 match_id=match.id,
+                next_slot=planned.next_slot,
             )
             db.add(bracket_match)
-            match_matrix[round_num - 1].append(bracket_match)
+            match_matrix[round_index].append(bracket_match)
 
     return match_matrix
 
@@ -152,30 +107,15 @@ async def advance_auto_winners(db: AsyncSession, match_matrix: list[list[Bracket
                 next_match.athlete2_id = match.winner_id if match.winner_id else None
 
 
-def split_evenly(athletes: list[BracketParticipant], max_per_group: int = 4) -> list[list[BracketParticipant]]:
-    n = len(athletes)
-    min_groups = math.ceil(n / max_per_group)
-    base_size = n // min_groups
-    extra = n % min_groups
-
-    groups = []
-    start = 0
-    for i in range(min_groups):
-        size = base_size + (1 if i < extra else 0)
-        groups.append(athletes[start : start + size])
-        start += size
-    return groups
-
-
 async def regenerate_bracket_matches(
     db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
 ) -> None:
-    bracket = await db.get(Bracket, bracket_id)
-    if bracket is not None:
-        bracket.place_1_id = None
-        bracket.place_2_id = None
-        bracket.place_3_a_id = None
-        bracket.place_3_b_id = None
+    bracket = await _ensure_bracket_editable(db, bracket_id)
+    bracket.place_1_id = None
+    bracket.place_2_id = None
+    bracket.place_3_a_id = None
+    bracket.place_3_b_id = None
+    bump_bracket_version(bracket)
 
     await db.execute(
         delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
@@ -203,14 +143,6 @@ async def regenerate_bracket_matches(
 
     match_matrix = await generate_all_rounds(db, bracket_id, athlete_ids, total_rounds)
 
-    for round_index in range(total_rounds - 1):
-        current_round = match_matrix[round_index]
-        next_round = match_matrix[round_index + 1]
-        for i, match in enumerate(current_round):
-            next_match_index = i // 2
-            if next_match_index < len(next_round):
-                match.next_slot = 1 if i % 2 == 0 else 2
-
     await advance_auto_winners(db, match_matrix)
 
     if commit:
@@ -224,12 +156,12 @@ async def regenerate_bracket_matches(
 async def regenerate_round_bracket_matches(
     db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
 ) -> Optional[list[BracketMatch]]:
-    bracket = await db.get(Bracket, bracket_id)
-    if bracket is not None:
-        bracket.place_1_id = None
-        bracket.place_2_id = None
-        bracket.place_3_a_id = None
-        bracket.place_3_b_id = None
+    bracket = await _ensure_bracket_editable(db, bracket_id)
+    bracket.place_1_id = None
+    bracket.place_2_id = None
+    bracket.place_3_a_id = None
+    bracket.place_3_b_id = None
+    bump_bracket_version(bracket)
 
     await db.execute(
         delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
@@ -308,10 +240,14 @@ async def regenerate_round_bracket_matches(
 
 
 async def regenerate_tournament_brackets(db: AsyncSession, tournament_id: int) -> None:
-    result = await db.execute(select(Bracket.id, Bracket.type).where(Bracket.tournament_id == tournament_id))
+    result = await db.execute(
+        select(Bracket.id, Bracket.type, Bracket.state).where(Bracket.tournament_id == tournament_id)
+    )
     brackets = result.all()
 
-    for bracket_id, bracket_type in brackets:
+    for bracket_id, bracket_type, state in brackets:
+        if state in IMMUTABLE_BRACKET_STATES:
+            raise HTTPException(status_code=409, detail=f"Bracket {bracket_id} is immutable")
         if bracket_type == BracketType.ROUND_ROBIN.value:
             await regenerate_round_bracket_matches(db, bracket_id, tournament_id, commit=False)
         elif bracket_type == BracketType.SINGLE_ELIMINATION.value:
@@ -428,6 +364,8 @@ async def update_bracket(db: AsyncSession, bracket_id: int, update_data: Bracket
     bracket = result.scalars().first()
     if not bracket:
         raise HTTPException(status_code=404, detail="Bracket not found")
+    if bracket.state in IMMUTABLE_BRACKET_STATES:
+        raise HTTPException(status_code=409, detail="Running or finished bracket is structurally immutable")
 
     old_type = bracket.type
     new_category_id = update_data.category_id if update_data.category_id is not None else bracket.category_id
@@ -450,6 +388,8 @@ async def update_bracket(db: AsyncSession, bracket_id: int, update_data: Bracket
 
     for key, value in update_data.model_dump(exclude_unset=True).items():
         setattr(bracket, key, value)
+    if update_data.model_dump(exclude_unset=True):
+        bump_bracket_version(bracket)
 
     await db.commit()
     await db.refresh(bracket)
@@ -473,6 +413,9 @@ async def move_participant(db: AsyncSession, move_data: ParticipantMoveSchema) -
     if existing.scalar():
         raise HTTPException(status_code=400, detail="Athlete already in target bracket")
 
+    from_bracket = await _ensure_bracket_editable(db, move_data.from_bracket_id)
+    to_bracket = await _ensure_bracket_editable(db, move_data.to_bracket_id)
+
     await db.delete(participant)
     await db.flush()
 
@@ -483,10 +426,13 @@ async def move_participant(db: AsyncSession, move_data: ParticipantMoveSchema) -
         seed=new_seed,
     )
     db.add(new_participant)
+    bump_bracket_version(from_bracket)
+    bump_bracket_version(to_bracket)
     await db.commit()
 
 
 async def reorder_participants(db: AsyncSession, reorder_data: ParticipantReorderSchema) -> None:
+    bracket = await _ensure_bracket_editable(db, reorder_data.bracket_id)
     for upd in reorder_data.participant_updates:
         await db.execute(
             update(BracketParticipant)
@@ -496,6 +442,7 @@ async def reorder_participants(db: AsyncSession, reorder_data: ParticipantReorde
             )
             .values(seed=upd["new_seed"])
         )
+    bump_bracket_version(bracket)
     await db.commit()
 
 
@@ -547,9 +494,7 @@ async def create_bracket(db: AsyncSession, bracket_data: BracketCreateSchema) ->
 
 
 async def delete_bracket(db: AsyncSession, bracket_id: int, data: BracketDeleteRequest) -> None:
-    bracket = await db.get(Bracket, bracket_id)
-    if not bracket:
-        raise HTTPException(status_code=404, detail="Bracket not found")
+    bracket = await _ensure_bracket_editable(db, bracket_id)
 
     result = await db.execute(select(BracketParticipant).where(BracketParticipant.bracket_id == bracket_id))
     participants = result.scalars().all()
@@ -558,6 +503,7 @@ async def delete_bracket(db: AsyncSession, bracket_id: int, data: BracketDeleteR
         raise HTTPException(status_code=400, detail="Bracket has participants; target bracket required")
 
     if data.target_bracket_id:
+        target_bracket = await _ensure_bracket_editable(db, data.target_bracket_id)
         for p in participants:
             dup = await db.execute(
                 select(BracketParticipant).where(
@@ -574,6 +520,7 @@ async def delete_bracket(db: AsyncSession, bracket_id: int, data: BracketDeleteR
             new_seed = await reorder_seeds_and_get_next(db, data.target_bracket_id)
             p.bracket_id = data.target_bracket_id
             p.seed = new_seed
+        bump_bracket_version(target_bracket)
 
     await db.delete(bracket)
     await db.commit()
@@ -605,7 +552,10 @@ async def update_bracket_status(db: AsyncSession, bracket_id: int, status: str) 
     if status not in [s.value for s in BracketStatus]:
         raise HTTPException(400, f"Invalid status: {status}")
 
+    if bracket.status != status:
+        bump_bracket_version(bracket)
     bracket.status = status
+    bracket.state = derive_bracket_state_from_status(status, bracket.state)
     await db.commit()
     return bracket
 
@@ -618,4 +568,6 @@ async def start_bracket(db: AsyncSession, bracket_id: int) -> None:
         raise HTTPException(400, "Bracket already started or finished")
 
     bracket.status = BracketStatus.STARTED.value
+    bracket.state = derive_bracket_state_from_status(bracket.status, bracket.state)
+    bump_bracket_version(bracket)
     await db.commit()
