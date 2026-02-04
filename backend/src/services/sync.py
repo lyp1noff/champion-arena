@@ -2,7 +2,6 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from champion_domain import build_match_command, derive_bracket_state_from_status
-from champion_domain.use_cases import parse_structure_payload
 from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +20,8 @@ from src.services.matches import finish_match as finish_match_service
 from src.services.matches import start_match as start_match_service
 from src.services.matches import update_match_scores as update_match_scores_service
 from src.services.matches import update_match_status as update_match_status_service
+from src.services.sync_match_dto import parse_match_payload_dto
+from src.services.sync_structure_dto import parse_structure_payload_dto
 
 
 class SyncApplyConflict(Exception):
@@ -79,7 +80,8 @@ async def _apply_match_event(db: AsyncSession, event: SyncCommandEvent) -> int:
         )
 
     try:
-        command = build_match_command(event.event_type, event.payload)
+        payload = parse_match_payload_dto(event.event_type, event.payload)
+        command = build_match_command(event.event_type, payload)
     except ValueError as exc:
         raise SyncApplyConflict(str(exc)) from exc
 
@@ -132,7 +134,7 @@ async def _apply_bracket_structure_rebuilt_event(db: AsyncSession, event: SyncCo
         )
 
     try:
-        participants, matches, payload_state = parse_structure_payload(event.payload)
+        participants, matches, payload_state, payload_status = parse_structure_payload_dto(event.payload)
     except ValueError as exc:
         raise SyncApplyConflict(str(exc)) from exc
 
@@ -180,7 +182,6 @@ async def _apply_bracket_structure_rebuilt_event(db: AsyncSession, event: SyncCo
         )
 
     bracket.version = event.aggregate_version
-    payload_status = event.payload.get("status")
     if isinstance(payload_status, str):
         bracket.status = payload_status
     if payload_state is not None:
