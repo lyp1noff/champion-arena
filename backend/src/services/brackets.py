@@ -1,14 +1,15 @@
-import math
 from datetime import UTC, datetime
 from typing import Optional
 
 from champion_domain import (
     IMMUTABLE_BRACKET_STATES,
+    SeededParticipant,
     bump_bracket_version,
     derive_bracket_state_from_status,
     is_bracket_structurally_mutable,
+    plan_bracket_matches,
 )
-from champion_domain.use_cases import plan_single_elimination
+from champion_domain.use_cases import PlannedMatch
 from fastapi import HTTPException
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,69 +48,7 @@ async def _ensure_bracket_editable(db: AsyncSession, bracket_id: int) -> Bracket
     return bracket
 
 
-async def generate_all_rounds(
-    db: AsyncSession, bracket_id: int, athlete_ids: list[int], total_rounds: int
-) -> list[list[BracketMatch]]:
-    match_matrix: list[list[BracketMatch]] = [[] for _ in range(total_rounds)]
-    planned_rounds = plan_single_elimination(athlete_ids)
-
-    for round_index, planned_round in enumerate(planned_rounds):
-        for planned in planned_round:
-            is_bye_win = planned.status == MatchStatus.FINISHED.value and planned.winner_id is not None
-            match = Match(
-                athlete1_id=planned.athlete1_id,
-                athlete2_id=planned.athlete2_id,
-                winner_id=planned.winner_id,
-                round_type=planned.round_type,
-                stage=MatchStage.MAIN.value,
-                status=planned.status,
-                ended_at=datetime.now(UTC) if is_bye_win else None,
-            )
-            db.add(match)
-            await db.flush()
-
-            bracket_match = BracketMatch(
-                bracket_id=bracket_id,
-                round_number=planned.round_number,
-                position=planned.position,
-                match_id=match.id,
-                next_slot=planned.next_slot,
-            )
-            db.add(bracket_match)
-            match_matrix[round_index].append(bracket_match)
-
-    return match_matrix
-
-
-async def advance_auto_winners(db: AsyncSession, match_matrix: list[list[BracketMatch]]) -> None:
-    for round_index in range(len(match_matrix) - 1):
-        current_round = match_matrix[round_index]
-        next_round = match_matrix[round_index + 1]
-
-        for bm in current_round:
-            match = await db.get(Match, bm.match_id)
-
-            if not match or match.status != MatchStatus.FINISHED.value or not match.winner_id:
-                continue
-
-            next_position = (bm.position + 1) // 2
-            next_bm = next((m for m in next_round if m.position == next_position), None)
-            if not next_bm:
-                continue
-
-            next_match = await db.get(Match, next_bm.match_id)
-            if not next_match:
-                continue
-
-            if bm.position % 2 == 1:
-                next_match.athlete1_id = match.winner_id if match.winner_id else None
-            else:
-                next_match.athlete2_id = match.winner_id if match.winner_id else None
-
-
-async def regenerate_bracket_matches(
-    db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
-) -> None:
+async def _reset_and_clear_bracket_structure(db: AsyncSession, bracket_id: int) -> Bracket:
     bracket = await _ensure_bracket_editable(db, bracket_id)
     bracket.place_1_id = None
     bracket.place_2_id = None
@@ -121,6 +60,45 @@ async def regenerate_bracket_matches(
         delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
     )
     await db.execute(delete(BracketMatch).where(BracketMatch.bracket_id == bracket_id))
+    return bracket
+
+
+async def generate_all_rounds(
+    db: AsyncSession, bracket_id: int, planned_matches: list[PlannedMatch]
+) -> list[BracketMatch]:
+    created: list[BracketMatch] = []
+
+    for planned in planned_matches:
+        is_bye_win = planned.status == MatchStatus.FINISHED.value and planned.winner_id is not None
+        match = Match(
+            athlete1_id=planned.athlete1_id,
+            athlete2_id=planned.athlete2_id,
+            winner_id=planned.winner_id,
+            round_type=planned.round_type,
+            stage=MatchStage.MAIN.value,
+            status=planned.status,
+            ended_at=datetime.now(UTC) if is_bye_win else None,
+        )
+        db.add(match)
+        await db.flush()
+
+        bracket_match = BracketMatch(
+            bracket_id=bracket_id,
+            round_number=planned.round_number,
+            position=planned.position,
+            match_id=match.id,
+            next_slot=planned.next_slot,
+        )
+        db.add(bracket_match)
+        created.append(bracket_match)
+
+    return created
+
+
+async def regenerate_bracket_matches(
+    db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
+) -> None:
+    await _reset_and_clear_bracket_structure(db, bracket_id)
 
     result = await db.execute(
         select(BracketParticipant).filter_by(bracket_id=bracket_id).order_by(BracketParticipant.seed)
@@ -138,12 +116,13 @@ async def regenerate_bracket_matches(
             await db.commit()
         return None
 
-    next_power_of_two = 2 ** math.ceil(math.log2(max(num_players, 2)))
-    total_rounds = int(math.log2(next_power_of_two))
-
-    match_matrix = await generate_all_rounds(db, bracket_id, athlete_ids, total_rounds)
-
-    await advance_auto_winners(db, match_matrix)
+    planned_matches = plan_bracket_matches(
+        bracket_type=BracketType.SINGLE_ELIMINATION.value,
+        participants=[
+            SeededParticipant(seed=participant.seed, athlete_id=participant.athlete_id) for participant in participants
+        ],
+    )
+    await generate_all_rounds(db, bracket_id, planned_matches)
 
     if commit:
         tournament = await db.get(Tournament, tournament_id)
@@ -156,26 +135,14 @@ async def regenerate_bracket_matches(
 async def regenerate_round_bracket_matches(
     db: AsyncSession, bracket_id: int, tournament_id: int, commit: bool = True
 ) -> Optional[list[BracketMatch]]:
-    bracket = await _ensure_bracket_editable(db, bracket_id)
-    bracket.place_1_id = None
-    bracket.place_2_id = None
-    bracket.place_3_a_id = None
-    bracket.place_3_b_id = None
-    bump_bracket_version(bracket)
-
-    await db.execute(
-        delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
-    )
-    await db.execute(delete(BracketMatch).where(BracketMatch.bracket_id == bracket_id))
+    await _reset_and_clear_bracket_structure(db, bracket_id)
 
     result = await db.execute(
         select(BracketParticipant).filter_by(bracket_id=bracket_id).order_by(BracketParticipant.seed)
     )
     participants = result.scalars().all()
-    n = len(participants)
-
     matches: list[BracketMatch] = []
-    if n < 2:
+    if len(participants) < 2:
         if commit:
             tournament = await db.get(Tournament, tournament_id)
             if tournament is not None:
@@ -183,51 +150,13 @@ async def regenerate_round_bracket_matches(
             await db.commit()
         return None if commit else matches
 
-    participants = list(participants)
-    if n % 2 != 0:
-        dummy = BracketParticipant(athlete_id=None, bracket_id=bracket_id, seed=n + 1)
-        participants.append(dummy)
-        n += 1
-
-    players = list(range(n))
-    rounds = []
-    for _ in range(n - 1):
-        round_pairs = []
-        mid = n // 2
-        for i in range(mid):
-            p1_idx, p2_idx = players[i], players[n - 1 - i]
-            if participants[p1_idx].athlete_id is None or participants[p2_idx].athlete_id is None:
-                continue
-            if participants[p1_idx].seed < participants[p2_idx].seed:
-                round_pairs.append((p1_idx, p2_idx))
-            else:
-                round_pairs.append((p2_idx, p1_idx))
-        rounds.append(round_pairs)
-        players = [players[0]] + [players[-1]] + players[1:-1]
-
-    position = 1
-    for round_pairs in rounds:
-        for p1_idx, p2_idx in round_pairs:
-            p1 = participants[p1_idx]
-            p2 = participants[p2_idx]
-            match = Match(
-                athlete1_id=p1.athlete_id,
-                athlete2_id=p2.athlete_id,
-                round_type="group",
-                stage=MatchStage.MAIN.value,
-            )
-            db.add(match)
-            await db.flush()
-
-            bracket_match = BracketMatch(
-                bracket_id=bracket_id,
-                round_number=1,
-                position=position,
-                match_id=match.id,
-            )
-            db.add(bracket_match)
-            matches.append(bracket_match)
-            position += 1
+    planned_matches = plan_bracket_matches(
+        bracket_type=BracketType.ROUND_ROBIN.value,
+        participants=[
+            SeededParticipant(seed=participant.seed, athlete_id=participant.athlete_id) for participant in participants
+        ],
+    )
+    matches.extend(await generate_all_rounds(db, bracket_id, planned_matches))
 
     if commit:
         tournament = await db.get(Tournament, tournament_id)
