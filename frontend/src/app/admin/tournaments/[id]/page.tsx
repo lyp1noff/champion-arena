@@ -79,14 +79,19 @@ export default function TournamentAdminPage() {
             <CardTitle>{t("adminHubTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
+            <Link href={`/admin/tournaments/${tournamentId}/applications`}>
+              <Button className="w-full" variant="outline">
+                {t("applications")}
+              </Button>
+            </Link>
             <Link href={`/admin/tournaments/${tournamentId}/manage`}>
               <Button className="w-full" variant="outline">
                 {t("manage")}
               </Button>
             </Link>
-            <Link href={`/admin/tournaments/${tournamentId}/applications`}>
+            <Link href={`/admin/tournaments/${tournamentId}/timetable`}>
               <Button className="w-full" variant="outline">
-                {t("applications")}
+                {t("timetable")}
               </Button>
             </Link>
             <Link href={`/admin/tournaments/${tournamentId}/reports`}>

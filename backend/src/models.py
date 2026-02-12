@@ -4,27 +4,27 @@ from datetime import date, datetime, time
 from typing import Optional
 
 from sqlalchemy import (
+    BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
     String,
+    Text,
     Time,
     UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import (
-    DeclarativeBase,
     Mapped,
     declared_attr,
     mapped_column,
     relationship,
 )
 
-
-class Base(DeclarativeBase):
-    pass
+from .database import Base
 
 
 class Gender(enum.Enum):
@@ -61,10 +61,22 @@ class BracketStatus(enum.Enum):
     FINISHED = "finished"
 
 
+class BracketState(enum.Enum):
+    DRAFT = "draft"
+    LOCKED = "locked"
+    RUNNING = "running"
+    FINISHED = "finished"
+
+
 class MatchStatus(enum.Enum):
     NOT_STARTED = "not_started"
     STARTED = "started"
     FINISHED = "finished"
+
+
+class MatchStage(enum.Enum):
+    MAIN = "main"
+    REPECHAGE = "repechage"
 
 
 class TimestampMixin:
@@ -155,6 +167,9 @@ class Tournament(Base, TimestampMixin):
     export_last_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     brackets: Mapped[list["Bracket"]] = relationship(back_populates="tournament", cascade="all, delete-orphan")
+    timetable_entries: Mapped[list["TimetableEntry"]] = relationship(
+        back_populates="tournament", cascade="all, delete-orphan"
+    )
 
 
 class Application(Base, TimestampMixin):
@@ -183,10 +198,21 @@ class Bracket(Base, TimestampMixin):
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"), index=True)
     group_id: Mapped[int] = mapped_column(default=1)
     type: Mapped[str] = mapped_column(String(50), default=BracketType.SINGLE_ELIMINATION.value)
-    start_time: Mapped[time] = mapped_column(Time, default=lambda: time(9, 0))
-    day: Mapped[int] = mapped_column(default=1)
-    tatami: Mapped[int] = mapped_column(default=1)
     status: Mapped[str] = mapped_column(String(20), default=BracketStatus.PENDING.value)
+    state: Mapped[str] = mapped_column(String(20), default=BracketState.DRAFT.value, index=True)
+    version: Mapped[int] = mapped_column(default=1)
+    place_1_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    place_2_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    place_3_a_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    place_3_b_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     def get_display_name(self) -> str:
         """Generate display name combining category name and group number"""
@@ -197,11 +223,22 @@ class Bracket(Base, TimestampMixin):
             return f"{category_name} (Group {group_id})"
         return category_name
 
+    @property
+    def display_name(self) -> str:
+        return self.get_display_name()
+
     tournament: Mapped["Tournament"] = relationship(back_populates="brackets")
     category: Mapped["Category"] = relationship(back_populates="brackets")
+    place_1_athlete: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[place_1_id])
+    place_2_athlete: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[place_2_id])
+    place_3_a_athlete: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[place_3_a_id])
+    place_3_b_athlete: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[place_3_b_id])
     matches: Mapped[list["BracketMatch"]] = relationship(back_populates="bracket", cascade="all, delete-orphan")
     participants: Mapped[list["BracketParticipant"]] = relationship(
         back_populates="bracket", cascade="all, delete-orphan"
+    )
+    timetable_entry: Mapped[Optional["TimetableEntry"]] = relationship(
+        back_populates="bracket", uselist=False, cascade="all, delete-orphan"
     )
 
 
@@ -249,6 +286,9 @@ class Match(Base, TimestampMixin):
     score_athlete1: Mapped[Optional[int]] = mapped_column(nullable=True)
     score_athlete2: Mapped[Optional[int]] = mapped_column(nullable=True)
     round_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    stage: Mapped[str] = mapped_column(String(20), default=MatchStage.MAIN.value, index=True)
+    repechage_side: Mapped[Optional[str]] = mapped_column(String(1), nullable=True, index=True)
+    repechage_step: Mapped[Optional[int]] = mapped_column(nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(20), default=MatchStatus.NOT_STARTED.value)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -257,3 +297,46 @@ class Match(Base, TimestampMixin):
     athlete2: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[athlete2_id])
     winner: Mapped[Optional["Athlete"]] = relationship(foreign_keys=[winner_id])
     bracket_match: Mapped[Optional["BracketMatch"]] = relationship(back_populates="match", uselist=False)
+
+
+class TimetableEntry(Base, TimestampMixin):
+    __tablename__ = "timetable_entries"
+    __table_args__ = (
+        CheckConstraint("end_time >= start_time", name="check_timetable_end_time"),
+        UniqueConstraint("bracket_id", name="uix_timetable_bracket_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    tournament_id: Mapped[int] = mapped_column(ForeignKey("tournaments.id", ondelete="CASCADE"), index=True)
+    bracket_id: Mapped[Optional[int]] = mapped_column(ForeignKey("brackets.id", ondelete="CASCADE"), nullable=True)
+    entry_type: Mapped[str] = mapped_column(String(20))
+    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    day: Mapped[int] = mapped_column()
+    tatami: Mapped[int] = mapped_column()
+    start_time: Mapped[time] = mapped_column(Time)
+    end_time: Mapped[time] = mapped_column(Time)
+    order_index: Mapped[int] = mapped_column()
+
+    tournament: Mapped["Tournament"] = relationship(back_populates="timetable_entries")
+    bracket: Mapped[Optional["Bracket"]] = relationship(back_populates="timetable_entry")
+
+
+class SyncInboxEvent(Base):
+    __tablename__ = "sync_inbox_events"
+    __table_args__ = (UniqueConstraint("edge_id", "seq", name="uix_sync_inbox_edge_seq"),)
+
+    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    edge_id: Mapped[str] = mapped_column(String(100), index=True)
+    seq: Mapped[int] = mapped_column(BigInteger, index=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    applied: Mapped[bool] = mapped_column(Boolean, default=False)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class SyncEdgeState(Base):
+    __tablename__ = "sync_edge_state"
+
+    edge_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    last_applied_seq: Mapped[int] = mapped_column(BigInteger, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())

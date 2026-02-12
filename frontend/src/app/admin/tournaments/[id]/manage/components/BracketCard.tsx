@@ -38,17 +38,6 @@ export default function BracketCard({
                 <Users className="h-4 w-4" />
                 <span>{participants.length}</span>
               </div>
-              <div className="flex items-center gap-1">
-                <span>Day {bracket.day}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span>Tatami {bracket.tatami}</span>
-              </div>
-              {bracket.start_time && (
-                <div className="flex items-center gap-1">
-                  <span>{bracket.start_time.slice(0, 5)}</span>
-                </div>
-              )}
             </div>
           </CardHeader>
           <CardContent className="pt-0">

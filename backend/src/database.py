@@ -2,19 +2,21 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
-from src.config import SQLALCHEMY_DATABASE_URL
+from src.config import DATABASE_URL
 from src.logger import logger
 
-engine: AsyncEngine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=False)
+engine: AsyncEngine = create_async_engine(DATABASE_URL, echo=False)
 
 SessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     bind=engine,
     expire_on_commit=False,
 )
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

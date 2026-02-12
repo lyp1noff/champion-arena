@@ -1,5 +1,3 @@
-from datetime import UTC, datetime
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import asc, delete, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,25 +79,7 @@ async def get_athletes(
     result = await db.execute(stmt)
     athletes = result.scalars().all()
 
-    athlete_responses = []
-    for athlete in athletes:
-        coaches_id = [link.coach.id for link in athlete.coach_links if link.coach is not None]
-        coaches_last_name = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
-
-        age = None if athlete.birth_date is None else int((datetime.now(UTC).date() - athlete.birth_date).days // 365)
-
-        athlete_responses.append(
-            AthleteResponse(
-                id=athlete.id,
-                first_name=athlete.first_name,
-                last_name=athlete.last_name,
-                gender=athlete.gender,
-                birth_date=athlete.birth_date,
-                coaches_last_name=coaches_last_name,
-                coaches_id=coaches_id,
-                age=age,
-            )
-        )
+    athlete_responses = [AthleteResponse.model_validate(athlete) for athlete in athletes]
 
     total_stmt = select(func.count(Athlete.id))
     if search or coach_search:
@@ -136,27 +116,7 @@ async def get_all_athletes(
     result = await db.execute(stmt)
     athletes_db = result.scalars().all()
 
-    athletes = []
-    for athlete in athletes_db:
-        coaches_id = [link.coach.id for link in athlete.coach_links if link.coach is not None]
-        coaches_last_name = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
-
-        age = None if athlete.birth_date is None else int((datetime.now(UTC).date() - athlete.birth_date).days // 365)
-
-        athletes.append(
-            AthleteResponse(
-                id=athlete.id,
-                first_name=athlete.first_name,
-                last_name=athlete.last_name,
-                gender=athlete.gender,
-                birth_date=athlete.birth_date,
-                coaches_last_name=coaches_last_name,
-                coaches_id=coaches_id,
-                age=age,
-            )
-        )
-
-    return athletes
+    return [AthleteResponse.model_validate(athlete) for athlete in athletes_db]
 
 
 @router.get("/{id}", response_model=AthleteResponse)
@@ -172,22 +132,7 @@ async def get_athlete(id: int, db: AsyncSession = Depends(get_db)) -> AthleteRes
     if not athlete:
         raise HTTPException(status_code=404, detail="Athlete not found")
 
-    coaches_id = [link.coach.id for link in athlete.coach_links if link.coach is not None]
-
-    coaches_last_name = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
-
-    age = None if athlete.birth_date is None else int((datetime.now(UTC).date() - athlete.birth_date).days // 365)
-
-    return AthleteResponse(
-        id=athlete.id,
-        first_name=athlete.first_name,
-        last_name=athlete.last_name,
-        gender=athlete.gender,
-        birth_date=athlete.birth_date,
-        coaches_last_name=coaches_last_name,
-        coaches_id=coaches_id,
-        age=age,
-    )
+    return AthleteResponse.model_validate(athlete)
 
 
 @router.post("", response_model=AthleteResponse)
@@ -215,18 +160,7 @@ async def create_athlete(athlete_data: AthleteCreate, db: AsyncSession = Depends
     )
     athlete = result.scalar_one()
 
-    coaches_last_name = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
-    coaches_id = [link.coach.id for link in athlete.coach_links if link.coach is not None]
-
-    return AthleteResponse(
-        id=athlete.id,
-        first_name=athlete.first_name,
-        last_name=athlete.last_name,
-        gender=athlete.gender,
-        birth_date=athlete.birth_date,
-        coaches_last_name=coaches_last_name,
-        coaches_id=coaches_id,
-    )
+    return AthleteResponse.model_validate(athlete)
 
 
 @router.put("/{id}", response_model=AthleteResponse)
@@ -255,19 +189,7 @@ async def update_athlete(id: int, athlete_update: AthleteUpdate, db: AsyncSessio
     )
     athlete = result.scalar_one()
 
-    coaches_last_name = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
-
-    coaches_id = [link.coach.id for link in athlete.coach_links if link.coach is not None]
-
-    return AthleteResponse(
-        id=athlete.id,
-        first_name=athlete.first_name,
-        last_name=athlete.last_name,
-        gender=athlete.gender,
-        birth_date=athlete.birth_date,
-        coaches_last_name=coaches_last_name,
-        coaches_id=coaches_id,
-    )
+    return AthleteResponse.model_validate(athlete)
 
 
 @router.delete("/{id}", status_code=204)

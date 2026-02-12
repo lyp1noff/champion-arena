@@ -34,7 +34,6 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
     for br in brackets:
         await db.execute(delete(BracketParticipant).where(BracketParticipant.bracket_id == br.id))
         await db.execute(delete(BracketMatch).where(BracketMatch.bracket_id == br.id))
-    await db.commit()
 
     coaches_cache = {}
     categories_cache = {}
@@ -52,7 +51,7 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
             if not coach:
                 coach = Coach(last_name=coach_name, first_name="")
                 db.add(coach)
-                await db.commit()
+                await db.flush()
             coaches_cache[coach_name] = coach
 
         coach = coaches_cache[coach_name]
@@ -64,7 +63,7 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
             if not category:
                 category = Category(name=category_name, min_age=1, max_age=99, gender="male-or-female")
                 db.add(category)
-                await db.commit()
+                await db.flush()
             categories_cache[category_name] = category
 
         category = categories_cache[category_name]
@@ -79,12 +78,12 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
                 gender="male-or-female",
             )
             db.add(athlete)
-            await db.commit()
+            await db.flush()
 
             # Create coach link
             coach_link = AthleteCoachLink(athlete_id=athlete.id, coach_id=coach.id)
             db.add(coach_link)
-            await db.commit()
+            await db.flush()
 
         # Bracket
         bracket_result = await db.execute(
@@ -97,7 +96,7 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
                 category_id=category.id,
             )
             db.add(bracket)
-            await db.commit()
+            await db.flush()
 
         # BracketParticipant
         participant = BracketParticipant(
@@ -107,7 +106,6 @@ async def import_competitors_from_cbr(db: AsyncSession, tournament_id: int, cont
         )
         db.add(participant)
 
-    await db.commit()
     await regenerate_tournament_brackets(db, tournament.id)
 
     return {"status": "success", "message": "Data imported and brackets generated"}

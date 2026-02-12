@@ -1,48 +1,41 @@
-from datetime import UTC, datetime
-from pathlib import Path
-
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
-from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import asc, desc, distinct, func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from src.database import get_db
 from src.dependencies.auth import get_current_user
-from src.models import (
-    Application,
-    ApplicationStatus,
-    Athlete,
-    AthleteCoachLink,
-    Bracket,
-    BracketMatch,
-    BracketParticipant,
-    Coach,
-    Match,
-    Tournament,
-    TournamentStatus,
-)
 from src.routers.brackets import regenerate_matches_endpoint
 from src.schemas import (
     ApplicationCreate,
     ApplicationResponse,
-    AthleteResponse,
     BracketMatchesFull,
     BracketResponse,
     PaginatedTournamentResponse,
+    TimetableEntryResponse,
+    TimetableReplace,
     TournamentCreate,
     TournamentResponse,
     TournamentUpdate,
 )
-from src.services.brackets import (
-    regenerate_tournament_brackets,
-    reorder_seeds_and_get_next,
-)
-from src.services.export_file import generate_pdf
 from src.services.import_competitors import import_competitors_from_cbr
-from src.services.serialize import serialize_bracket, serialize_bracket_matches_full
-from src.utils import sanitize_filename
+from src.services.tournaments import approve_all_applications as approve_all_applications_service
+from src.services.tournaments import approve_application as approve_application_service
+from src.services.tournaments import create_tournament as create_tournament_service
+from src.services.tournaments import delete_tournament as delete_tournament_service
+from src.services.tournaments import generate_brackets_export_file as generate_brackets_export_file_service
+from src.services.tournaments import get_applications as get_applications_service
+from src.services.tournaments import get_matches_for_tournament_full as get_matches_for_tournament_full_service
+from src.services.tournaments import get_participant_count_per_coach as get_participant_count_per_coach_service
+from src.services.tournaments import get_tournament as get_tournament_service
+from src.services.tournaments import get_tournament_brackets as get_tournament_brackets_service
+from src.services.tournaments import list_timetable_entries as list_timetable_entries_service
+from src.services.tournaments import list_tournaments as list_tournaments_service
+from src.services.tournaments import regenerate_tournament as regenerate_tournament_service
+from src.services.tournaments import remove_competitor as remove_competitor_service
+from src.services.tournaments import replace_timetable_entries as replace_timetable_entries_service
+from src.services.tournaments import start_tournament as start_tournament_service
+from src.services.tournaments import submit_application as submit_application_service
+from src.services.tournaments import update_tournament as update_tournament_service
+from src.services.tournaments import update_tournament_status as update_tournament_status_service
 
 router = APIRouter(
     prefix="/tournaments",
@@ -59,132 +52,48 @@ async def get_tournaments(
     search: str = Query(None),
     db: AsyncSession = Depends(get_db),
 ) -> PaginatedTournamentResponse:
-    try:
-        valid_order_fields = {"id", "name", "location", "start_date", "end_date"}
-        order_by = order_by if order_by in valid_order_fields else "id"
-
-        order_column = (
-            desc(getattr(Tournament, order_by)) if order.lower() == "desc" else asc(getattr(Tournament, order_by))
-        )
-        offset = (page - 1) * limit
-
-        filters = [Tournament.name.ilike(f"%{search}%")] if search else []
-
-        total = await db.scalar(select(func.count(Tournament.id)).where(*filters))
-
-        result = await db.execute(select(Tournament).where(*filters).order_by(order_column).offset(offset).limit(limit))
-
-        tournaments = result.scalars().all()
-
-        return PaginatedTournamentResponse(
-            data=[TournamentResponse.model_validate(t) for t in tournaments],
-            total=total or 0,
-            page=page,
-            limit=limit,
-        )
-    except Exception:
-        raise HTTPException(status_code=500, detail="An error occurred while fetching tournaments")
+    tournaments, total = await list_tournaments_service(db, page, limit, order_by, order, search)
+    return PaginatedTournamentResponse(
+        data=[TournamentResponse.model_validate(tournament) for tournament in tournaments],
+        total=total,
+        page=page,
+        limit=limit,
+    )
 
 
 @router.get("/{id}", response_model=TournamentResponse)
 async def get_tournament(id: int, db: AsyncSession = Depends(get_db)) -> TournamentResponse:
-    tournament = await db.get(Tournament, id)
-    if not tournament:
-        raise HTTPException(status_code=404, detail="Tournament not found")
-
+    tournament = await get_tournament_service(db, id)
     return TournamentResponse.model_validate(tournament)
 
 
 @router.post("", response_model=TournamentResponse, dependencies=[Depends(get_current_user)])
 async def create_tournament(tournament: TournamentCreate, db: AsyncSession = Depends(get_db)) -> TournamentResponse:
-    try:
-        new_tournament = Tournament(**tournament.model_dump())
-        db.add(new_tournament)
-        await db.commit()
-        await db.refresh(new_tournament)
-        return TournamentResponse.model_validate(new_tournament)
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(status_code=400, detail="Tournament with these details already exists")
-    except ValueError as e:
-        await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="An error occurred while creating the tournament")
+    new_tournament = await create_tournament_service(db, tournament)
+    return TournamentResponse.model_validate(new_tournament)
 
 
 @router.put("/{id}", response_model=TournamentResponse, dependencies=[Depends(get_current_user)])
 async def update_tournament(
     id: int, tournament_update: TournamentUpdate, db: AsyncSession = Depends(get_db)
 ) -> TournamentResponse:
-    tournament = await db.get(Tournament, id)
-
-    if not tournament:
-        raise HTTPException(status_code=404, detail="Tournament not found")
-
-    try:
-        for key, value in tournament_update.model_dump(exclude_unset=True).items():
-            setattr(tournament, key, value)
-
-        await db.commit()
-        await db.refresh(tournament)
-        return TournamentResponse.model_validate(tournament)
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(status_code=400, detail="Tournament with these details already exists")
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="An error occurred while updating the tournament")
+    tournament = await update_tournament_service(db, id, tournament_update)
+    return TournamentResponse.model_validate(tournament)
 
 
 @router.delete("/{id}", dependencies=[Depends(get_current_user)], status_code=204)
 async def delete_tournament(id: int, db: AsyncSession = Depends(get_db)) -> None:
-    tournament = await db.get(Tournament, id)
-
-    if not tournament:
-        raise HTTPException(status_code=404, detail="Tournament not found")
-
-    try:
-        await db.delete(tournament)
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(status_code=400, detail="Cannot delete tournament due to existing dependencies")
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="An error occurred while deleting the tournament")
+    await delete_tournament_service(db, id)
 
 
 @router.get("/{tournament_id}/brackets", response_model=list[BracketResponse])
 async def get_all_brackets(
     tournament_id: int,
-    sorted: bool = Query(True, description="Sort brackets by tatami and start_time"),
+    sorted: bool = Query(True, description="Sort brackets by category and id"),
     db: AsyncSession = Depends(get_db),
 ) -> list[BracketResponse]:
-    try:
-        query = (
-            select(Bracket)
-            .filter_by(tournament_id=tournament_id)
-            .options(
-                selectinload(Bracket.category),
-                selectinload(Bracket.participants)
-                .selectinload(BracketParticipant.athlete)
-                .selectinload(Athlete.coach_links)
-                .joinedload(AthleteCoachLink.coach),
-            )
-        )
-
-        if sorted:
-            query = query.order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
-        else:
-            query = query.order_by(Bracket.category_id.asc().nullslast())
-
-        result = await db.execute(query)
-        brackets = result.scalars().all()
-        return [serialize_bracket(b) for b in brackets]
-    except Exception:
-        raise HTTPException(status_code=500, detail="An error occurred while fetching brackets")
+    brackets = await get_tournament_brackets_service(db, tournament_id, sorted)
+    return [BracketResponse.model_validate(bracket) for bracket in brackets]
 
 
 # CLI ONLY
@@ -192,41 +101,7 @@ async def get_all_brackets(
 async def get_participant_count_per_coach(
     tournament_id: int, db: AsyncSession = Depends(get_db)
 ) -> list[dict[str, int | str]]:
-    subquery = (
-        select(
-            distinct(Athlete.id).label("athlete_id"),
-            AthleteCoachLink.coach_id.label("coach_id"),
-        )
-        .join(BracketParticipant, BracketParticipant.athlete_id == Athlete.id)
-        .join(AthleteCoachLink, AthleteCoachLink.athlete_id == Athlete.id)
-        .join(Bracket, Bracket.id == BracketParticipant.bracket_id)
-        .filter(Bracket.tournament_id == tournament_id)
-        .subquery()
-    )
-
-    result = await db.execute(
-        select(
-            Coach.id,
-            Coach.last_name,
-            Coach.first_name,
-            func.count(subquery.c.athlete_id).label("participant_count"),
-        )
-        .join(subquery, subquery.c.coach_id == Coach.id)
-        .group_by(Coach.id, Coach.last_name, Coach.first_name)
-        .order_by(func.count(subquery.c.athlete_id).desc())
-    )
-
-    coaches_data = result.all()
-
-    return [
-        {
-            "coach_id": coach_id,
-            "coach_last_name": last_name,
-            "coach_first_name": first_name,
-            "participant_count": participant_count,
-        }
-        for coach_id, last_name, first_name, participant_count in coaches_data
-    ]
+    return await get_participant_count_per_coach_service(db, tournament_id)
 
 
 @router.get(
@@ -237,95 +112,19 @@ async def get_participant_count_per_coach(
 async def get_matches_for_tournament_full(
     tournament_id: int, db: AsyncSession = Depends(get_db)
 ) -> list[BracketMatchesFull]:
-    result = await db.execute(
-        select(Bracket)
-        .filter(Bracket.tournament_id == tournament_id)
-        .options(
-            selectinload(Bracket.category),
-            selectinload(Bracket.matches)
-            .joinedload(BracketMatch.match)
-            .joinedload(Match.athlete1)
-            .selectinload(Athlete.coach_links)
-            .joinedload(AthleteCoachLink.coach),
-            selectinload(Bracket.matches)
-            .joinedload(BracketMatch.match)
-            .joinedload(Match.athlete2)
-            .selectinload(Athlete.coach_links)
-            .joinedload(AthleteCoachLink.coach),
-            selectinload(Bracket.matches)
-            .joinedload(BracketMatch.match)
-            .joinedload(Match.winner)
-            .selectinload(Athlete.coach_links)
-            .joinedload(AthleteCoachLink.coach),
-        )
-        .order_by(Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
-    )
-
-    brackets = result.scalars().all()
-    return [serialize_bracket_matches_full(bracket) for bracket in brackets]
-
-
-async def get_matches_for_tournament_raw(tournament_id: int, db: AsyncSession = Depends(get_db)) -> list[Bracket]:
-    """Get raw SQLAlchemy objects for export functionality"""
-    result = await db.execute(
-        select(Bracket)
-        .filter(Bracket.tournament_id == tournament_id)
-        .options(
-            selectinload(Bracket.category),
-            selectinload(Bracket.matches)
-            .joinedload(BracketMatch.match)
-            .joinedload(Match.athlete1)
-            .selectinload(Athlete.coach_links)
-            .joinedload(AthleteCoachLink.coach),
-            selectinload(Bracket.matches)
-            .joinedload(BracketMatch.match)
-            .joinedload(Match.athlete2)
-            .selectinload(Athlete.coach_links)
-            .joinedload(AthleteCoachLink.coach),
-            selectinload(Bracket.matches)
-            .joinedload(BracketMatch.match)
-            .joinedload(Match.winner)
-            .selectinload(Athlete.coach_links)
-            .joinedload(AthleteCoachLink.coach),
-        )
-        .order_by(Bracket.day.asc(), Bracket.tatami.asc().nullslast(), Bracket.start_time.asc().nullslast())
-    )
-
-    return list(result.scalars().all())
+    brackets = await get_matches_for_tournament_full_service(db, tournament_id)
+    return [BracketMatchesFull.model_validate(bracket) for bracket in brackets]
 
 
 @router.post("/{tournament_id}/regenerate", dependencies=[Depends(get_current_user)])
 async def regenerate_tournament(tournament_id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    try:
-        await regenerate_tournament_brackets(db, tournament_id)
-        return {"status": "ok"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    await regenerate_tournament_service(db, tournament_id)
+    return {"status": "ok"}
 
 
 @router.get("/{tournament_id}/export_file", dependencies=[Depends(get_current_user)])
 async def generate_brackets_export_file(tournament_id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    tournament = await db.get(Tournament, tournament_id)
-    if not tournament:
-        raise HTTPException(status_code=404, detail="Tournament not found")
-    tournament_title = f"{tournament.name} - {tournament.start_date.strftime('%d.%m.%Y')}"
-    final_filename = f"{sanitize_filename(tournament_title)}.pdf"
-    final_path = Path("pdf_storage") / final_filename
-
-    if final_path.exists():
-        file_mtime = datetime.fromtimestamp(final_path.stat().st_mtime, UTC)
-
-        export_updated_at = tournament.export_last_updated_at
-        if export_updated_at is not None and file_mtime > export_updated_at:
-            pass
-        else:
-            data = await get_matches_for_tournament_raw(tournament_id, db)
-            await run_in_threadpool(generate_pdf, data, tournament_title)
-    else:
-        data = await get_matches_for_tournament_raw(tournament_id, db)
-        await run_in_threadpool(generate_pdf, data, tournament_title)
-
-    return {"filename": str(final_path)}
+    return await generate_brackets_export_file_service(db, tournament_id)
 
 
 @router.post("/{tournament_id}/import", dependencies=[Depends(get_current_user)])
@@ -341,11 +140,32 @@ async def import_competitors(
         raise HTTPException(status_code=500, detail=f"An error occurred while importing competitors: {str(e)}")
 
 
+@router.get("/{tournament_id}/timetable", response_model=list[TimetableEntryResponse])
+async def get_timetable(
+    tournament_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> list[TimetableEntryResponse]:
+    entries = await list_timetable_entries_service(db, tournament_id)
+    return [TimetableEntryResponse.model_validate(entry) for entry in entries]
+
+
+@router.put(
+    "/{tournament_id}/timetable/replace",
+    dependencies=[Depends(get_current_user)],
+    response_model=list[TimetableEntryResponse],
+)
+async def replace_timetable(
+    tournament_id: int,
+    payload: TimetableReplace,
+    db: AsyncSession = Depends(get_db),
+) -> list[TimetableEntryResponse]:
+    entries = await replace_timetable_entries_service(db, tournament_id, payload)
+    return [TimetableEntryResponse.model_validate(entry) for entry in entries]
+
+
 @router.get("/{id}/status")
 async def get_tournament_status(id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    tournament = await db.get(Tournament, id)
-    if not tournament:
-        raise HTTPException(404, "Tournament not found")
+    tournament = await get_tournament_service(db, id)
     return {"status": tournament.status}
 
 
@@ -355,37 +175,14 @@ async def update_tournament_status(
     status: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
 ) -> TournamentResponse:
-    tournament = await db.get(Tournament, id)
-    if not tournament:
-        raise HTTPException(404, "Tournament not found")
-    if status not in [s.value for s in TournamentStatus]:
-        raise HTTPException(400, f"Invalid status: {status}")
-
-    try:
-        tournament.status = status
-        await db.commit()
-        await db.refresh(tournament)
-        return TournamentResponse.model_validate(tournament)
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="An error occurred while updating tournament status")
+    tournament = await update_tournament_status_service(db, id, status)
+    return TournamentResponse.model_validate(tournament)
 
 
 @router.post("/{id}/start", dependencies=[Depends(get_current_user)])
 async def start_tournament(id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    tournament = await db.get(Tournament, id)
-    if not tournament:
-        raise HTTPException(404, "Tournament not found")
-    if tournament.status != TournamentStatus.UPCOMING.value:
-        raise HTTPException(400, "Tournament already started or finished")
-
-    try:
-        tournament.status = TournamentStatus.STARTED.value
-        await db.commit()
-        return {"status": "ok"}
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="An error occurred while starting the tournament")
+    await start_tournament_service(db, id)
+    return {"status": "ok"}
 
 
 @router.get("/{tournament_id}/applications", response_model=list[ApplicationResponse])
@@ -393,32 +190,8 @@ async def get_applications(
     tournament_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> list[ApplicationResponse]:
-    try:
-        result = await db.execute(
-            select(Application)
-            .options(
-                selectinload(Application.athlete).selectinload(Athlete.coaches),  # <-- грузим тренеров
-                selectinload(Application.category),
-            )
-            .where(Application.tournament_id == tournament_id)
-        )
-        applications = result.scalars().all()
-
-        responses: list[ApplicationResponse] = []
-        for app in applications:
-            athlete = app.athlete
-            athlete_response = AthleteResponse.model_validate(athlete)
-            athlete_response.coaches_id = [c.id for c in athlete.coaches]
-            athlete_response.coaches_last_name = [c.last_name for c in athlete.coaches]
-
-            application_response = ApplicationResponse.model_validate(app)
-            application_response.athlete = athlete_response
-            responses.append(application_response)
-
-        return responses
-
-    except Exception:
-        raise HTTPException(status_code=500, detail="An error occurred while fetching applications")
+    applications = await get_applications_service(db, tournament_id)
+    return [ApplicationResponse.model_validate(app) for app in applications]
 
 
 @router.post("/{tournament_id}/applications")
@@ -427,32 +200,8 @@ async def submit_application(
     data: ApplicationCreate,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    existing = await db.execute(
-        select(Application).where(
-            Application.tournament_id == tournament_id,
-            Application.athlete_id == data.athlete_id,
-            Application.category_id == data.category_id,
-        )
-    )
-    if existing.scalar():
-        raise HTTPException(status_code=400, detail="Application already exists")
-
-    try:
-        application = Application(
-            tournament_id=tournament_id,
-            category_id=data.category_id,
-            athlete_id=data.athlete_id,
-            status="pending",
-        )
-        db.add(application)
-        await db.commit()
-        return {"status": "ok"}
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(status_code=400, detail="Invalid tournament, athlete, or category")
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="An error occurred while submitting the application")
+    await submit_application_service(db, tournament_id, data)
+    return {"status": "ok"}
 
 
 @router.post(
@@ -464,70 +213,9 @@ async def add_participant_from_application(
     application_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    # 1. Find the application
-    app = await db.get(Application, application_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-
-    # 2. Find the bracket for this tournament/category
-    bracket_result = await db.execute(
-        select(Bracket).where(
-            Bracket.tournament_id == app.tournament_id,
-            Bracket.category_id == app.category_id,
-        )
-    )
-    bracket = bracket_result.scalars().first()
-    if not bracket:
-        # Create bracket if not found
-        bracket = Bracket(
-            tournament_id=app.tournament_id,
-            category_id=app.category_id,
-        )
-        db.add(bracket)
-        await db.commit()
-        await db.refresh(bracket)
-
-    # 3. Check if already in bracket
-    existing = await db.execute(
-        select(BracketParticipant).where(
-            BracketParticipant.bracket_id == bracket.id,
-            BracketParticipant.athlete_id == app.athlete_id,
-        )
-    )
-    if existing.scalars().first():
-        raise HTTPException(status_code=400, detail="Athlete already in bracket")
-
-    # 4. Find max seed
-    result = await db.execute(
-        select(BracketParticipant.seed)
-        .where(BracketParticipant.bracket_id == bracket.id)
-        .order_by(BracketParticipant.seed.desc())
-        .limit(1)
-    )
-    max_seed = result.scalar() or 0
-    new_seed = (max_seed or 0) + 1
-
-    # 5. Add BracketParticipant
-    participant = BracketParticipant(
-        bracket_id=bracket.id,
-        athlete_id=app.athlete_id,
-        seed=new_seed,
-    )
-    db.add(participant)
-
-    # 6. Update Application status
-    app.status = ApplicationStatus.APPROVED.value
-
-    try:
-        await db.commit()
-
-        # 7. Regenerate matches
-        await regenerate_matches_endpoint(bracket.id, db)
-
-        return {"status": "ok"}
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="An error occurred while approving the application")
+    bracket_id = await approve_application_service(db, tournament_id, application_id)
+    await regenerate_matches_endpoint(bracket_id, db)
+    return {"status": "ok"}
 
 
 @router.post(
@@ -538,76 +226,12 @@ async def approve_all_applications(
     tournament_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, int | str]:
-    # 1. Find all pending applications for the tournament (and category if provided)
-    query = select(Application).where(Application.tournament_id == tournament_id)
-    query = query.where(Application.status == ApplicationStatus.PENDING.value)
-    applications_result = await db.execute(query)
-    applications = applications_result.scalars().all()
-    if not applications:
+    approved_count, updated_bracket_ids = await approve_all_applications_service(db, tournament_id)
+    if approved_count == 0:
         return {"status": "no applications to approve"}
-
-    # 2. Group by (category_id)
-    from collections import defaultdict
-
-    apps_by_category = defaultdict(list)
-    for app in applications:
-        apps_by_category[app.category_id].append(app)
-
-    updated_bracket_ids = set()
-    for category_id, apps in apps_by_category.items():
-        # Find bracket for this tournament/category
-        bracket_result = await db.execute(
-            select(Bracket).where(
-                Bracket.tournament_id == tournament_id,
-                Bracket.category_id == category_id,
-            )
-        )
-        bracket = bracket_result.scalars().first()
-        if not bracket:
-            # Create bracket if not found
-            bracket = Bracket(
-                tournament_id=tournament_id,
-                category_id=category_id,
-            )
-            db.add(bracket)
-            await db.commit()
-            await db.refresh(bracket)
-        # Find max seed
-        max_seed_result = await db.execute(
-            select(BracketParticipant.seed)
-            .where(BracketParticipant.bracket_id == bracket.id)
-            .order_by(BracketParticipant.seed.desc())
-            .limit(1)
-        )
-        max_seed = max_seed_result.scalar() or 0
-        # Add each application as participant if not already present
-        for i, app in enumerate(apps):
-            existing = await db.execute(
-                select(BracketParticipant).where(
-                    BracketParticipant.bracket_id == bracket.id,
-                    BracketParticipant.athlete_id == app.athlete_id,
-                )
-            )
-            if existing.scalars().first():
-                continue
-            participant = BracketParticipant(
-                bracket_id=bracket.id,
-                athlete_id=app.athlete_id,
-                seed=max_seed + i + 1,
-            )
-            db.add(participant)
-            app.status = ApplicationStatus.APPROVED.value
-        updated_bracket_ids.add(bracket.id)
-
-    try:
-        await db.commit()
-        # Regenerate matches for all updated brackets
-        for bracket_id in updated_bracket_ids:
-            await regenerate_matches_endpoint(bracket_id, db)
-        return {"status": "ok", "approved": len(applications)}
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="An error occurred while approving applications")
+    for bracket_id in updated_bracket_ids:
+        await regenerate_matches_endpoint(bracket_id, db)
+    return {"status": "ok", "approved": approved_count}
 
 
 @router.delete("/participants/{participant_id}", dependencies=[Depends(get_current_user)])
@@ -615,43 +239,7 @@ async def remove_competitor(
     participant_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    result = await db.execute(
-        select(BracketParticipant)
-        .options(selectinload(BracketParticipant.bracket))
-        .where(BracketParticipant.id == participant_id)
-    )
-    participant = result.scalars().first()
-
-    if not participant:
-        raise HTTPException(status_code=404, detail="Participant not found")
-
-    bracket_id = participant.bracket_id
-    athlete_id = participant.athlete_id
-    tournament_id = participant.bracket.tournament_id if participant.bracket else None
-    category_id = participant.bracket.category_id if participant.bracket else None
-
-    try:
-        await db.delete(participant)
-
-        await reorder_seeds_and_get_next(db, participant.bracket_id)
-
-        if tournament_id and category_id and athlete_id:
-            apps = await db.execute(
-                # TO-DO: Fix by adding BracketParticipant id to Application after approval
-                select(Application).where(
-                    Application.tournament_id == tournament_id,
-                    Application.athlete_id == athlete_id,
-                )
-            )
-            for app in apps.scalars().all():
-                await db.delete(app)
-
-        await db.commit()
-
-        if bracket_id:
-            await regenerate_matches_endpoint(bracket_id, db)
-
-        return {"status": "ok"}
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="An error occurred while removing the competitor")
+    bracket_id = await remove_competitor_service(db, participant_id)
+    if bracket_id:
+        await regenerate_matches_endpoint(bracket_id, db)
+    return {"status": "ok"}

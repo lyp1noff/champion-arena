@@ -10,9 +10,35 @@ interface BracketCardProps {
   bracketMatches: BracketMatches;
   matchCardHeight?: number;
   matchCardWidth?: number;
+  medalByAthleteId?: Record<number, "gold" | "silver" | "bronze">;
 }
 
-export default function BracketContent({ bracketMatches, matchCardHeight = 80, matchCardWidth }: BracketCardProps) {
+const CONNECTOR_COLOR = "hsl(var(--foreground))";
+
+function groupAndSortRounds(bracketMatches: BracketMatches) {
+  const groupedRounds = bracketMatches.reduce(
+    (acc, bracketMatch) => {
+      if (!acc[bracketMatch.round_number]) acc[bracketMatch.round_number] = [];
+      acc[bracketMatch.round_number].push(bracketMatch);
+      return acc;
+    },
+    {} as Record<number, BracketMatches>,
+  );
+
+  return Object.entries(groupedRounds)
+    .map(([roundStr, matches]) => ({
+      round: Number(roundStr),
+      bracketMatches: matches.sort((a, b) => a.position - b.position),
+    }))
+    .sort((a, b) => a.round - b.round);
+}
+
+export default function BracketContent({
+  bracketMatches,
+  matchCardHeight = 80,
+  matchCardWidth,
+  medalByAthleteId,
+}: BracketCardProps) {
   const t = useTranslations("Round");
   const {
     cardHeight: fallbackCardHeight,
@@ -24,22 +50,7 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
 
   const cardHeight = matchCardHeight || fallbackCardHeight;
   const cardWidth = matchCardWidth || fallbackCardWidth;
-
-  const groupedRounds = bracketMatches.reduce(
-    (acc, bracketMatch) => {
-      if (!acc[bracketMatch.round_number]) acc[bracketMatch.round_number] = [];
-      acc[bracketMatch.round_number].push(bracketMatch);
-      return acc;
-    },
-    {} as Record<number, BracketMatches>,
-  );
-
-  const sortedRounds = Object.entries(groupedRounds)
-    .map(([roundStr, bracketMatches]) => ({
-      round: Number(roundStr),
-      bracketMatches: bracketMatches.sort((a, b) => a.position - b.position),
-    }))
-    .sort((a, b) => a.round - b.round);
+  const sortedRounds = groupAndSortRounds(bracketMatches);
 
   const maxMatchesInRound = Math.max(...sortedRounds.map((r) => r.bracketMatches.length));
 
@@ -59,7 +70,7 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
       <div className="flex items-start justify-center" style={{ columnGap }}>
         {sortedRounds.map(({ round, bracketMatches }) => {
           const roundType = bracketMatches.find((m) => m.match?.round_type)?.match.round_type;
-          const label = roundType ? t(roundType) : t("round", { number: round });
+          const label = roundType && roundType !== "round" ? t(roundType) : t("round", { number: round });
 
           return (
             <ul
@@ -113,7 +124,7 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
                             right: connectorX,
                             width: columnGap / 2 + lineWidth / 2,
                             height: lineWidth,
-                            backgroundColor: "hsl(var(--foreground))",
+                            backgroundColor: CONNECTOR_COLOR,
                           }}
                         />
 
@@ -125,7 +136,7 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
                             width: lineWidth,
                             height: connectorY - horizontalYOffset,
                             [isMatchOdd ? "bottom" : "top"]: horizontalYOffset,
-                            backgroundColor: "hsl(var(--foreground))",
+                            backgroundColor: CONNECTOR_COLOR,
                           }}
                         />
 
@@ -137,13 +148,18 @@ export default function BracketContent({ bracketMatches, matchCardHeight = 80, m
                             width: columnGap / 2 + lineWidth / 2,
                             height: lineWidth,
                             [!isMatchOdd ? "bottom" : "top"]: totalYOffset,
-                            backgroundColor: "hsl(var(--foreground))",
+                            backgroundColor: CONNECTOR_COLOR,
                           }}
                         />
                       </>
                     )}
 
-                    <MatchCard bracketMatch={bracketMatch} height={cardHeight} width={cardWidth} />
+                    <MatchCard
+                      bracketMatch={bracketMatch}
+                      height={cardHeight}
+                      width={cardWidth}
+                      medalByAthleteId={medalByAthleteId}
+                    />
                   </li>
                 );
               })}

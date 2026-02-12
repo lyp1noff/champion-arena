@@ -11,7 +11,7 @@ export const ROUND_TYPE = {
   FINAL: "final",
   SEMIFINAL: "semifinal",
   QUARTERFINAL: "quarterfinal",
-  OTHER: "",
+  ROUND: "round",
 } as const;
 
 export type ROUND_TYPE = (typeof ROUND_TYPE)[keyof typeof ROUND_TYPE];
@@ -92,13 +92,14 @@ export type Bracket = {
   tournament_id: number;
   category: string;
   type: BracketType;
-  start_time: string | null;
-  day: number;
-  tatami: number;
   group_id?: number;
   display_name?: string;
   status: BRACKET_STATUS;
   participants: Participant[];
+  place_1?: BracketMatchAthlete | null;
+  place_2?: BracketMatchAthlete | null;
+  place_3_a?: BracketMatchAthlete | null;
+  place_3_b?: BracketMatchAthlete | null;
 };
 export type BracketUpdate = Partial<Bracket>;
 
@@ -117,7 +118,10 @@ export type BracketMatchAthlete = {
 
 export type Match = {
   id: string;
-  round_type: ROUND_TYPE;
+  round_type: ROUND_TYPE | string;
+  stage?: "main" | "repechage";
+  repechage_side?: "A" | "B" | null;
+  repechage_step?: number | null;
   athlete1: BracketMatchAthlete | null;
   athlete2: BracketMatchAthlete | null;
   winner: BracketMatchAthlete | null;
@@ -140,9 +144,6 @@ export type BracketMatches = BracketMatch[];
 export type BracketMatchesFull = {
   category: string;
   type: BracketType;
-  start_time: string | null;
-  day: number;
-  tatami: number;
   group_id?: number;
   display_name?: string;
   status: BRACKET_STATUS;
@@ -176,12 +177,28 @@ export interface BracketCreate {
   category_id: number;
   group_id?: number;
   type?: string;
-  start_time?: string;
-  tatami?: number;
 }
 
 export interface BracketDelete {
   target_bracket_id?: number;
+}
+
+export type TimetableEntryType = "bracket" | "break" | "custom";
+
+export interface TimetableEntry {
+  id: number;
+  tournament_id: number;
+  entry_type: TimetableEntryType;
+  day: number;
+  tatami: number;
+  start_time: string;
+  end_time: string;
+  order_index: number;
+  title?: string | null;
+  notes?: string | null;
+  bracket_id?: number | null;
+  bracket_display_name?: string | null;
+  bracket_type?: BracketType | null;
 }
 
 // export interface CategoryCreate {

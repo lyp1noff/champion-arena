@@ -3,8 +3,13 @@ import asyncio
 import typer
 
 from src.database import get_async_session
+from src.models import Bracket, BracketState, BracketStatus, BracketType
 from src.services import auth
-from src.services.brackets import regenerate_tournament_brackets
+from src.services.brackets import (
+    regenerate_bracket_matches,
+    regenerate_round_bracket_matches,
+    regenerate_tournament_brackets,
+)
 
 cli = typer.Typer(help="CLI for admin operations")
 
@@ -47,6 +52,34 @@ def regenerate_tournament(
         typer.echo(f"Tournament {tournament_id} regenerated")
     except Exception as e:
         typer.echo(f"Failed to regenerate tournament {tournament_id}: {e}", err=True)
+        raise typer.Exit(code=1)
+
+
+@cli.command("reset-bracket-draft", help="Set bracket to draft-like state and regenerate it by bracket ID")
+def reset_bracket_draft(
+    bracket_id: int = typer.Argument(..., help="ID of the bracket to reset"),
+) -> None:
+    async def _run() -> None:
+        async with get_async_session() as db:
+            bracket = await db.get(Bracket, bracket_id)
+            if bracket is None:
+                raise RuntimeError(f"Bracket {bracket_id} not found")
+
+            bracket.state = BracketState.DRAFT.value
+            bracket.status = BracketStatus.PENDING.value
+            bracket.version += 1
+            await db.commit()
+
+            if bracket.type == BracketType.ROUND_ROBIN.value:
+                await regenerate_round_bracket_matches(db, bracket.id, bracket.tournament_id)
+            else:
+                await regenerate_bracket_matches(db, bracket.id, bracket.tournament_id)
+
+    try:
+        asyncio.run(_run())
+        typer.echo(f"Bracket {bracket_id} switched to draft and regenerated")
+    except Exception as e:
+        typer.echo(f"Failed to reset bracket {bracket_id}: {e}", err=True)
         raise typer.Exit(code=1)
 
 

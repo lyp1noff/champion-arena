@@ -1,7 +1,6 @@
 import { LiveBadge } from "@/components/bracket/live-badge";
 import { ParticipantNameWithMenu } from "@/components/bracket/participant-name-with-menu";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { useMatchUpdate } from "@/components/websocket-provider";
 
 import { BracketMatches } from "@/lib/interfaces";
 import { getUniqueAthletes } from "@/lib/utils";
@@ -26,12 +25,9 @@ function SameAthleteCell() {
 }
 
 function ScoreCell({ bm, rowId }: { bm: BracketMatches[number]; rowId: number }) {
-  const upd = useMatchUpdate(bm.match.id);
-
-  const status = upd?.status ?? bm.match.status;
-
-  const s1 = upd?.score_athlete1 ?? bm.match.score_athlete1;
-  const s2 = upd?.score_athlete2 ?? bm.match.score_athlete2;
+  const status = bm.match.status;
+  const s1 = bm.match.score_athlete1;
+  const s2 = bm.match.score_athlete2;
 
   const rowIsAth1 = bm.match.athlete1?.id === rowId;
   const left = rowIsAth1 ? s1 : s2;

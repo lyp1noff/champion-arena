@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { getBracketMatchesById, updateBracket } from "@/lib/api/brackets";
 import { getTournamentBracketsById } from "@/lib/api/tournaments";
 import { Bracket, BracketMatches, BracketType } from "@/lib/interfaces";
-import { formatTimeToISO } from "@/lib/utils";
 
 import ManageTournamentPage from "./ManageTournamentPage";
 
@@ -65,19 +64,11 @@ export default function Page() {
     await refreshBracketsAndSelect(bracket?.id ?? null);
   };
 
-  const handleSave = async (updated: {
-    id: number;
-    type: BracketType;
-    start_time: string;
-    tatami: number;
-    group_id: number;
-    category_id?: string;
-  }) => {
+  const handleSave = async (updated: { id: number; type: BracketType; group_id: number; category_id?: string }) => {
     setLoading(true);
     try {
       const formatted = {
         ...updated,
-        start_time: formatTimeToISO(updated.start_time),
         category_id: updated.category_id ? parseInt(updated.category_id) : undefined,
       };
       await updateBracket(updated.id, formatted);

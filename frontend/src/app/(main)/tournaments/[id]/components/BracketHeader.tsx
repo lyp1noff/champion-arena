@@ -9,11 +9,12 @@ import { getBracketDisplayName } from "@/lib/utils";
 
 interface BracketHeaderProps {
   bracket: Bracket;
+  time?: string | null;
 }
 
-export function BracketHeader({ bracket }: BracketHeaderProps) {
+export function BracketHeader({ bracket, time }: BracketHeaderProps) {
   const title = getBracketDisplayName(bracket.category, bracket.group_id);
-  const time = bracket.start_time?.slice(0, 5) ?? "-";
+  const timeLabel = time ? time.slice(0, 5) : "-";
   const count = bracket.participants.length;
   const showStatus = bracket.status === BRACKET_STATUS.STARTED || bracket.status === BRACKET_STATUS.FINISHED;
 
@@ -24,7 +25,7 @@ export function BracketHeader({ bracket }: BracketHeaderProps) {
         <span className="text-base font-semibold group-hover:underline underline-offset-4">{title}</span>
 
         <div className="flex flex-row items-center w-full">
-          <BracketMeta time={time} count={count} />
+          <BracketMeta time={timeLabel} count={count} />
           {showStatus && <BracketStatus status={bracket.status} />}
         </div>
       </div>
@@ -35,7 +36,7 @@ export function BracketHeader({ bracket }: BracketHeaderProps) {
 
         <div className="flex gap-6 text-muted-foreground pr-4">
           {showStatus && <BracketStatus status={bracket.status} />}
-          <span className="tabular-nums">{time}</span>
+          <span className="tabular-nums">{timeLabel}</span>
           <BracketCount count={count} />
         </div>
       </div>

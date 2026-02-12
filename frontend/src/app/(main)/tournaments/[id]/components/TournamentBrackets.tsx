@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { BracketHeader } from "@/app/(main)/tournaments/[id]/components/BracketHeader";
-import { RefreshCcw, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useDebounce } from "use-debounce";
 
-import { BracketView } from "@/components/bracket/bracket-view";
+import { BracketView, type Placement } from "@/components/bracket/bracket-view";
 import { SkeletonBracketView } from "@/components/bracket/skeleton-bracket";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WebSocketProvider } from "@/components/websocket-provider";
 
-import { getBracketMatchesById } from "@/lib/api/brackets";
-import { Bracket, BracketMatches, Tournament } from "@/lib/interfaces";
+import { getBracketMatchesById, getBracketsById } from "@/lib/api/brackets";
+import { Bracket, BracketMatches, TimetableEntry, Tournament } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
 import { ParticipantsView } from "./ParticipantsView";
@@ -26,9 +26,10 @@ import { ParticipantsView } from "./ParticipantsView";
 interface TournamentPageContentProps {
   tournament: Tournament | null;
   brackets: Bracket[];
+  timetableEntries: TimetableEntry[];
 }
 
-export default function TournamentBrackets({ tournament, brackets }: TournamentPageContentProps) {
+export default function TournamentBrackets({ tournament, brackets, timetableEntries }: TournamentPageContentProps) {
   const t = useTranslations("TournamentPage");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,9 +39,16 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
   const urlDay = searchParams.get("day");
 
   const [tab, setTab] = useState("brackets");
+  const [bracketsState, setBracketsState] = useState<Bracket[]>(brackets);
   const [loadedBracketMatches, setLoadedBracketMatches] = useState<Record<number, { matches: BracketMatches }>>({});
-  const [filteredBrackets, setFilteredBrackets] = useState<Bracket[]>([]);
+  const loadedBracketIdsRef = useRef<number[]>([]);
+  const [wsVersion, setWsVersion] = useState(0);
+  const [filteredEntries, setFilteredEntries] = useState<TimetableEntry[]>([]);
   const [selectedDay, setSelectedDay] = useState<string>("1");
+
+  useEffect(() => {
+    setBracketsState(brackets);
+  }, [brackets]);
 
   const loadBracketData = async (bracketId: number, force?: boolean) => {
     if (!force && loadedBracketMatches[bracketId]) return;
@@ -59,14 +67,28 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
     }
   };
 
+  const bracketMap = useMemo(() => {
+    const map = new Map<number, Bracket>();
+    for (const bracket of bracketsState) {
+      map.set(bracket.id, bracket);
+    }
+    return map;
+  }, [bracketsState]);
+
   useEffect(() => {
-    if (!brackets.length) return;
+    if (!timetableEntries.length) return;
     const searchLower = (debouncedSearch ?? "").trim().toLowerCase();
     if (!searchLower) {
-      setFilteredBrackets(brackets);
+      setFilteredEntries(timetableEntries);
       return;
     }
-    const result = brackets.filter((bracket) => {
+    const result = timetableEntries.filter((entry) => {
+      if (entry.entry_type !== "bracket") {
+        const title = entry.title?.toLowerCase() ?? "";
+        return title.includes(searchLower);
+      }
+      const bracket = entry.bracket_id ? bracketMap.get(entry.bracket_id) : undefined;
+      if (!bracket) return false;
       const matchesBracketCategory = bracket.category?.toLowerCase().includes(searchLower);
       const matchesDisplayName = getBracketDisplayName(bracket.category, bracket.group_id)
         .toLowerCase()
@@ -81,13 +103,13 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
       });
       return matchesBracketCategory || matchesDisplayName || matchesParticipant;
     });
-    setFilteredBrackets(result);
+    setFilteredEntries(result);
 
-    const days = [...new Set(result.map((b) => String(b.day ?? 1)))];
+    const days = [...new Set(result.map((entry) => String(entry.day)))];
     if (days.length === 1) {
       setSelectedDay(days[0]);
     }
-  }, [debouncedSearch, brackets]);
+  }, [debouncedSearch, timetableEntries, bracketMap]);
 
   const handleDayChange = (v: string) => {
     setSelectedDay(v);
@@ -96,17 +118,69 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
     router.replace(`?${params.toString()}`, { scroll: false });
   };
 
-  const bracketsByDayTatami = filteredBrackets.reduce<Record<string, Record<string, typeof brackets>>>(
-    (acc, bracket) => {
-      const dayKey = String(bracket.day ?? 1);
-      const tatamiKey = bracket.tatami ?? t("unknownTatami");
-      if (!acc[dayKey]) acc[dayKey] = {};
-      if (!acc[dayKey][tatamiKey]) acc[dayKey][tatamiKey] = [];
-      acc[dayKey][tatamiKey].push(bracket);
-      return acc;
-    },
-    {},
-  );
+  useEffect(() => {
+    loadedBracketIdsRef.current = Object.keys(loadedBracketMatches).map((id) => Number(id));
+  }, [loadedBracketMatches]);
+
+  const refreshLoadedBrackets = useCallback(async () => {
+    const ids = loadedBracketIdsRef.current;
+    if (!ids.length) return;
+
+    const [matchesResponses, bracketResponses] = await Promise.all([
+      Promise.allSettled(ids.map((id) => getBracketMatchesById(id))),
+      Promise.allSettled(ids.map((id) => getBracketsById(id))),
+    ]);
+
+    setLoadedBracketMatches((prev) => {
+      const next = { ...prev };
+      matchesResponses.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          next[ids[index]] = { matches: result.value };
+        }
+      });
+      return next;
+    });
+
+    setBracketsState((prev) => {
+      const byId = new Map(prev.map((b) => [b.id, b]));
+      bracketResponses.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          byId.set(ids[index], result.value);
+        }
+      });
+      return Array.from(byId.values());
+    });
+  }, []);
+
+  const handleAnyWsUpdate = useCallback(() => {
+    setWsVersion((prev) => prev + 1);
+  }, []);
+
+  useEffect(() => {
+    if (wsVersion === 0) return;
+    const timer = setTimeout(() => {
+      void refreshLoadedBrackets();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [wsVersion, refreshLoadedBrackets]);
+
+  const bracketPlacements = (bracket: Bracket) => {
+    const placements: Placement[] = [];
+    if (bracket.place_1) placements.push({ place: 1 as const, athlete: bracket.place_1 });
+    if (bracket.place_2) placements.push({ place: 2 as const, athlete: bracket.place_2 });
+    if (bracket.place_3_a) placements.push({ place: 3 as const, athlete: bracket.place_3_a });
+    if (bracket.place_3_b) placements.push({ place: 3 as const, athlete: bracket.place_3_b });
+    return placements;
+  };
+
+  const entriesByDayTatami = filteredEntries.reduce<Record<string, Record<string, TimetableEntry[]>>>((acc, entry) => {
+    const dayKey = String(entry.day);
+    const tatamiKey = entry.tatami;
+    if (!acc[dayKey]) acc[dayKey] = {};
+    if (!acc[dayKey][tatamiKey]) acc[dayKey][tatamiKey] = [];
+    acc[dayKey][tatamiKey].push(entry);
+    return acc;
+  }, {});
 
   useEffect(() => {
     if (urlDay) {
@@ -123,7 +197,7 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
 
       const computedDay = nowDay >= startDay && nowDay <= endDay ? Math.floor((+nowDay - +startDay) / 86400000) + 1 : 1;
 
-      const existingDays = Object.keys(bracketsByDayTatami).map(Number);
+      const existingDays = Object.keys(entriesByDayTatami).map(Number);
 
       const validDay = existingDays.includes(computedDay)
         ? computedDay
@@ -133,7 +207,7 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
 
       setSelectedDay(String(validDay));
     }
-  }, [urlDay, tournament, bracketsByDayTatami]);
+  }, [urlDay, tournament, entriesByDayTatami]);
 
   return (
     <div>
@@ -158,11 +232,11 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
         </Tabs>
       </div>
 
-      <WebSocketProvider tournamentId={String(tournament?.id)}>
+      <WebSocketProvider tournamentId={String(tournament?.id)} onAnyUpdate={handleAnyWsUpdate}>
         <Tabs value={selectedDay} onValueChange={handleDayChange}>
-          {Object.keys(bracketsByDayTatami).length > 1 && (
+          {Object.keys(entriesByDayTatami).length > 1 && (
             <TabsList>
-              {Object.keys(bracketsByDayTatami)
+              {Object.keys(entriesByDayTatami)
                 .sort()
                 .map((day) => (
                   <TabsTrigger key={day} value={day}>
@@ -171,9 +245,9 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
                 ))}
             </TabsList>
           )}
-          {Object.entries(bracketsByDayTatami).map(([day, tatamis]) => (
+          {Object.entries(entriesByDayTatami).map(([day, tatamis]) => (
             <TabsContent key={day} value={day}>
-              {Object.entries(tatamis).map(([tatami, tatamiBrackets]) => (
+              {Object.entries(tatamis).map(([tatami, tatamiEntries]) => (
                 <div key={tatami} className="mt-10">
                   <h2 className="text-2xl font-bold mb-2">
                     {t("tatami")} {tatami}
@@ -184,46 +258,86 @@ export default function TournamentBrackets({ tournament, brackets }: TournamentP
                     // value={openBracketIds}
                     // onValueChange={setOpenBracketIds}
                   >
-                    {tatamiBrackets.map((bracket) => (
-                      <AccordionItem key={bracket.id} value={String(bracket.id)}>
-                        <AccordionTrigger
-                          className="group hover:no-underline"
-                          onClick={() => loadBracketData(bracket.id)}
-                        >
-                          <BracketHeader bracket={bracket} />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          {tab !== "brackets" ? (
-                            <ParticipantsView bracket={bracket} />
-                          ) : (
-                            <>
-                              <div className="pb-4 flex justify-end">
-                                <button
-                                  className="p-2 border rounded-full"
-                                  onClick={async (e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    await loadBracketData(bracket.id, true);
-                                  }}
-                                  aria-label="Reload bracket"
-                                  type="button"
-                                >
-                                  <RefreshCcw className="w-5 h-5" />
-                                </button>
-                              </div>
-                              {loadedBracketMatches[bracket.id] ? (
-                                <BracketView
-                                  matches={loadedBracketMatches[bracket.id].matches}
-                                  bracketType={bracket.type}
-                                />
+                    {tatamiEntries
+                      .sort((a, b) => a.order_index - b.order_index)
+                      .map((entry) => {
+                        if (entry.entry_type !== "bracket") {
+                          return (
+                            <AccordionItem key={`custom-${entry.id}`} value={`custom-${entry.id}`}>
+                              <AccordionTrigger className="group hover:no-underline">
+                                <div className="flex flex-col text-left">
+                                  <span className="font-semibold">{entry.title ?? t("customEntry")}</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {entry.start_time.slice(0, 5)} – {entry.end_time.slice(0, 5)}
+                                  </span>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className="text-sm text-muted-foreground">{entry.notes ?? "-"}</div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          );
+                        }
+
+                        const bracket = entry.bracket_id ? bracketMap.get(entry.bracket_id) : undefined;
+                        if (!bracket) {
+                          return (
+                            <AccordionItem key={`missing-${entry.id}`} value={`missing-${entry.id}`}>
+                              <AccordionTrigger className="group hover:no-underline">
+                                {t("unknownBracket")}
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className="text-sm text-muted-foreground">{t("unknownBracket")}</div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          );
+                        }
+
+                        return (
+                          <AccordionItem key={bracket.id} value={String(bracket.id)}>
+                            <AccordionTrigger
+                              className="group hover:no-underline"
+                              onClick={() => loadBracketData(bracket.id)}
+                            >
+                              <BracketHeader bracket={bracket} time={entry.start_time} />
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              {tab !== "brackets" ? (
+                                <ParticipantsView bracket={bracket} />
                               ) : (
-                                <SkeletonBracketView bracketType={bracket.type} count={bracket.participants.length} />
+                                <>
+                                  {/*<div className="pb-4 flex justify-end">*/}
+                                  {/*  <button*/}
+                                  {/*    className="p-2 border rounded-full"*/}
+                                  {/*    onClick={async (e) => {*/}
+                                  {/*      e.preventDefault();*/}
+                                  {/*      e.stopPropagation();*/}
+                                  {/*      await loadBracketData(bracket.id, true);*/}
+                                  {/*    }}*/}
+                                  {/*    aria-label="Reload bracket"*/}
+                                  {/*    type="button"*/}
+                                  {/*  >*/}
+                                  {/*    <RefreshCcw className="w-5 h-5" />*/}
+                                  {/*  </button>*/}
+                                  {/*</div>*/}
+                                  {loadedBracketMatches[bracket.id] ? (
+                                    <BracketView
+                                      matches={loadedBracketMatches[bracket.id].matches}
+                                      bracketType={bracket.type}
+                                      placements={bracketPlacements(bracket)}
+                                    />
+                                  ) : (
+                                    <SkeletonBracketView
+                                      bracketType={bracket.type}
+                                      count={bracket.participants.length}
+                                    />
+                                  )}
+                                </>
                               )}
-                            </>
-                          )}
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
+                            </AccordionContent>
+                          </AccordionItem>
+                        );
+                      })}
                   </Accordion>
                 </div>
               ))}

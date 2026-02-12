@@ -33,12 +33,15 @@
     "unknownTatami": "Невідомо",
     "day": "День {number}",
     "started": "Триває",
-    "finished": "Закінчено"
+    "finished": "Закінчено",
+    "customEntry": "Кастомний запис",
+    "unknownBracket": "Невідома сітка"
   },
   "Round": {
     "final": "Фінал",
     "semifinal": "Півфінал",
     "quarterfinal": "Чвертьфінал",
+    "group": "Група",
     "round": "Раунд {number}"
   },
   "Login": {
@@ -63,6 +66,7 @@
     "open": "Відкрити",
     "edit": "Редагувати",
     "manage": "Керувати",
+    "timetable": "Розклад",
     "exportToFile": "Експортувати у файл",
     "applications": "Заявки",
     "reports": "Виписки",
