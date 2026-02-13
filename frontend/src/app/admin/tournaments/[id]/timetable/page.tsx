@@ -348,6 +348,11 @@ export default function TimetablePage() {
   };
 
   const handleCreate = async () => {
+    if (createPayload.day < 1 || createPayload.tatami < 1) {
+      toast.error("Day and Tatami must be at least 1");
+      return;
+    }
+
     const orderIndex =
       Math.max(
         0,
