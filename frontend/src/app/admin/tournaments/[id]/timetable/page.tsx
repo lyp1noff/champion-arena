@@ -77,7 +77,7 @@ export default function TimetablePage() {
   const [tatamiCount, setTatamiCount] = useState(1);
   const [openDialog, setOpenDialog] = useState(false);
   const [editEntry, setEditEntry] = useState<TimetableEntry | null>(null);
-  const [editPayload, setEditPayload] = useState({ day: 1, tatami: 1 });
+  const [editPayload, setEditPayload] = useState({ day: 1, tatami: 1, title: "", notes: "" });
   const [createPayload, setCreatePayload] = useState({
     entry_type: "bracket" as TimetableEntryType,
     day: 1,
@@ -421,7 +421,12 @@ export default function TimetablePage() {
 
   const handleEditOpen = (entry: TimetableEntry) => {
     setEditEntry(entry);
-    setEditPayload({ day: entry.day, tatami: entry.tatami });
+    setEditPayload({
+      day: entry.day,
+      tatami: entry.tatami,
+      title: entry.title ?? "",
+      notes: entry.notes ?? "",
+    });
   };
 
   const handleEditSave = () => {
@@ -432,7 +437,21 @@ export default function TimetablePage() {
     }
     setEntries((prev) =>
       prev.map((entry) =>
-        entry.id === editEntry.id ? { ...entry, day: editPayload.day, tatami: editPayload.tatami } : entry,
+        entry.id === editEntry.id
+          ? {
+              ...entry,
+              day: editPayload.day,
+              tatami: editPayload.tatami,
+              title:
+                editEntry.entry_type === "custom" || editEntry.entry_type === "break"
+                  ? editPayload.title || null
+                  : entry.title,
+              notes:
+                editEntry.entry_type === "custom" || editEntry.entry_type === "break"
+                  ? editPayload.notes || null
+                  : entry.notes,
+            }
+          : entry,
       ),
     );
     setEditEntry(null);
@@ -720,6 +739,24 @@ export default function TimetablePage() {
                 />
               </div>
             </div>
+            {(editEntry?.entry_type === "custom" || editEntry?.entry_type === "break") && (
+              <>
+                <div className="grid gap-2">
+                  <Label>Title</Label>
+                  <Input
+                    value={editPayload.title}
+                    onChange={(event) => setEditPayload((prev) => ({ ...prev, title: event.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Notes</Label>
+                  <Input
+                    value={editPayload.notes}
+                    onChange={(event) => setEditPayload((prev) => ({ ...prev, notes: event.target.value }))}
+                  />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditEntry(null)}>
