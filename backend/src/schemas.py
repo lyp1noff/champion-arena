@@ -329,11 +329,11 @@ class TimetableEntryResponse(TimetableEntryBase):
 
 class TimetableEntryCreate(BaseModel):
     entry_type: str
-    day: int
-    tatami: int
+    day: int = Field(ge=1)
+    tatami: int = Field(ge=1)
     start_time: time
     end_time: time
-    order_index: int
+    order_index: int = Field(ge=1)
     title: Optional[str] = None
     notes: Optional[str] = None
     bracket_id: Optional[int] = None

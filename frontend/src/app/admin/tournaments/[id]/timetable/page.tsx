@@ -50,6 +50,12 @@ function getBracketTypeLabel(type: string) {
   return type === "round_robin" ? "Round Robin" : "Single Elim";
 }
 
+function parsePositiveInt(value: string, fallback = 1): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.floor(parsed));
+}
+
 const SHOW_OVERLAY_FOR_POOL = true;
 
 export default function TimetablePage() {
@@ -383,6 +389,11 @@ export default function TimetablePage() {
   };
 
   const handleSaveTimes = async () => {
+    if (entries.some((entry) => entry.day < 1 || entry.tatami < 1 || entry.order_index < 1)) {
+      toast.error("Day, Tatami and order must be at least 1");
+      return;
+    }
+
     try {
       const payload = entries.map((entry) => ({
         entry_type: entry.entry_type,
@@ -415,6 +426,10 @@ export default function TimetablePage() {
 
   const handleEditSave = () => {
     if (!editEntry) return;
+    if (editPayload.day < 1 || editPayload.tatami < 1) {
+      toast.error("Day and Tatami must be at least 1");
+      return;
+    }
     setEntries((prev) =>
       prev.map((entry) =>
         entry.id === editEntry.id ? { ...entry, day: editPayload.day, tatami: editPayload.tatami } : entry,
@@ -439,7 +454,7 @@ export default function TimetablePage() {
               type="number"
               min={1}
               value={dayCount}
-              onChange={(event) => setDayCount(Math.max(1, Number(event.target.value) || 1))}
+              onChange={(event) => setDayCount(parsePositiveInt(event.target.value))}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -450,7 +465,7 @@ export default function TimetablePage() {
               type="number"
               min={1}
               value={tatamiCount}
-              onChange={(event) => setTatamiCount(Math.max(1, Number(event.target.value) || 1))}
+              onChange={(event) => setTatamiCount(parsePositiveInt(event.target.value))}
             />
           </div>
           <Button onClick={() => setOpenDialog(true)}>Add Entry</Button>
@@ -623,7 +638,9 @@ export default function TimetablePage() {
                   type="number"
                   min={1}
                   value={createPayload.day}
-                  onChange={(event) => setCreatePayload((prev) => ({ ...prev, day: Number(event.target.value) }))}
+                  onChange={(event) =>
+                    setCreatePayload((prev) => ({ ...prev, day: parsePositiveInt(event.target.value) }))
+                  }
                 />
               </div>
               <div className="grid gap-2">
@@ -632,7 +649,9 @@ export default function TimetablePage() {
                   type="number"
                   min={1}
                   value={createPayload.tatami}
-                  onChange={(event) => setCreatePayload((prev) => ({ ...prev, tatami: Number(event.target.value) }))}
+                  onChange={(event) =>
+                    setCreatePayload((prev) => ({ ...prev, tatami: parsePositiveInt(event.target.value) }))
+                  }
                 />
               </div>
             </div>
@@ -684,7 +703,9 @@ export default function TimetablePage() {
                   type="number"
                   min={1}
                   value={editPayload.day}
-                  onChange={(event) => setEditPayload((prev) => ({ ...prev, day: Number(event.target.value) }))}
+                  onChange={(event) =>
+                    setEditPayload((prev) => ({ ...prev, day: parsePositiveInt(event.target.value) }))
+                  }
                 />
               </div>
               <div className="grid gap-2">
@@ -693,7 +714,9 @@ export default function TimetablePage() {
                   type="number"
                   min={1}
                   value={editPayload.tatami}
-                  onChange={(event) => setEditPayload((prev) => ({ ...prev, tatami: Number(event.target.value) }))}
+                  onChange={(event) =>
+                    setEditPayload((prev) => ({ ...prev, tatami: parsePositiveInt(event.target.value) }))
+                  }
                 />
               </div>
             </div>
