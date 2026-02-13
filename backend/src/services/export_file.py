@@ -1,7 +1,9 @@
 import os
 import re
+from datetime import date, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from xml.sax.saxutils import escape
 
 import cairosvg
 from pypdf import PdfReader, PdfWriter
@@ -35,11 +37,6 @@ def build_entry(
         if HIDE_FINISHED_MATCHES and getattr(match.match, "status", "finished") == MatchStatus.FINISHED.value:
             continue
 
-        round_key = f"type_round{rnd}"
-        round_type = (match.match.round_type or f"round {rnd}").strip()
-        if round_type and round_key not in entry:
-            entry[round_key] = round_type
-
         divisor = 2 ** (match.round_number - 1)
         norm_pos = match.position - (position_offset // divisor)
 
@@ -67,6 +64,12 @@ def build_entry(
 def build_round_robin_entry(
     matches: list[BracketMatch], category: str, start_time_tatami: str, tournament_title: str
 ) -> dict[str, str]:
+    def _format_athlete_for_round_template(last_name: str, first_name: str, coach_names: list[str]) -> str:
+        coach_str = ", ".join(coach_names)
+        if not coach_str:
+            return f"{last_name} {first_name}"
+        return f"{last_name} {first_name}\n({coach_str})"
+
     athletes_map = {}
     for match in matches:
         a1 = match.match.athlete1
@@ -74,13 +77,11 @@ def build_round_robin_entry(
         if a1:
             # Get coach names from the many-to-many relationship
             coach_names = [link.coach.last_name for link in a1.coach_links if link.coach is not None]
-            coach_str = ", ".join(coach_names) if coach_names else ""
-            athletes_map[a1.id] = f"{a1.last_name} {a1.first_name} ({coach_str})"
+            athletes_map[a1.id] = _format_athlete_for_round_template(a1.last_name, a1.first_name, coach_names)
         if a2:
             # Get coach names from the many-to-many relationship
             coach_names = [link.coach.last_name for link in a2.coach_links if link.coach is not None]
-            coach_str = ", ".join(coach_names) if coach_names else ""
-            athletes_map[a2.id] = f"{a2.last_name} {a2.first_name} ({coach_str})"
+            athletes_map[a2.id] = _format_athlete_for_round_template(a2.last_name, a2.first_name, coach_names)
 
     athletes = list(athletes_map.values())
 
@@ -96,18 +97,49 @@ def build_round_robin_entry(
     return entry
 
 
-def build_entries(data: list[Bracket], tournament_title: str) -> list[dict[str, str]]:
+def _inject_round_template_multiline_athletes(svg_template: str, entry: dict[str, str]) -> str:
+    for idx in range(1, 6):
+        key = f"athlete{idx}"
+        raw_value = entry.get(key, "")
+        name_line, _, coach_line = raw_value.partition("\n")
+        name_line = escape(name_line)
+        coach_line = escape(coach_line)
+
+        pattern = rf"<text(?P<attrs>[^>]*)>{{{{\s*{key}\s*}}}}</text>"
+
+        def replace_text(match: re.Match[str]) -> str:
+            attrs = match.group("attrs")
+            if not coach_line:
+                return f"<text{attrs}>{name_line}</text>"
+
+            x_match = re.search(r'\bx="([^"]+)"', attrs)
+            x_attr = f' x="{x_match.group(1)}"' if x_match else ""
+            return f'<text{attrs}>{name_line}<tspan{x_attr} dy="13">{coach_line}</tspan></text>'
+
+        svg_template = re.sub(pattern, replace_text, svg_template)
+
+    return svg_template
+
+
+def build_entries(data: list[Bracket], tournament_title: str, start_date: date | None = None) -> list[dict[str, str]]:
     all_entries = []
 
     for bracket in data:
         timetable_entry = getattr(bracket, "timetable_entry", None)
         if timetable_entry:
             start_time_value = timetable_entry.start_time.strftime("%H:%M")
+            if start_date is not None:
+                event_date = start_date + timedelta(days=max(0, timetable_entry.day - 1))
+                event_date_value = event_date.strftime("%d.%m.%Y")
+            else:
+                event_date_value = "-"
             start_time_tatami = (
-                f"Day: {timetable_entry.day} | Start time: {start_time_value} | Tatami: {timetable_entry.tatami}"
+                f"{event_date_value} | Day: {timetable_entry.day} | Start time: {start_time_value} | "
+                f"Tatami: {timetable_entry.tatami}"
             )
         else:
-            start_time_tatami = "Day: - | Start time: - | Tatami: -"
+            fallback_date = start_date.strftime("%d.%m.%Y") if start_date is not None else "-"
+            start_time_tatami = f"{fallback_date} | Day: - | Start time: - | Tatami: -"
         matches = bracket.matches
         if not matches:
             continue
@@ -131,7 +163,7 @@ def build_entries(data: list[Bracket], tournament_title: str) -> list[dict[str, 
 
         chunk_size = 8
         for i in range(0, len(round1_matches), chunk_size):
-            position_offset = i * chunk_size
+            position_offset = i
             entry = build_entry(
                 bracket=bracket,
                 matches=matches,
@@ -147,8 +179,8 @@ def build_entries(data: list[Bracket], tournament_title: str) -> list[dict[str, 
     return all_entries
 
 
-def generate_pdf(data: list[Bracket], tournament_title: str) -> str | dict[str, str]:
-    entries = build_entries(data, tournament_title)
+def generate_pdf(data: list[Bracket], tournament_title: str, start_date: date | None = None) -> str | dict[str, str]:
+    entries = build_entries(data, tournament_title, start_date=start_date)
     if not entries:
         return {"detail": "Нет данных для генерации."}
 
@@ -162,6 +194,7 @@ def generate_pdf(data: list[Bracket], tournament_title: str) -> str | dict[str, 
         template_type = entry.get("_template", "elimination")
         if template_type == BracketType.ROUND_ROBIN.value:
             svg_template = round_template
+            svg_template = _inject_round_template_multiline_athletes(svg_template, entry)
         else:
             svg_template = elimination_template
 

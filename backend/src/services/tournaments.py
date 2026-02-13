@@ -229,7 +229,11 @@ async def get_matches_for_tournament_full(db: AsyncSession, tournament_id: int) 
 async def get_matches_for_tournament_raw(db: AsyncSession, tournament_id: int) -> list[Bracket]:
     result = await db.execute(
         select(Bracket)
-        .filter(Bracket.tournament_id == tournament_id)
+        .join(TimetableEntry, TimetableEntry.bracket_id == Bracket.id)
+        .where(
+            Bracket.tournament_id == tournament_id,
+            TimetableEntry.tournament_id == tournament_id,
+        )
         .options(
             selectinload(Bracket.category),
             selectinload(Bracket.place_1_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
@@ -257,7 +261,13 @@ async def get_matches_for_tournament_raw(db: AsyncSession, tournament_id: int) -
             .selectinload(Athlete.coach_links)
             .joinedload(AthleteCoachLink.coach),
         )
-        .order_by(Bracket.id.asc())
+        .order_by(
+            TimetableEntry.day.asc(),
+            TimetableEntry.tatami.asc(),
+            TimetableEntry.start_time.asc(),
+            TimetableEntry.order_index.asc(),
+            Bracket.id.asc(),
+        )
     )
 
     return list(result.scalars().all())
@@ -272,7 +282,7 @@ async def generate_brackets_export_file(db: AsyncSession, tournament_id: int) ->
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
-    tournament_title = f"{tournament.name} - {tournament.start_date.strftime('%d.%m.%Y')}"
+    tournament_title = tournament.name
     final_filename = f"{sanitize_filename(tournament_title)}.pdf"
     final_path = Path("pdf_storage") / final_filename
 
@@ -280,13 +290,13 @@ async def generate_brackets_export_file(db: AsyncSession, tournament_id: int) ->
         file_mtime = datetime.fromtimestamp(final_path.stat().st_mtime, UTC)
         export_updated_at = tournament.export_last_updated_at
         if export_updated_at is not None and file_mtime > export_updated_at:
-            return {"filename": final_filename}
+            return {"filename": final_path.as_posix()}
 
     brackets = await get_matches_for_tournament_raw(db, tournament_id)
-    result = generate_pdf(brackets, tournament_title)
+    result = generate_pdf(brackets, tournament_title, start_date=tournament.start_date)
     if isinstance(result, dict):
         raise HTTPException(status_code=400, detail=result.get("detail", "Failed to generate"))
-    return {"filename": Path(result).name}
+    return {"filename": final_path.as_posix()}
 
 
 async def update_tournament_status(db: AsyncSession, tournament_id: int, status: str) -> Tournament:
