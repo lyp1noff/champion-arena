@@ -1,44 +1,91 @@
 # Domain Boundaries
 
-This document defines strict ownership between shared `champion_domain` and service layers (`champion-arena`, `champion-tatami-control`).
+Canonical ownership rules for the monorepo.
 
-## Shared Domain (`champion_domain`)
+This document replaces the older per-app boundary notes.
 
-Owns:
-- bracket planning (`single_elimination`, `round_robin`, regeneration planner)
-- progression rules (main/repechage next target/action)
-- repechage policy and generation plan
-- placement rules (1/2/3)
-- pure typed inputs/outputs (dataclasses)
+## Shared Domain
 
-Does not own:
-- HTTP transport
-- ORM/SQLAlchemy models and persistence
-- outbox/inbox storage
-- framework concerns (FastAPI, Pydantic request/response models)
+Shared package:
+- `domain/champion_domain`
 
-## Service Layer (`backend/src/services`, `_edge/backend/src/services`)
+Owns pure business logic only:
+- bracket generation
+- round-robin scheduling
+- seeded participant planning
+- repechage planning
+- match progression inside a bracket
+- bracket completion and placements
+- round labels and bracket classification
+- bracket structural mutability rules
+- future timetable planning rules
 
-Owns:
-- loading/storing ORM entities
+Characteristics:
+- deterministic input/output
+- no database access
+- no network access
+- no framework coupling
+- reusable by both `arena` and `control`
+
+## Service Layers
+
+Service layers:
+- `arena/backend/src/services`
+- `tatami/backend/src/services`
+
+Own:
+- ORM loading and persistence
 - transaction boundaries
-- mapping ORM -> domain input and domain output -> ORM updates
-- side-effects (outbox, broadcasts, API responses)
+- mapping DB rows to domain inputs
+- mapping domain outputs back to stored state
+- HTTP request/response DTOs
+- broadcast / websocket side effects
+- outbox delivery
+- bootstrap import/export
 
 Must not:
-- reimplement domain rules already present in `champion_domain`
-- parse transport payloads inside domain code
+- reimplement bracket or repechage rules already present in `domain`
+- encode transport concerns into `domain`
 
-## Sync / Transport
+## Sync Ownership
 
-Owns:
-- envelope/payload DTO validation
-- JSON serialization/deserialization
-- compatibility around API contracts
+Sync contracts belong to application services, not to `champion_domain`.
 
-Must not:
-- encode business rules already in shared domain
+Application sync owns:
+- bootstrap snapshot DTOs
+- aggregate upsert DTOs
+- outbox storage
+- retry policy
+- sync diagnostics
 
-## Practical Rule
+`champion_domain` must not own:
+- `edge_id`
+- `seq`
+- envelopes
+- transport event names
+- inbox/outbox semantics
 
-If logic can be validated with deterministic input/output and requires no database/network/framework context, it belongs in `champion_domain`.
+## Domain DTOs vs Transport DTOs
+
+Allowed in domain:
+- small dataclasses needed to represent pure domain inputs/outputs
+
+Not allowed in domain:
+- transport wrappers designed only for HTTP or queue payloads
+- DTOs whose main purpose is compatibility with sync protocols
+
+If a type exists only because of network transport, it belongs in backend service code.
+
+## Routing Rule
+
+When deciding where logic belongs:
+
+- if it needs DB/session/HTTP/framework context, keep it in the service layer
+- if it can be tested as pure computation, move it to `domain`
+
+## Sync-Specific Implication
+
+For the new sync model:
+- aggregate payload assembly belongs to `arena` / `control`
+- aggregate payload application belongs to `arena`
+- bracket planning, repechage generation, placements, timetable planning belong to `domain`

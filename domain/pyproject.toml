@@ -1,0 +1,31 @@
+[project]
+name = "champion-domain"
+version = "0.1.2"
+description = ""
+authors = [
+    {name = "lyp1noff",email = "lyp1noff@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.17.0"
+ruff = "^0.15.0"
+
+[tool.ruff]
+line-length = 120
+lint.select = ["E", "F", "I", "UP", "B", "SIM"]
+lint.ignore = ["B008"]
+fix = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+show_error_codes = true

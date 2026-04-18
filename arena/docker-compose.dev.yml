@@ -1,0 +1,38 @@
+services:
+  backend:
+    build: !override
+      context: .
+      dockerfile: ./arena/backend/Dockerfile
+    image: champion-backend:latest
+    pull_policy: build
+    ports: !override
+      - "8010:8000"
+  frontend:
+    build: !override
+      context: ./arena/frontend
+      dockerfile: ./Dockerfile
+      args:
+        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
+        NEXT_PUBLIC_CDN_URL: ${NEXT_PUBLIC_CDN_URL}
+        NEXT_PUBLIC_ANALYTICS_URL: ${NEXT_PUBLIC_ANALYTICS_URL}
+        NEXT_PUBLIC_ANALYTICS_ID: ${NEXT_PUBLIC_ANALYTICS_ID}
+    image: champion-frontend:latest
+    pull_policy: build
+    ports: !override
+      - "3010:3000"
+  db:
+    ports: !override
+      - "5432:5432"
+  redis:
+    ports: !override
+      - "6379:6379"
+  nginx:
+    image: nginx:latest
+    container_name: champion-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./arena/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
