@@ -34,8 +34,9 @@ def _ensure_bracket_editable(bracket: Bracket) -> None:
 
 async def _reorder_seeds(db: AsyncSession, bracket_id: int) -> None:
     result = await db.execute(
-        select(BracketParticipant).where(BracketParticipant.bracket_id == bracket_id).order_by(
-            BracketParticipant.seed.asc())
+        select(BracketParticipant)
+        .where(BracketParticipant.bracket_id == bracket_id)
+        .order_by(BracketParticipant.seed.asc())
     )
     participants = result.scalars().all()
     for index, participant in enumerate(participants, start=1):
@@ -44,15 +45,16 @@ async def _reorder_seeds(db: AsyncSession, bracket_id: int) -> None:
 
 
 async def _insert_participant(
-        db: AsyncSession,
-        *,
-        bracket_id: int,
-        athlete_id: int,
-        target_seed: int | None,
+    db: AsyncSession,
+    *,
+    bracket_id: int,
+    athlete_id: int,
+    target_seed: int | None,
 ) -> BracketParticipant:
     result = await db.execute(
-        select(BracketParticipant).where(BracketParticipant.bracket_id == bracket_id).order_by(
-            BracketParticipant.seed.asc())
+        select(BracketParticipant)
+        .where(BracketParticipant.bracket_id == bracket_id)
+        .order_by(BracketParticipant.seed.asc())
     )
     participants = result.scalars().all()
 
@@ -87,8 +89,9 @@ async def regenerate_bracket(db: AsyncSession, bracket: Bracket) -> None:
     await _clear_bracket_matches(db, bracket.id)
 
     result = await db.execute(
-        select(BracketParticipant).where(BracketParticipant.bracket_id == bracket.id).order_by(
-            BracketParticipant.seed.asc())
+        select(BracketParticipant)
+        .where(BracketParticipant.bracket_id == bracket.id)
+        .order_by(BracketParticipant.seed.asc())
     )
     participants = result.scalars().all()
     seeded = [
@@ -189,11 +192,11 @@ async def list_bracket_participants(db: AsyncSession, bracket_external_id: int) 
 
 
 async def add_participant_to_bracket(
-        db: AsyncSession,
-        *,
-        bracket_external_id: int,
-        athlete_external_id: int,
-        seed: int | None,
+    db: AsyncSession,
+    *,
+    bracket_external_id: int,
+    athlete_external_id: int,
+    seed: int | None,
 ) -> BracketParticipant:
     bracket = await get_bracket_by_external_id(db, bracket_external_id)
     _ensure_bracket_editable(bracket)
@@ -225,10 +228,10 @@ async def add_participant_to_bracket(
 
 
 async def remove_participant_from_bracket(
-        db: AsyncSession,
-        *,
-        bracket_external_id: int,
-        participant_id: int,
+    db: AsyncSession,
+    *,
+    bracket_external_id: int,
+    participant_id: int,
 ) -> None:
     bracket = await get_bracket_by_external_id(db, bracket_external_id)
     _ensure_bracket_editable(bracket)
@@ -245,11 +248,11 @@ async def remove_participant_from_bracket(
 
 
 async def move_participant_between_brackets(
-        db: AsyncSession,
-        *,
-        participant_id: int,
-        target_bracket_external_id: int,
-        target_seed: int | None,
+    db: AsyncSession,
+    *,
+    participant_id: int,
+    target_bracket_external_id: int,
+    target_seed: int | None,
 ) -> None:
     participant = await db.get(BracketParticipant, participant_id)
     if participant is None or participant.athlete_id is None:
@@ -286,11 +289,11 @@ async def move_participant_between_brackets(
 
 
 async def update_participant_seed(
-        db: AsyncSession,
-        *,
-        bracket_external_id: int,
-        participant_id: int,
-        seed: int,
+    db: AsyncSession,
+    *,
+    bracket_external_id: int,
+    participant_id: int,
+    seed: int,
 ) -> BracketParticipant:
     bracket = await get_bracket_by_external_id(db, bracket_external_id)
     _ensure_bracket_editable(bracket)
@@ -303,8 +306,9 @@ async def update_participant_seed(
         raise HTTPException(status_code=400, detail="Seed must be greater than zero")
 
     result = await db.execute(
-        select(BracketParticipant).where(BracketParticipant.bracket_id == bracket.id).order_by(
-            BracketParticipant.seed.asc())
+        select(BracketParticipant)
+        .where(BracketParticipant.bracket_id == bracket.id)
+        .order_by(BracketParticipant.seed.asc())
     )
     participants = list(result.scalars().all())
     ordered = [item for item in participants if item.id != participant.id]
@@ -338,24 +342,36 @@ async def list_timetable_entries(db: AsyncSession, tournament_external_id: int) 
     result = await db.execute(
         select(TimetableEntry)
         .where(TimetableEntry.tournament_id == tournament.id)
-        .order_by(TimetableEntry.day.asc(), TimetableEntry.tatami.asc(), TimetableEntry.start_time.asc(),
-                  TimetableEntry.order_index.asc())
+        .order_by(
+            TimetableEntry.day.asc(),
+            TimetableEntry.tatami.asc(),
+            TimetableEntry.start_time.asc(),
+            TimetableEntry.order_index.asc(),
+        )
     )
     return list(result.scalars().all())
 
 
+def _require_int(value: object, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise HTTPException(status_code=400, detail=f"Invalid {field_name}")
+    return value
+
+
 async def replace_timetable_entries(
-        db: AsyncSession,
-        *,
-        tournament_external_id: int,
-        entries: list[dict[str, object]],
+    db: AsyncSession,
+    *,
+    tournament_external_id: int,
+    entries: list[dict[str, object]],
 ) -> list[TimetableEntry]:
     tournament_result = await db.execute(select(Tournament).where(Tournament.external_id == tournament_external_id))
     tournament = tournament_result.scalar_one_or_none()
     if tournament is None:
         raise HTTPException(status_code=404, detail=f"Tournament {tournament_external_id} not found")
 
-    bracket_external_ids = [entry["bracket_id"] for entry in entries if entry.get("bracket_id") is not None]
+    bracket_external_ids = [
+        _require_int(entry["bracket_id"], "bracket_id") for entry in entries if entry.get("bracket_id") is not None
+    ]
     if len(bracket_external_ids) != len(set(bracket_external_ids)):
         raise HTTPException(status_code=400, detail="Duplicate bracket_id in timetable")
 
@@ -365,7 +381,7 @@ async def replace_timetable_entries(
             select(Bracket).where(Bracket.external_id.in_(bracket_external_ids), Bracket.tournament_id == tournament.id)
         )
         bracket_by_external_id = {bracket.external_id: bracket for bracket in result.scalars().all()}
-        missing = sorted(set(int(item) for item in bracket_external_ids) - set(bracket_by_external_id))
+        missing = sorted(set(bracket_external_ids) - set(bracket_by_external_id))
         if missing:
             raise HTTPException(status_code=400, detail=f"Unknown bracket ids in timetable: {missing}")
 
@@ -374,18 +390,22 @@ async def replace_timetable_entries(
     created_entries: list[TimetableEntry] = []
     for entry in entries:
         bracket_external_id = entry.get("bracket_id")
-        bracket = bracket_by_external_id.get(int(bracket_external_id)) if bracket_external_id is not None else None
+        bracket = (
+            bracket_by_external_id.get(_require_int(bracket_external_id, "bracket_id"))
+            if bracket_external_id is not None
+            else None
+        )
         timetable_entry = TimetableEntry(
             tournament_id=tournament.id,
             bracket_id=bracket.id if bracket is not None else None,
             entry_type=str(entry["entry_type"]),
             title=entry.get("title"),
             notes=entry.get("notes"),
-            day=int(entry["day"]),
-            tatami=int(entry["tatami"]),
+            day=_require_int(entry["day"], "day"),
+            tatami=_require_int(entry["tatami"], "tatami"),
             start_time=entry["start_time"],
             end_time=entry["end_time"],
-            order_index=int(entry["order_index"]),
+            order_index=_require_int(entry["order_index"], "order_index"),
         )
         db.add(timetable_entry)
         created_entries.append(timetable_entry)

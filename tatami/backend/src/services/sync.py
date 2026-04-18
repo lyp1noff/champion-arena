@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import EXTERNAL_API_TOKEN, EXTERNAL_API_URL
 from src.logger import logger
-from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, TimetableEntry, Tournament
+from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, OutboxItem, TimetableEntry, Tournament
 from src.utils import parse_datetime_utc
 
 
@@ -215,6 +215,39 @@ async def _sync_timetable_entries(
     return synced_count
 
 
+async def reset_local_tournament_copy(tournament_id: int, db: AsyncSession) -> bool:
+    tournament_result = await db.execute(select(Tournament).where(Tournament.external_id == tournament_id))
+    tournament = tournament_result.scalar_one_or_none()
+    if tournament is None:
+        return False
+
+    logger.warning("Deleting local tournament copy before rebootstrap: external_id=%s", tournament_id)
+
+    await db.execute(delete(OutboxItem).where(OutboxItem.tournament_id == tournament.id))
+    await db.execute(delete(Match).where(~Match.bracket_matches.any()))
+    await db.execute(
+        delete(Athlete).where(
+            ~Athlete.bracket_participations.any(),
+            ~Athlete.matches_as_athlete1.any(),
+            ~Athlete.matches_as_athlete2.any(),
+        )
+    )
+
+    await db.delete(tournament)
+    await db.flush()
+
+    await db.execute(delete(Match).where(~Match.bracket_matches.any()))
+    await db.execute(
+        delete(Athlete).where(
+            ~Athlete.bracket_participations.any(),
+            ~Athlete.matches_as_athlete1.any(),
+            ~Athlete.matches_as_athlete2.any(),
+        )
+    )
+    await db.flush()
+    return True
+
+
 async def sync_tournament(tournament_id: int, db: AsyncSession, force: bool = False) -> dict[str, str]:
     existing_tournament_result = await db.execute(select(Tournament).where(Tournament.external_id == tournament_id))
     existing_tournament = existing_tournament_result.scalar_one_or_none()
@@ -386,3 +419,18 @@ async def sync_tournament(tournament_id: int, db: AsyncSession, force: bool = Fa
         await db.rollback()
         logger.error(f"Sync failed: {e}")
         return {"status": "error", "message": f"Sync failed: {str(e)}"}
+
+
+async def rebootstrap_tournament(tournament_id: int, db: AsyncSession) -> dict[str, str]:
+    try:
+        removed = await reset_local_tournament_copy(tournament_id, db)
+        await db.commit()
+
+        result = await sync_tournament(tournament_id, db)
+        if removed and result.get("status") == "success":
+            result["message"] = f"Local tournament copy reset and re-bootstrapped. {result['message']}"
+        return result
+    except Exception as e:
+        await db.rollback()
+        logger.error("Rebootstrap failed: %s", e)
+        return {"status": "error", "message": f"Rebootstrap failed: {str(e)}"}

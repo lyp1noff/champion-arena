@@ -1,8 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from champion_domain import derive_bracket_state_from_status
-from champion_domain import compute_bracket_placements, PlacementMatchInput
+from champion_domain import PlacementMatchInput, compute_bracket_placements, derive_bracket_state_from_status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,8 +16,8 @@ from src.schemas import (
     SyncUpsertsRequest,
     SyncUpsertsResponse,
 )
-from src.services.broadcast import broadcast
 from src.services.bracket_upsert_dto import parse_structure_payload_dto
+from src.services.broadcast import broadcast
 
 
 class SyncApplyConflict(Exception):
@@ -74,7 +73,7 @@ async def _resolve_athlete_id(db: AsyncSession, athlete_id: int | None) -> int |
     return athlete.id
 
 
-async def _broadcast_sync_refresh(tournament_id: int, match_id: str) -> None:
+async def _broadcast_sync_refresh(tournament_id: int, match_id: UUID) -> None:
     try:
         await broadcast.publish(
             channel=f"tournament:{tournament_id}",
@@ -126,7 +125,7 @@ async def _recompute_bracket_placements(db: AsyncSession, bracket_id: int) -> No
     bracket.place_3_b_id = placements.place_3_b_id
 
 
-async def _apply_match_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[int, int, str]:
+async def _apply_match_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[int, int, UUID | None]:
     try:
         match_id = UUID(item.aggregate_id)
     except ValueError as exc:
@@ -170,10 +169,10 @@ async def _apply_match_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[i
         bracket.status = "started"
         bracket.state = derive_bracket_state_from_status(bracket.status, bracket.state)
     await _recompute_bracket_placements(db, bracket_id)
-    return bracket_id, bracket.tournament_id, str(match.id)
+    return bracket_id, bracket.tournament_id, match.id
 
 
-async def _apply_bracket_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[int, int, str]:
+async def _apply_bracket_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[int, int, UUID | None]:
     try:
         bracket_id = int(item.aggregate_id)
     except ValueError as exc:
@@ -226,7 +225,10 @@ async def _apply_bracket_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple
             )
         )
 
+    broadcast_match_id: UUID | None = None
     for planned_match in matches:
+        if broadcast_match_id is None:
+            broadcast_match_id = planned_match.id
         db.add(
             Match(
                 id=planned_match.id,
@@ -255,10 +257,10 @@ async def _apply_bracket_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple
         )
     await db.flush()
     await _recompute_bracket_placements(db, bracket_id)
-    return bracket_id, bracket.tournament_id, f"bracket:{bracket_id}"
+    return bracket_id, bracket.tournament_id, broadcast_match_id
 
 
-async def _apply_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[int, int, str]:
+async def _apply_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[int, int, UUID | None]:
     if item.type == "match.upsert":
         return await _apply_match_upsert(db, item)
     if item.type == "bracket.upsert":
@@ -339,7 +341,8 @@ async def apply_upserts(db: AsyncSession, payload: SyncUpsertsRequest) -> SyncUp
         edge_state.last_applied_seq = max(edge_state.last_applied_seq, item.seq)
         accepted.append(item.seq)
         await db.commit()
-        await _broadcast_sync_refresh(tournament_id, broadcast_match_id)
+        if broadcast_match_id is not None:
+            await _broadcast_sync_refresh(tournament_id, broadcast_match_id)
 
     return SyncUpsertsResponse(
         accepted=accepted,

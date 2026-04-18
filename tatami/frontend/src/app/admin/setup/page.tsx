@@ -4,11 +4,20 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   getCurrentTournament,
   getOutboxStatus,
   getTatamis,
+  rebootstrapTournament,
   getTournaments,
   setCurrentTournament,
   syncTournament,
@@ -20,7 +29,10 @@ export default function SetupPage() {
   const [availableTatamis, setAvailableTatamis] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [rebootstrapping, setRebootstrapping] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
+  const [rebootstrapDialogOpen, setRebootstrapDialogOpen] = useState(false);
+  const [rebootstrapStep, setRebootstrapStep] = useState<1 | 2>(1);
   const [outboxStatus, setOutboxStatus] = useState<{
     total: number;
     pending: number;
@@ -109,6 +121,30 @@ export default function SetupPage() {
     window.open(`/admin/tatami/${tatamiId}`, "_blank");
   };
 
+  const handleRebootstrapOpenChange = (open: boolean) => {
+    setRebootstrapDialogOpen(open);
+    if (!open) {
+      setRebootstrapStep(1);
+    }
+  };
+
+  const runTournamentRebootstrap = async () => {
+    if (!selectedTournament) return;
+
+    try {
+      setRebootstrapping(true);
+      const result = await rebootstrapTournament(selectedTournament);
+      await Promise.all([fetchAvailableTatamis(selectedTournament), fetchOutboxStatus()]);
+      handleRebootstrapOpenChange(false);
+      alert(result.message ?? `Tournament rebootstrap ${result.status}`);
+    } catch (error) {
+      console.error("Error rebootstraping tournament:", error);
+      alert(error instanceof Error ? error.message : "Error rebootstraping tournament");
+    } finally {
+      setRebootstrapping(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-5xl mx-auto">
@@ -165,6 +201,16 @@ export default function SetupPage() {
                   {syncing ? "Syncing..." : "Bootstrap Selected Tournament"}
                 </Button>
               )}
+              {selectedTournament && (
+                <Button
+                  onClick={() => handleRebootstrapOpenChange(true)}
+                  disabled={rebootstrapping}
+                  variant="destructive"
+                  className="px-4"
+                >
+                  Rebootstrap Tournament
+                </Button>
+              )}
               <Button asChild variant="outline" className="px-4">
                 <Link href="/admin/brackets">Open Bracket Admin</Link>
               </Button>
@@ -201,6 +247,35 @@ export default function SetupPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={rebootstrapDialogOpen} onOpenChange={handleRebootstrapOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {rebootstrapStep === 1 ? "Підтвердження ребутстрапу" : "ОСТАННЄ ПОПЕРЕДЖЕННЯ"}
+            </DialogTitle>
+            <DialogDescription className="text-left">
+              {rebootstrapStep === 1
+                ? "Ця дія повністю видалить локальну копію турніру на цьому татамі та заново завантажить її з Arena. Локальні зміни, черга outbox та поточний стан локальної копії будуть скинуті."
+                : "ЦЕ НЕЗВОРОТНА ДІЯ. ЛОКАЛЬНА КОПІЯ ТУРНІРУ БУДЕ ПОВНІСТЮ ЗНИЩЕНА ТА СТВОРЕНА ЗАНОВО З ARENA."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleRebootstrapOpenChange(false)} disabled={rebootstrapping}>
+              Скасувати
+            </Button>
+            {rebootstrapStep === 1 ? (
+              <Button variant="destructive" onClick={() => setRebootstrapStep(2)} disabled={rebootstrapping}>
+                Підтвердити
+              </Button>
+            ) : (
+              <Button variant="destructive" onClick={runTournamentRebootstrap} disabled={rebootstrapping}>
+                {rebootstrapping ? "Виконується..." : "ПІДТВЕРДЖУЮ ПОВНИЙ РЕБУТСТРАП"}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

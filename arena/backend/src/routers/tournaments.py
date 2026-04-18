@@ -26,8 +26,8 @@ from src.services.tournaments import generate_brackets_export_file as generate_b
 from src.services.tournaments import get_applications as get_applications_service
 from src.services.tournaments import get_matches_for_tournament_full as get_matches_for_tournament_full_service
 from src.services.tournaments import get_participant_count_per_coach as get_participant_count_per_coach_service
-from src.services.tournaments import get_tournament_bootstrap_snapshot as get_tournament_bootstrap_snapshot_service
 from src.services.tournaments import get_tournament as get_tournament_service
+from src.services.tournaments import get_tournament_bootstrap_snapshot as get_tournament_bootstrap_snapshot_service
 from src.services.tournaments import get_tournament_brackets as get_tournament_brackets_service
 from src.services.tournaments import list_timetable_entries as list_timetable_entries_service
 from src.services.tournaments import list_tournaments as list_tournaments_service

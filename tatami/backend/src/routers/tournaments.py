@@ -12,7 +12,7 @@ from src.schemas import (
     TournamentSchema,
 )
 from src.services.brackets import list_timetable_entries, replace_timetable_entries
-from src.services.sync import sync_tournament
+from src.services.sync import rebootstrap_tournament, sync_tournament
 
 router = APIRouter(
     prefix="/tournaments",
@@ -46,6 +46,15 @@ async def sync_tournament_endpoint(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     result = await sync_tournament(tournament_id, db, force=force)
+    return result
+
+
+@router.post("/{tournament_id}/rebootstrap", response_model=dict[str, str])
+async def rebootstrap_tournament_endpoint(
+    tournament_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    result = await rebootstrap_tournament(tournament_id, db)
     return result
 
 

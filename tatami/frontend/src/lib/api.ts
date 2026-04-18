@@ -134,6 +134,25 @@ export async function syncTournament(tournamentId: number): Promise<SyncTourname
   return response.json();
 }
 
+export async function rebootstrapTournament(tournamentId: number): Promise<SyncTournamentResponse> {
+  const response = await fetch(`${BACKEND_URL}/tournaments/${tournamentId}/rebootstrap`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    let message = "Failed to rebootstrap tournament";
+    try {
+      const data = await response.json();
+      if (typeof data?.detail === "string") {
+        message = data.detail;
+      }
+    } catch {
+      // Keep default message if the backend did not return JSON.
+    }
+    throw new Error(message);
+  }
+  return response.json();
+}
+
 export async function getOutboxStatus(): Promise<{
   total: number;
   pending: number;

@@ -234,9 +234,7 @@ async def run() -> None:
         query = (
             select(OutboxItem)
             .options(
-                selectinload(OutboxItem.match)
-                .selectinload(Match.bracket_matches)
-                .selectinload(BracketMatch.bracket)
+                selectinload(OutboxItem.match).selectinload(Match.bracket_matches).selectinload(BracketMatch.bracket)
             )
             .order_by(desc(OutboxItem.created_at))
             .limit(args.limit)
@@ -337,7 +335,8 @@ async def run() -> None:
     for item in decoded_items:
         print("=" * 120)
         print(
-            f"OutboxItem #{item['outbox_item_id']} | status={item['status']} | retries={item['retry_count']}/{item['max_retries']}"
+            f"OutboxItem #{item['outbox_item_id']} | status={item['status']}",
+            "| retries={item['retry_count']}/{item['max_retries']}",
         )
         print(f"Event: {item['event_type']} | aggregate={item['aggregate_type']}:{item['aggregate_id']}")
         print(f"Created: {item['created_at']}")

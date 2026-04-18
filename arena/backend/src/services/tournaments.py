@@ -26,10 +26,14 @@ from src.models import (
 )
 from src.schemas import (
     ApplicationCreate,
+    BracketMatchesFull,
+    BracketResponse,
     TimetableEntryCreate,
+    TimetableEntryResponse,
     TimetableReplace,
     TournamentBootstrapSnapshot,
     TournamentCreate,
+    TournamentResponse,
     TournamentUpdate,
 )
 from src.services.brackets import regenerate_tournament_brackets, reorder_seeds_and_get_next
@@ -281,10 +285,10 @@ async def get_tournament_bootstrap_snapshot(db: AsyncSession, tournament_id: int
     timetable_entries = await list_timetable_entries(db, tournament_id)
 
     return TournamentBootstrapSnapshot(
-        tournament=tournament,
-        brackets=brackets,
-        bracket_matches=bracket_matches,
-        timetable_entries=timetable_entries,
+        tournament=TournamentResponse.model_validate(tournament),
+        brackets=[BracketResponse.model_validate(bracket) for bracket in brackets],
+        bracket_matches=[BracketMatchesFull.model_validate(bracket) for bracket in bracket_matches],
+        timetable_entries=[TimetableEntryResponse.model_validate(entry) for entry in timetable_entries],
     )
 
 
