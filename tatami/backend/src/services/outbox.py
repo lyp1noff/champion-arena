@@ -23,35 +23,24 @@ from src.services.outbox_upsert_dto import (
 )
 
 
-async def get_tournament_external_id_for_match(match_id: int, db: AsyncSession) -> Optional[int]:
-    """Get arena tournament external_id for a match through its bracket relationship."""
+async def get_bracket_with_tournament_for_match(match_id: int, db: AsyncSession) -> Optional[Bracket]:
+    """Get the bracket for a match with tournament preloaded."""
     bm_result = await db.execute(
         select(BracketMatch)
         .where(BracketMatch.match_id == match_id)
         .options(selectinload(BracketMatch.bracket).selectinload(Bracket.tournament))
     )
     bm = bm_result.scalar_one_or_none()
-    if bm is None or bm.bracket is None or bm.bracket.tournament is None:
+    if bm is None or bm.bracket is None:
         return None
-    return bm.bracket.tournament.external_id
+    return bm.bracket
 
 
-async def get_tournament_external_id_for_bracket(bracket_id: int, db: AsyncSession) -> Optional[int]:
+async def get_bracket_with_tournament(bracket_id: int, db: AsyncSession) -> Optional[Bracket]:
     result = await db.execute(
         select(Bracket).where(Bracket.id == bracket_id).options(selectinload(Bracket.tournament))
     )
-    bracket = result.scalar_one_or_none()
-    if bracket is None or bracket.tournament is None:
-        return None
-    return bracket.tournament.external_id
-
-
-async def get_bracket_for_match(match_id: int, db: AsyncSession) -> Optional[Bracket]:
-    bm_result = await db.execute(
-        select(BracketMatch).where(BracketMatch.match_id == match_id).options(selectinload(BracketMatch.bracket))
-    )
-    bm = bm_result.scalar_one_or_none()
-    return bm.bracket if bm else None
+    return result.scalar_one_or_none()
 
 
 async def create_outbox_entry(
@@ -60,15 +49,18 @@ async def create_outbox_entry(
     aggregate_id: str,
     aggregate_version: int,
     payload: Optional[dict[str, Any]] = None,
-    tournament_id: Optional[int] = None,
+    local_tournament_id: Optional[int] = None,
+    external_tournament_id: Optional[int] = None,
     match_id: Optional[int] = None,
 ) -> OutboxItem:
     """Create an outbox entry that targets master /sync/upserts API."""
-    if tournament_id is None:
-        raise ValueError("tournament_id is required for sync upserts")
+    if local_tournament_id is None:
+        raise ValueError("local_tournament_id is required for sync upserts")
+    if external_tournament_id is None:
+        raise ValueError("external_tournament_id is required for sync upserts")
 
     outbox_item = OutboxItem(
-        tournament_id=tournament_id,
+        tournament_id=local_tournament_id,
         match_id=match_id,
         endpoint=f"{EXTERNAL_API_URL}/sync/upserts",
         method="POST",
@@ -83,7 +75,7 @@ async def create_outbox_entry(
 
     envelope = make_sync_upserts_envelope(
         edge_id=EDGE_ID,
-        tournament_id=tournament_id,
+        tournament_id=external_tournament_id,
         event_id=uuid4(),
         seq=outbox_item.id,
         item_type=item_type,
@@ -100,7 +92,8 @@ async def create_outbox_entry(
 
 async def create_match_start_outbox(match: Match, aggregate_version: int, db: AsyncSession) -> OutboxItem:
     """Create outbox entry with full match state."""
-    tournament_id = await get_tournament_external_id_for_match(match.id, db)
+    bracket = await get_bracket_with_tournament_for_match(match.id, db)
+    tournament = bracket.tournament if bracket is not None else None
     athlete1 = await db.get(Athlete, match.athlete1_id) if match.athlete1_id is not None else None
     athlete2 = await db.get(Athlete, match.athlete2_id) if match.athlete2_id is not None else None
 
@@ -123,7 +116,8 @@ async def create_match_start_outbox(match: Match, aggregate_version: int, db: As
             started_at=match.started_at,
             ended_at=match.ended_at,
         ),
-        tournament_id=tournament_id,
+        local_tournament_id=tournament.id if tournament else None,
+        external_tournament_id=tournament.external_id if tournament else None,
         match_id=match.id,
     )
 
@@ -137,7 +131,8 @@ async def create_match_finish_outbox(
     db: AsyncSession,
 ) -> OutboxItem:
     """Create outbox entry with full match state after finish."""
-    tournament_id = await get_tournament_external_id_for_match(match.id, db)
+    bracket = await get_bracket_with_tournament_for_match(match.id, db)
+    tournament = bracket.tournament if bracket is not None else None
     athlete1 = await db.get(Athlete, match.athlete1_id) if match.athlete1_id is not None else None
     athlete2 = await db.get(Athlete, match.athlete2_id) if match.athlete2_id is not None else None
 
@@ -160,14 +155,16 @@ async def create_match_finish_outbox(
             started_at=match.started_at,
             ended_at=match.ended_at,
         ),
-        tournament_id=tournament_id,
+        local_tournament_id=tournament.id if tournament else None,
+        external_tournament_id=tournament.external_id if tournament else None,
         match_id=match.id,
     )
 
 
 async def create_match_scores_outbox(match: Match, aggregate_version: int, db: AsyncSession) -> OutboxItem:
     """Create outbox entry with full match state after score update."""
-    tournament_id = await get_tournament_external_id_for_match(match.id, db)
+    bracket = await get_bracket_with_tournament_for_match(match.id, db)
+    tournament = bracket.tournament if bracket is not None else None
     athlete1 = await db.get(Athlete, match.athlete1_id) if match.athlete1_id is not None else None
     athlete2 = await db.get(Athlete, match.athlete2_id) if match.athlete2_id is not None else None
     winner = await db.get(Athlete, match.winner_id) if match.winner_id is not None else None
@@ -191,13 +188,17 @@ async def create_match_scores_outbox(match: Match, aggregate_version: int, db: A
             started_at=match.started_at,
             ended_at=match.ended_at,
         ),
-        tournament_id=tournament_id,
+        local_tournament_id=tournament.id if tournament else None,
+        external_tournament_id=tournament.external_id if tournament else None,
         match_id=match.id,
     )
 
 
 async def create_bracket_upsert_outbox(bracket: Bracket, db: AsyncSession) -> OutboxItem:
     """Create outbox entry with full bracket state."""
+    bracket_with_tournament = await get_bracket_with_tournament(bracket.id, db)
+    tournament = bracket_with_tournament.tournament if bracket_with_tournament is not None else None
+
     participants_result = await db.execute(
         select(BracketParticipant)
         .where(BracketParticipant.bracket_id == bracket.id)
@@ -279,6 +280,7 @@ async def create_bracket_upsert_outbox(bracket: Bracket, db: AsyncSession) -> Ou
         aggregate_id=str(bracket.external_id),
         aggregate_version=bracket.version,
         payload=payload,
-        tournament_id=await get_tournament_external_id_for_bracket(bracket.id, db),
+        local_tournament_id=tournament.id if tournament else None,
+        external_tournament_id=tournament.external_id if tournament else None,
         match_id=None,
     )
