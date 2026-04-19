@@ -288,13 +288,7 @@ async def apply_upserts(db: AsyncSession, payload: SyncUpsertsRequest) -> SyncUp
     await db.commit()
 
     for item in sorted(payload.items, key=lambda entry: entry.seq):
-        existing = await db.execute(
-            select(SyncInboxEvent).where(
-                SyncInboxEvent.edge_id == payload.edge_id,
-                SyncInboxEvent.tournament_id == payload.tournament_id,
-                SyncInboxEvent.seq == item.seq,
-            )
-        )
+        existing = await db.execute(select(SyncInboxEvent).where(SyncInboxEvent.event_id == item.event_id))
         if existing.scalar_one_or_none() is not None:
             duplicates.append(item.seq)
             continue

@@ -324,7 +324,6 @@ class TimetableEntry(Base, TimestampMixin):
 
 class SyncInboxEvent(Base):
     __tablename__ = "sync_inbox_events"
-    __table_args__ = (UniqueConstraint("edge_id", "tournament_id", "seq", name="uix_sync_inbox_edge_tournament_seq"),)
 
     event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     edge_id: Mapped[str] = mapped_column(String(100), index=True)
