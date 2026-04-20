@@ -16,10 +16,10 @@ import { getTournamentBracketsById, getTournamentMatchesFullById } from "@/lib/a
 import { Bracket, BracketMatchAthlete, BracketMatchesFull } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
-type ReportType = "kids_by_coach" | "fights_by_bracket" | "participants_by_bracket";
+type ReportType = "kids_by_coach" | "fights_by_bracket" | "participants_by_bracket" | "prize_statements";
 
-const athleteNameWithCoaches = (athlete: BracketMatchAthlete | null, fallback: string) => {
-  if (!athlete) return fallback;
+const athleteNameWithCoaches = (athlete: BracketMatchAthlete | null) => {
+  if (!athlete) return "";
   const name = `${athlete.last_name} ${athlete.first_name}`.trim();
   const coaches = athlete.coaches_last_name?.length ? athlete.coaches_last_name.join(", ") : "";
   return coaches ? `${name} (${coaches})` : name;
@@ -40,6 +40,7 @@ export default function TournamentReportsPage() {
       kids_by_coach: t("reportTemplateKidsByCoach"),
       fights_by_bracket: t("reportTemplateFightsByBracket"),
       participants_by_bracket: t("reportTemplateParticipantsByBracket"),
+      prize_statements: t("reportTemplatePrizeStatements"),
     }),
     [t],
   );
@@ -63,7 +64,7 @@ export default function TournamentReportsPage() {
 
   const buildKidsByCoach = useCallback(
     (source: Bracket[]) => {
-      if (!source.length) return t("reportEmpty");
+      if (!source.length) return "";
       const coachMap = new Map<string, Map<number, string>>();
       const unknownCoach = t("reportCoachUnknown");
 
@@ -79,7 +80,7 @@ export default function TournamentReportsPage() {
         });
       });
 
-      if (!coachMap.size) return t("reportEmpty");
+      if (!coachMap.size) return "";
 
       return Array.from(coachMap.entries())
         .sort(([a], [b]) => a.localeCompare(b, "ru"))
@@ -97,7 +98,7 @@ export default function TournamentReportsPage() {
 
   const buildParticipantsByBracket = useCallback(
     (source: Bracket[]) => {
-      if (!source.length) return t("reportEmpty");
+      if (!source.length) return "";
       return source
         .map((bracket) => {
           const title = bracket.display_name ?? getBracketDisplayName(bracket.category, bracket.group_id);
@@ -106,30 +107,57 @@ export default function TournamentReportsPage() {
             .sort((a, b) => a.seed - b.seed)
             .map((participant) => `- ${participant.last_name} ${participant.first_name}`.trim())
             .join("\n");
-          return `${title}\n${participants || t("reportEmpty")}`;
+          return participants ? `${title}\n${participants}` : title;
         })
         .join("\n\n");
     },
-    [t],
+    [],
   );
 
   const buildFightsByBracket = useCallback(
     (source: BracketMatchesFull[]) => {
-      if (!source.length) return t("reportEmpty");
+      if (!source.length) return "";
       const tbd = t("reportAthleteTbd");
       return source
         .map((bracket) => {
           const title = bracket.display_name ?? getBracketDisplayName(bracket.category, bracket.group_id);
           const fights = bracket.matches
             .map((match, index) => {
-              const left = athleteNameWithCoaches(match.match.athlete1, tbd);
-              const right = athleteNameWithCoaches(match.match.athlete2, tbd);
+              const left = athleteNameWithCoaches(match.match.athlete1) || tbd;
+              const right = athleteNameWithCoaches(match.match.athlete2) || tbd;
               return `${index + 1}) ${left} vs ${right}`;
             })
             .join("\n");
-          return `${title}\n${fights || t("reportEmpty")}`;
+          return fights ? `${title}\n${fights}` : title;
         })
         .join("\n\n");
+    },
+    [t],
+  );
+
+  const buildPrizeStatements = useCallback(
+    (source: Bracket[]) => {
+      const finishedSingleElim = source.filter(
+        (bracket) => bracket.type === "single_elimination" && bracket.status === "finished",
+      );
+
+      if (!finishedSingleElim.length) return "";
+
+      const lines = finishedSingleElim.map((bracket) => {
+        const title = bracket.display_name ?? getBracketDisplayName(bracket.category, bracket.group_id);
+        const places = [
+          [t("reportPlace1"), athleteNameWithCoaches(bracket.place_1 ?? null)],
+          [t("reportPlace2"), athleteNameWithCoaches(bracket.place_2 ?? null)],
+          [t("reportPlace3A"), athleteNameWithCoaches(bracket.place_3_a ?? null)],
+          [t("reportPlace3B"), athleteNameWithCoaches(bracket.place_3_b ?? null)],
+        ]
+          .filter(([, athlete]) => athlete)
+          .map(([label, athlete]) => `${label}: ${athlete}`);
+
+        return places.length ? `${title}\n${places.join("\n")}` : title;
+      });
+
+      return lines.join("\n\n");
     },
     [t],
   );
@@ -151,6 +179,11 @@ export default function TournamentReportsPage() {
       return;
     }
 
+    if (reportType === "prize_statements") {
+      setReportText(buildPrizeStatements(brackets));
+      return;
+    }
+
     setReportText(buildFightsByBracket(matchesFull));
   }, [
     brackets,
@@ -161,6 +194,7 @@ export default function TournamentReportsPage() {
     buildFightsByBracket,
     buildKidsByCoach,
     buildParticipantsByBracket,
+    buildPrizeStatements,
   ]);
 
   const handleCopy = async () => {
@@ -208,6 +242,7 @@ export default function TournamentReportsPage() {
                 <SelectItem value="kids_by_coach">{t("reportKidsByCoach")}</SelectItem>
                 <SelectItem value="fights_by_bracket">{t("reportFightsByBracket")}</SelectItem>
                 <SelectItem value="participants_by_bracket">{t("reportParticipantsByBracket")}</SelectItem>
+                <SelectItem value="prize_statements">{t("reportPrizeStatements")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
