@@ -1,47 +1,75 @@
-# 🥋 Karate Tournament Management Platform
+# 🥋 Champion Arena
 
-## 📌 Overview
-The **Karate Tournament Management Platform** is a web-based system designed to simplify the organization and execution of karate tournaments. It provides a structured workflow for tournament organizers, athletes, coaches, and referees, ensuring a seamless and efficient competition experience.
-
-🚨 **Note:** This project is currently in **early** development and available for portfolio purposes. In the future, access to the source code may be restricted.
-
-## 🚀 Features
-
-### 🔹 User Management
-- ✅ **Athlete Registration** – Self-service athlete profile creation and tournament enrollment.
-- ✅ **Coach Management** – Track athlete performance and manage registrations.
-- ✅ **Admin Panel** – Manage tournaments, users, and event settings.
-
-### 🔹 Tournament Management
-- 🎯 **Tournament Creation** – Set up events, define categories, and configure registration deadlines.
-- 📅 **Automated Bracket Generation** – Dynamic creation of tournament brackets.
-- 🕒 **Match Scheduling** – Assign match times, locations, and referees.
-- 📢 **Live Updates** – Real-time results and notifications.
-
-### 🔹 Categories & Rankings
-- ⚖ **Customizable Divisions** – Age, weight, and gender-based competition categories.
-- 🏆 **Ranking & Points System** – Automated rankings based on match results.
-
-### 🔹 Match Control
-- 🏅 **Referee Dashboard** – Digital scorekeeping and match management.
-- 🔔 **Instant Notifications** – Updates for upcoming matches and results.
-
-### 🔹 Reports & Analytics
-- 📊 **Tournament Statistics** – Participation insights and performance trends.
-- 📜 **Athlete Performance Tracking** – Historical records of competition results.
-
-### 🔹 Integration & Accessibility
-- 📱 **Responsive Design** – Works across desktops, tablets, and smartphones.
-- 🖨 **Export & Print Support** – Generate tournament brackets and schedules.
-- 🔗 **API Support** – Integration with external sports management systems.
+A monorepo for a full-stack **Karate Tournament Management System** built for real-world use.  
+The platform covers the complete tournament lifecycle — from online registration to live match control on-site.
 
 ---
 
-## 🏗 Technology Stack
-| Component      | Technology |
-|---------------|------------|
-| **Frontend**  | Next.js (React) |
-| **Backend**   | FastAPI |
-| **Database**  | PostgreSQL with SQLAlchemy |
-| **Auth**      | OAuth2 / JWT |
-| **Deployment**| Docker |
+## 📦 Repository Structure
+
+| Directory             | Description                                                                |
+| --------------------- | -------------------------------------------------------------------------- |
+| [`arena/`](./arena)   | Online tournament platform — registration, brackets, scheduling, results   |
+| [`tatami/`](./tatami) | Local match control — referee dashboards, live scoring, offline-first sync |
+| [`domain/`](./domain) | Shared Python domain library used by both backends                         |
+| [`docs/`](./docs)     | Architecture docs, sync design, deployment guides                          |
+
+---
+
+## 🏗 Architecture
+
+**Arena** runs in the cloud and handles the full tournament lifecycle.  
+**Tatami** runs locally on-site and syncs results back to Arena via an outbox-based mechanism — ensuring match data is captured reliably even without a stable internet connection.
+
+```
+┌─────────────────────┐              ┌──────────────────────────┐
+│    Arena (Cloud)    │              │   Tatami                 │
+│                     │<── sync ─────│                          │
+│  Next.js            │              │  Next.js                 │
+│  FastAPI            │              │  FastAPI                 │
+│  PostgreSQL         │              │  Go sync worker          │
+└─────────────────────┘              │  PostgreSQL              │
+                                     └──────────────────────────┘
+```
+
+---
+
+## 🚀 Features
+
+### Arena — Online Platform
+
+- Athlete self-registration and coach management
+- Tournament creation with configurable categories (age, weight, gender)
+- Automated bracket generation
+- Match scheduling and referee assignment
+- Live result updates and automated rankings
+- Export and print support for brackets and schedules
+
+### Tatami — On-site Match Control
+
+- Referee dashboard with digital scorekeeping
+- Offline-first design — results stored locally, synced to Arena
+- Outbox pattern for reliable event delivery
+- Built for low-latency real-time match control at live events
+
+---
+
+## 🛠 Tech Stack
+
+| Component      | Arena                                | Tatami                               |
+| -------------- | ------------------------------------ | ------------------------------------ |
+| **Frontend**   | Next.js (React)                      | Next.js (React)                      |
+| **Backend**    | FastAPI (Python)                     | FastAPI (Python) + Go worker         |
+| **Database**   | PostgreSQL + SQLAlchemy              | PostgreSQL                           |
+| **Auth**       | OAuth2 / JWT                         | —                                    |
+| **Sync**       | —                                    | Outbox pattern                       |
+| **Deployment** | Docker, Nginx                        | Docker, Nginx                        |
+| **Shared**     | [`domain/`](./domain) Python package | [`domain/`](./domain) Python package |
+
+---
+
+## 📚 Documentation
+
+- [Deployment & Environment Setup](./docs/DEPLOYMENT_AND_ENV.md)
+- [Domain Boundaries](./docs/DOMAIN_BOUNDARIES.md)
+- [Sync Architecture](./docs/SYNC_ARCHITECTURE.md)
