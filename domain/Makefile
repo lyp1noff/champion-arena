@@ -1,12 +1,12 @@
 lint:
-	poetry run ruff check .
-	poetry run mypy .
+	uv run ruff check .
+	uv run mypy .
 
 format:
-	poetry run ruff format .
+	uv run ruff format .
 
 build:
-	poetry build
+	uv build
 
 release-check: lint build
 

@@ -1,3 +1,15 @@
+FROM ghcr.io/astral-sh/uv:python3.12-trixie-slim AS builder
+
+WORKDIR /workspace/arena/backend
+
+ENV UV_LINK_MODE=copy
+
+COPY domain/pyproject.toml /workspace/domain/pyproject.toml
+COPY domain/README.md /workspace/domain/README.md
+COPY domain/champion_domain /workspace/domain/champion_domain
+COPY arena/backend/pyproject.toml arena/backend/uv.lock ./
+RUN uv sync --locked --no-dev --no-editable
+
 FROM python:3.12-slim
 
 RUN apt-get update -y && \
@@ -5,19 +17,13 @@ RUN apt-get update -y && \
     libcairo2 \
     fonts-liberation \
     curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir "poetry==2.1.3"
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace/arena/backend
 
-ENV POETRY_VIRTUALENVS_CREATE=false
+ENV PATH="/workspace/arena/backend/.venv/bin:$PATH"
 
-COPY domain/pyproject.toml /workspace/domain/pyproject.toml
-COPY domain/README.md /workspace/domain/README.md
-COPY domain/champion_domain /workspace/domain/champion_domain
-COPY arena/backend/pyproject.toml arena/backend/poetry.lock ./
-RUN poetry install --no-interaction --no-ansi --no-root
-
+COPY --from=builder /workspace/arena/backend/.venv ./.venv
 COPY arena/backend /workspace/arena/backend
 
 RUN chmod +x /workspace/arena/backend/docker-entrypoint.sh

@@ -1,18 +1,18 @@
 # Backend
 back-format:
-	cd backend && poetry run black . && poetry run isort .
+	cd backend && uv run black . && uv run isort .
 
 back-lint:
-	cd backend && poetry run flake8 . && poetry run mypy .
+	cd backend && uv run flake8 . && uv run mypy .
 
 back-test:
-	cd backend && poetry run pytest
+	cd backend && uv run pytest
 
 back-install:
-	cd backend && poetry install
+	cd backend && uv sync
 
 back-dev:
-	cd backend && poetry install && poetry run uvicorn src.main:app --reload --host 0.0.0.0 --port 8001
+	cd backend && uv sync && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8001
 
 # Frontend
 front-format:

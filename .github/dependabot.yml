@@ -1,0 +1,97 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directories:
+      - /arena/frontend
+      - /tatami/frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    groups:
+      frontend-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      frontend-runtime:
+        applies-to: version-updates
+        dependency-type: production
+        update-types:
+          - patch
+          - minor
+        patterns:
+          - "*"
+      frontend-development:
+        applies-to: version-updates
+        dependency-type: development
+        update-types:
+          - patch
+          - minor
+        patterns:
+          - "*"
+
+  - package-ecosystem: uv
+    directories:
+      - /domain
+      - /arena/backend
+      - /tatami/backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    groups:
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      python-patch-minor:
+        applies-to: version-updates
+        update-types:
+          - patch
+          - minor
+        patterns:
+          - "*"
+
+  - package-ecosystem: gomod
+    directory: /tatami/outbox
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 1
+    groups:
+      go-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      go-patch-minor:
+        applies-to: version-updates
+        update-types:
+          - patch
+          - minor
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directories:
+      - /arena/backend
+      - /arena/frontend
+      - /tatami/backend
+      - /tatami/frontend
+      - /tatami/outbox
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 1
+    groups:
+      container-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      container-patch-minor:
+        applies-to: version-updates
+        update-types:
+          - patch
+          - minor
+        patterns:
+          - "*"
