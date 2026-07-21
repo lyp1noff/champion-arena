@@ -9,10 +9,10 @@ back-test:
 	cd backend && uv run pytest
 
 back-install:
-	cd backend && uv sync
+	cd backend && uv sync --all-packages --all-groups
 
 back-dev:
-	cd backend && uv sync && uv run alembic upgrade head && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+	cd backend && uv sync --all-packages --all-groups && uv run alembic upgrade head && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
 # Frontend
 front-format:

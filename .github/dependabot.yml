@@ -32,10 +32,7 @@ updates:
           - "*"
 
   - package-ecosystem: uv
-    directories:
-      - /domain
-      - /arena/backend
-      - /tatami/backend
+    directory: /
     schedule:
       interval: weekly
       day: monday

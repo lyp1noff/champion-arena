@@ -6,7 +6,7 @@ authors = [
     { name = "lyp1noff", email = "lyp1noff@gmail.com" }
 ]
 readme = "README.md"
-requires-python = ">=3.12,<4.0"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "champion-domain",
     "fastapi>=0.118.0,<0.119.0",
@@ -40,7 +40,7 @@ dependencies = [
 dev = [
     "pytest>=9.0.3,<10.0.0",
     "pytest-asyncio>=1.2.0,<2.0.0",
-    "black>=25.1.0,<26.0.0",
+    "black>=26.3.1,<27.0.0",
     "isort>=6.0.1,<7.0.0",
     "mypy>=1.17.0,<2.0.0",
     "httpx>=0.28.1,<0.29.0",
@@ -51,7 +51,7 @@ dev = [
 package = false
 
 [tool.uv.sources]
-champion-domain = { path = "../../domain", editable = true }
+champion-domain = { workspace = true }
 
 [tool.pytest.ini_options]
 pythonpath = [

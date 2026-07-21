@@ -1,16 +1,18 @@
 FROM ghcr.io/astral-sh/uv:python3.12-trixie-slim AS builder
 
-WORKDIR /workspace/arena/backend
+WORKDIR /workspace
 
-ENV UV_LINK_MODE=copy
+ENV UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/workspace/.venv
 
-COPY domain/pyproject.toml /workspace/domain/pyproject.toml
-COPY domain/README.md /workspace/domain/README.md
+COPY .python-version pyproject.toml uv.lock ./
+COPY domain/pyproject.toml domain/README.md /workspace/domain/
 COPY domain/champion_domain /workspace/domain/champion_domain
-COPY arena/backend/pyproject.toml arena/backend/uv.lock ./
-RUN uv sync --locked --no-dev --no-editable
+COPY arena/backend/pyproject.toml /workspace/arena/backend/pyproject.toml
+COPY tatami/backend/pyproject.toml /workspace/tatami/backend/pyproject.toml
+RUN uv sync --locked --no-dev --no-editable --package champion
 
-FROM python:3.12-slim
+FROM python:3.12-slim-trixie
 
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
@@ -21,9 +23,9 @@ RUN apt-get update -y && \
 
 WORKDIR /workspace/arena/backend
 
-ENV PATH="/workspace/arena/backend/.venv/bin:$PATH"
+ENV PATH="/workspace/.venv/bin:$PATH"
 
-COPY --from=builder /workspace/arena/backend/.venv ./.venv
+COPY --from=builder /workspace/.venv /workspace/.venv
 COPY arena/backend /workspace/arena/backend
 
 RUN chmod +x /workspace/arena/backend/docker-entrypoint.sh

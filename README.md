@@ -68,6 +68,27 @@ The platform covers the complete tournament lifecycle — from online registrati
 
 ---
 
+## 🐍 Python workspace
+
+The Python services and the shared domain library are managed as one `uv` workspace.
+The repository uses Python 3.12, a single root `uv.lock`, and one shared `.venv`.
+
+```bash
+uv sync --all-packages --all-groups
+```
+
+Run a command for a specific backend from the repository root with `--package`:
+
+```bash
+uv run --package champion pytest
+uv run --package champion-tatami pytest
+```
+
+The existing `make -C arena back-*`, `make -C tatami back-*`, and `make -C domain lint`
+commands use the same workspace environment.
+
+---
+
 ## 📚 Documentation
 
 - [Deployment & Environment Setup](./docs/DEPLOYMENT_AND_ENV.md)
