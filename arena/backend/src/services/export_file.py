@@ -3,18 +3,20 @@ import re
 from datetime import date, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Literal
 from xml.sax.saxutils import escape
 
 import cairosvg
 from pypdf import PdfReader, PdfWriter
 
-from src.models import Bracket, BracketMatch, BracketType, MatchStatus
+from src.models import Bracket, BracketMatch, BracketType
 from src.utils import sanitize_filename
 
 SVG_TEMPLATE_PATH = "assets/template.svg"
 SVG_ROUND_TEMPLATE_PATH = "assets/round_template.svg"
 
-HIDE_FINISHED_MATCHES = True
+ExportMode = Literal["filled", "manual"]
+PLACEHOLDER_PATTERN = re.compile(r"\[\[\s*(\w+)\s*\]\]")
 
 
 def build_entry(
@@ -24,6 +26,7 @@ def build_entry(
     position_offset: int,
     start_time_tatami: str,
     tournament_title: str,
+    mode: ExportMode,
 ) -> dict[str, str]:
     entry = {
         "tournament_name": tournament_title,
@@ -32,10 +35,10 @@ def build_entry(
     }
 
     for match in matches:
-        rnd = match.round_number + offset
-
-        if HIDE_FINISHED_MATCHES and getattr(match.match, "status", "finished") == MatchStatus.FINISHED.value:
+        if mode == "manual" and match.round_number != 1:
             continue
+
+        rnd = match.round_number + offset
 
         divisor = 2 ** (match.round_number - 1)
         norm_pos = match.position - (position_offset // divisor)
@@ -62,7 +65,11 @@ def build_entry(
 
 
 def build_round_robin_entry(
-    matches: list[BracketMatch], category: str, start_time_tatami: str, tournament_title: str
+    matches: list[BracketMatch],
+    category: str,
+    start_time_tatami: str,
+    tournament_title: str,
+    mode: ExportMode,
 ) -> dict[str, str]:
     def _format_athlete_for_round_template(last_name: str, first_name: str, coach_names: list[str]) -> str:
         coach_str = ", ".join(coach_names)
@@ -83,6 +90,7 @@ def build_round_robin_entry(
             coach_names = [link.coach.last_name for link in a2.coach_links if link.coach is not None]
             athletes_map[a2.id] = _format_athlete_for_round_template(a2.last_name, a2.first_name, coach_names)
 
+    athlete_ids = list(athletes_map)
     athletes = list(athletes_map.values())
 
     entry = {
@@ -93,6 +101,21 @@ def build_round_robin_entry(
 
     for idx, athlete in enumerate(athletes, start=1):
         entry[f"athlete{idx}"] = athlete
+
+    if mode == "filled":
+        athlete_positions = {athlete_id: idx for idx, athlete_id in enumerate(athlete_ids, start=1)}
+        for match in matches:
+            a1 = match.match.athlete1
+            a2 = match.match.athlete2
+            score1 = match.match.score_athlete1
+            score2 = match.match.score_athlete2
+            if not a1 or not a2 or score1 is None or score2 is None:
+                continue
+
+            pos1 = athlete_positions[a1.id]
+            pos2 = athlete_positions[a2.id]
+            entry[f"score_{pos1}_{pos2}"] = f"{score1} : {score2}"
+            entry[f"score_{pos2}_{pos1}"] = f"{score2} : {score1}"
 
     return entry
 
@@ -105,7 +128,7 @@ def _inject_round_template_multiline_athletes(svg_template: str, entry: dict[str
         name_line = escape(name_line)
         coach_line = escape(coach_line)
 
-        pattern = rf"<text(?P<attrs>[^>]*)>{{{{\s*{key}\s*}}}}</text>"
+        pattern = rf"<text(?P<attrs>[^>]*)>\[\[\s*{key}\s*\]\]</text>"
 
         def replace_text(match: re.Match[str]) -> str:
             attrs = match.group("attrs")
@@ -121,7 +144,16 @@ def _inject_round_template_multiline_athletes(svg_template: str, entry: dict[str
     return svg_template
 
 
-def build_entries(data: list[Bracket], tournament_title: str, start_date: date | None = None) -> list[dict[str, str]]:
+def _replace_placeholders(svg_template: str, entry: dict[str, str]) -> str:
+    return PLACEHOLDER_PATTERN.sub(lambda match: escape(entry.get(match.group(1), "")), svg_template)
+
+
+def build_entries(
+    data: list[Bracket],
+    tournament_title: str,
+    start_date: date | None = None,
+    mode: ExportMode = "filled",
+) -> list[dict[str, str]]:
     all_entries = []
 
     for bracket in data:
@@ -152,6 +184,7 @@ def build_entries(data: list[Bracket], tournament_title: str, start_date: date |
                 ),
                 start_time_tatami=start_time_tatami,
                 tournament_title=tournament_title,
+                mode=mode,
             )
             entry["_template"] = BracketType.ROUND_ROBIN.value
             all_entries.append(entry)
@@ -171,6 +204,7 @@ def build_entries(data: list[Bracket], tournament_title: str, start_date: date |
                 position_offset=position_offset,
                 start_time_tatami=start_time_tatami,
                 tournament_title=tournament_title,
+                mode=mode,
             )
             if len(entry) > 1:
                 entry["_template"] = "elimination"
@@ -179,8 +213,13 @@ def build_entries(data: list[Bracket], tournament_title: str, start_date: date |
     return all_entries
 
 
-def generate_pdf(data: list[Bracket], tournament_title: str, start_date: date | None = None) -> str | dict[str, str]:
-    entries = build_entries(data, tournament_title, start_date=start_date)
+def generate_pdf(
+    data: list[Bracket],
+    tournament_title: str,
+    start_date: date | None = None,
+    mode: ExportMode = "filled",
+) -> str | dict[str, str]:
+    entries = build_entries(data, tournament_title, start_date=start_date, mode=mode)
     if not entries:
         return {"detail": "Нет данных для генерации."}
 
@@ -198,11 +237,7 @@ def generate_pdf(data: list[Bracket], tournament_title: str, start_date: date | 
         else:
             svg_template = elimination_template
 
-        placeholders = set(re.findall(r"{{\s*(\w+)\s*}}", svg_template))
-
-        for key in placeholders:
-            value = entry.get(key, "")
-            svg_template = svg_template.replace(f"{{{{ {key} }}}}", value)
+        svg_template = _replace_placeholders(svg_template, entry)
 
         with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             cairosvg.svg2pdf(bytestring=svg_template.encode("utf-8"), write_to=tmp.name)
@@ -213,7 +248,7 @@ def generate_pdf(data: list[Bracket], tournament_title: str, start_date: date | 
     sanitized_title = sanitize_filename(tournament_title or "tournament")
 
     pdf_storage_path = os.path.join(os.getcwd(), "pdf_storage")
-    final_path = os.path.join(pdf_storage_path, f"{sanitized_title}.pdf")
+    final_path = os.path.join(pdf_storage_path, f"{sanitized_title}_{mode}.pdf")
 
     with open(final_path, "wb") as f_out:
         writer.write(f_out)

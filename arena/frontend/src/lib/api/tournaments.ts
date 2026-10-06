@@ -133,8 +133,12 @@ export async function replaceTournamentTimetable(
   return res.json();
 }
 
-export async function downloadTournamentDocx(tournamentId: number): Promise<string> {
-  const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${tournamentId}/export_file`, { cache: "no-store" });
+export type TournamentExportMode = "filled" | "manual";
+
+export async function downloadTournamentPdf(tournamentId: number, mode: TournamentExportMode): Promise<string> {
+  const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${tournamentId}/export_file?mode=${mode}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     throw new Error("Failed to export tournament file");

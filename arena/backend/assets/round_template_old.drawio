@@ -4,13 +4,13 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="T07onBQH2pV3I2XFedzj-3" value="{{ athlete2 }}" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
+        <mxCell id="T07onBQH2pV3I2XFedzj-3" value="[[athlete2]]" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="476.0000000000001" y="380" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
         <mxCell id="T07onBQH2pV3I2XFedzj-4" value="" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="476.0000000000001" y="438" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
-        <mxCell id="T07onBQH2pV3I2XFedzj-7" value="{{ athlete3 }}" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
+        <mxCell id="T07onBQH2pV3I2XFedzj-7" value="[[athlete3]]" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="694.0000000000001" y="380" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
         <mxCell id="T07onBQH2pV3I2XFedzj-8" value="" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
@@ -19,16 +19,16 @@
         <mxCell id="T07onBQH2pV3I2XFedzj-10" value="" style="rounded=0;shadow=0;glass=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="40" y="380" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
-        <mxCell id="T07onBQH2pV3I2XFedzj-11" value="{{ athlete1 }}" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
+        <mxCell id="T07onBQH2pV3I2XFedzj-11" value="[[athlete1]]" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="40" y="438" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
-        <mxCell id="T07onBQH2pV3I2XFedzj-13" value="{{ athlete1 }}" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
+        <mxCell id="T07onBQH2pV3I2XFedzj-13" value="[[athlete1]]" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="258.00000000000006" y="380" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
         <mxCell id="T07onBQH2pV3I2XFedzj-14" value="" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="258.00000000000006" y="438" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
-        <mxCell id="T07onBQH2pV3I2XFedzj-16" value="{{ athlete4 }}" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
+        <mxCell id="T07onBQH2pV3I2XFedzj-16" value="[[athlete4]]" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="912.0000000000002" y="380" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
         <mxCell id="T07onBQH2pV3I2XFedzj-17" value="" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
@@ -46,10 +46,10 @@
         <mxCell id="T07onBQH2pV3I2XFedzj-70" value="" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="694.0000000000001" y="554" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
-        <mxCell id="T07onBQH2pV3I2XFedzj-72" value="{{ athlete2 }}" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
+        <mxCell id="T07onBQH2pV3I2XFedzj-72" value="[[athlete2]]" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="40" y="496" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
-        <mxCell id="T07onBQH2pV3I2XFedzj-73" value="{{ athlete3 }}" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
+        <mxCell id="T07onBQH2pV3I2XFedzj-73" value="[[athlete3]]" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="40" y="554" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
         <mxCell id="T07onBQH2pV3I2XFedzj-75" value="" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
@@ -67,7 +67,7 @@
         <mxCell id="T07onBQH2pV3I2XFedzj-94" value="" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="912.0000000000002" y="612" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
-        <mxCell id="T07onBQH2pV3I2XFedzj-88" value="{{ athlete4 }}" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
+        <mxCell id="T07onBQH2pV3I2XFedzj-88" value="[[athlete4]]" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="40" y="612" width="218.00000000000006" height="58" as="geometry" />
         </mxCell>
         <mxCell id="T07onBQH2pV3I2XFedzj-91" value="" style="rounded=0;container=0;fontColor=default;fontSize=12;" parent="1" vertex="1">
@@ -85,13 +85,13 @@
             <mxPoint x="530.2488479262673" y="426.7741935483871" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="muOkb-H4uWtmL-af8cGg-2" value="{{ category }}" style="rounded=1;fontSize=18;spacing=2;" vertex="1" parent="1">
+        <mxCell id="muOkb-H4uWtmL-af8cGg-2" value="[[category]]" style="rounded=1;fontSize=18;spacing=2;" vertex="1" parent="1">
           <mxGeometry x="597" y="40" width="530" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="muOkb-H4uWtmL-af8cGg-3" value="{{ tournament_name }}" style="rounded=1;fontSize=18;spacing=2;" vertex="1" parent="1">
+        <mxCell id="muOkb-H4uWtmL-af8cGg-3" value="[[tournament_name]]" style="rounded=1;fontSize=18;spacing=2;" vertex="1" parent="1">
           <mxGeometry x="42" y="40" width="530" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="muOkb-H4uWtmL-af8cGg-23" value="{{ start_time_tatami }}" style="text;align=right;verticalAlign=middle;rounded=0;" vertex="1" parent="1">
+        <mxCell id="muOkb-H4uWtmL-af8cGg-23" value="[[start_time_tatami]]" style="text;align=right;verticalAlign=middle;rounded=0;" vertex="1" parent="1">
           <mxGeometry x="750" y="10" width="410" height="20" as="geometry" />
         </mxCell>
         <mxCell id="muOkb-H4uWtmL-af8cGg-24" value="" style="group" vertex="1" connectable="0" parent="1">

@@ -70,6 +70,7 @@ services:
       - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     environment:
       - JWT_SECRET=${JWT_SECRET}
+      - BACKEND_INTERNAL_URL=http://backend:8000
     depends_on:
       - backend
 

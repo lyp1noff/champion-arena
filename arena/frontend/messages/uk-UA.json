@@ -68,6 +68,8 @@
     "manage": "Керувати",
     "timetable": "Розклад",
     "exportToFile": "Експортувати у файл",
+    "exportFilled": "Заповнена сітка",
+    "exportManual": "Посадочна сітка",
     "applications": "Заявки",
     "reports": "Виписки",
     "adminHubTitle": "Керування турніром",

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -137,8 +139,12 @@ async def regenerate_tournament(tournament_id: int, db: AsyncSession = Depends(g
 
 
 @router.get("/{tournament_id}/export_file", dependencies=[Depends(get_current_user)])
-async def generate_brackets_export_file(tournament_id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
-    return await generate_brackets_export_file_service(db, tournament_id)
+async def generate_brackets_export_file(
+    tournament_id: int,
+    mode: Literal["filled", "manual"] = Query("filled"),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    return await generate_brackets_export_file_service(db, tournament_id, mode)
 
 
 @router.post("/{tournament_id}/import", dependencies=[Depends(get_current_user)])

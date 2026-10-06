@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -37,7 +36,7 @@ from src.schemas import (
     TournamentUpdate,
 )
 from src.services.brackets import regenerate_tournament_brackets, reorder_seeds_and_get_next
-from src.services.export_file import generate_pdf
+from src.services.export_file import ExportMode, generate_pdf
 from src.utils import sanitize_filename
 
 
@@ -296,23 +295,19 @@ async def regenerate_tournament(db: AsyncSession, tournament_id: int) -> None:
     await regenerate_tournament_brackets(db, tournament_id)
 
 
-async def generate_brackets_export_file(db: AsyncSession, tournament_id: int) -> dict[str, str]:
+async def generate_brackets_export_file(
+    db: AsyncSession, tournament_id: int, mode: ExportMode = "filled"
+) -> dict[str, str]:
     tournament = await db.get(Tournament, tournament_id)
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
     tournament_title = tournament.name
-    final_filename = f"{sanitize_filename(tournament_title)}.pdf"
+    final_filename = f"{sanitize_filename(tournament_title)}_{mode}.pdf"
     final_path = Path("pdf_storage") / final_filename
 
-    if final_path.exists():
-        file_mtime = datetime.fromtimestamp(final_path.stat().st_mtime, UTC)
-        export_updated_at = tournament.export_last_updated_at
-        if export_updated_at is not None and file_mtime > export_updated_at:
-            return {"filename": final_path.as_posix()}
-
     brackets = await get_matches_for_tournament_raw(db, tournament_id)
-    result = generate_pdf(brackets, tournament_title, start_date=tournament.start_date)
+    result = generate_pdf(brackets, tournament_title, start_date=tournament.start_date, mode=mode)
     if isinstance(result, dict):
         raise HTTPException(status_code=400, detail=result.get("detail", "Failed to generate"))
     return {"filename": final_path.as_posix()}

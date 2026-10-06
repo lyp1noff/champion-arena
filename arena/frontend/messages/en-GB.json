@@ -68,6 +68,8 @@
     "manage": "Manage",
     "timetable": "Timetable",
     "exportToFile": "Export to File",
+    "exportFilled": "Filled bracket",
+    "exportManual": "Manual bracket",
     "applications": "Applications",
     "reports": "Reports",
     "adminHubTitle": "Tournament Admin",

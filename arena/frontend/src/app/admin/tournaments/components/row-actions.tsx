@@ -23,10 +23,11 @@ import {
 
 import {
   deleteTournament,
-  downloadTournamentDocx,
+  downloadTournamentPdf,
   startTournament,
   updateTournamentStatus,
 } from "@/lib/api/tournaments";
+import type { TournamentExportMode } from "@/lib/api/tournaments";
 import { Tournament } from "@/lib/interfaces";
 
 interface DataTableRowActionsProps {
@@ -92,10 +93,10 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
     }
   };
 
-  const exportFile = async () => {
+  const exportFile = async (mode: TournamentExportMode) => {
     toast.promise(
       (async () => {
-        const url = await downloadTournamentDocx(row.original.id);
+        const url = await downloadTournamentPdf(row.original.id, mode);
         window.open(url, "_blank");
       })(),
       {
@@ -136,7 +137,13 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
             <DropdownMenuItem onClick={handleStartTournament}>Start Tournament</DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={exportFile}>{t("exportToFile")}</DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>{t("exportToFile")}</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem onClick={() => exportFile("filled")}>{t("exportFilled")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportFile("manual")}>{t("exportManual")}</DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>{t("delete")}</DropdownMenuItem>
         </DropdownMenuContent>

@@ -68,6 +68,8 @@
     "manage": "Управлять",
     "timetable": "Расписание",
     "exportToFile": "Экспорт в файл",
+    "exportFilled": "Заполненная сетка",
+    "exportManual": "Посадочная сетка",
     "applications": "Заявки",
     "reports": "Выписки",
     "adminHubTitle": "Управление турниром",

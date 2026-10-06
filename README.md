@@ -8,7 +8,7 @@ The platform covers the complete tournament lifecycle — from online registrati
 ## 📦 Repository Structure
 
 | Directory             | Description                                                                |
-| --------------------- | -------------------------------------------------------------------------- |
+|-----------------------|----------------------------------------------------------------------------|
 | [`arena/`](./arena)   | Online tournament platform — registration, brackets, scheduling, results   |
 | [`tatami/`](./tatami) | Local match control — referee dashboards, live scoring, offline-first sync |
 | [`domain/`](./domain) | Shared Python domain library used by both backends                         |
@@ -19,7 +19,8 @@ The platform covers the complete tournament lifecycle — from online registrati
 ## 🏗 Architecture
 
 **Arena** runs in the cloud and handles the full tournament lifecycle.  
-**Tatami** runs locally on-site and syncs results back to Arena via an outbox-based mechanism — ensuring match data is captured reliably even without a stable internet connection.
+**Tatami** runs locally on-site and syncs results back to Arena via an outbox-based mechanism — ensuring match data is
+captured reliably even without a stable internet connection.
 
 ```
 ┌─────────────────────┐              ┌──────────────────────────┐
@@ -54,10 +55,34 @@ The platform covers the complete tournament lifecycle — from online registrati
 
 ---
 
+## 🖨 SVG Export Templates
+
+When exporting PDF layout templates from diagrams.net/draw.io, use these settings:
+
+| Setting                      | Value       |
+|------------------------------|-------------|
+| Zoom                         | `100%`      |
+| Border Width                 | `0`         |
+| Size                         | `Page`      |
+| Transparent Background       | Off         |
+| Appearance                   | `Light`     |
+| Shadow                       | Off         |
+| Include a copy of my diagram | Off         |
+| Embed Images                 | On          |
+| Embed Fonts                  | On          |
+| Links                        | `Automatic` |
+
+Save the exported files as:
+
+- `arena/backend/assets/template.svg` for elimination brackets.
+- `arena/backend/assets/round_template.svg` for round-robin brackets.
+
+---
+
 ## 🛠 Tech Stack
 
 | Component      | Arena                                | Tatami                               |
-| -------------- | ------------------------------------ | ------------------------------------ |
+|----------------|--------------------------------------|--------------------------------------|
 | **Frontend**   | Next.js (React)                      | Next.js (React)                      |
 | **Backend**    | FastAPI (Python)                     | FastAPI (Python) + Go worker         |
 | **Database**   | PostgreSQL + SQLAlchemy              | PostgreSQL                           |

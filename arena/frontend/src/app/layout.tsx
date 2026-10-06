@@ -16,6 +16,10 @@ const inter = Inter({ subsets: ["latin", "cyrillic"] });
 export const metadata: Metadata = {
   title: "Champion",
   description: "Champion Tournament Management Platform",
+  icons: {
+    icon: [{ url: "/favicon.ico", type: "image/x-icon" }],
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default async function RootLayout({

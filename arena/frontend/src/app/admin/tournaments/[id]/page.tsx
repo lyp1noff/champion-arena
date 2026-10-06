@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
 
 import TournamentCard from "@/components/tournament-card";
 import { TournamentForm } from "@/components/tournament-form";
@@ -12,7 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
-import { getTournamentBracketsById, getTournamentById } from "@/lib/api/tournaments";
+import {
+  downloadTournamentPdf,
+  getTournamentBracketsById,
+  getTournamentById,
+} from "@/lib/api/tournaments";
+import type { TournamentExportMode } from "@/lib/api/tournaments";
 import { Bracket, Tournament } from "@/lib/interfaces";
 
 export default function TournamentAdminPage() {
@@ -25,6 +31,7 @@ export default function TournamentAdminPage() {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [exportingMode, setExportingMode] = useState<TournamentExportMode | null>(null);
 
   useEffect(() => {
     if (!tournamentId) return;
@@ -48,6 +55,26 @@ export default function TournamentAdminPage() {
       categoriesCount: brackets.length,
     };
   }, [brackets]);
+
+  const exportFile = async (mode: TournamentExportMode) => {
+    setExportingMode(mode);
+
+    try {
+      await toast.promise(
+        (async () => {
+          const url = await downloadTournamentPdf(tournamentId, mode);
+          window.open(url, "_blank");
+        })(),
+        {
+          loading: "Generating file, please wait...",
+          success: "File exported successfully",
+          error: (error) => `Error exporting file: ${error}`,
+        },
+      );
+    } finally {
+      setExportingMode(null);
+    }
+  };
 
   if (!tournamentId) return null;
 
@@ -99,6 +126,22 @@ export default function TournamentAdminPage() {
                 {t("reports")}
               </Button>
             </Link>
+            <Button
+              className="w-full"
+              variant="outline"
+              disabled={exportingMode !== null}
+              onClick={() => exportFile("filled")}
+            >
+              {t("exportFilled")}
+            </Button>
+            <Button
+              className="w-full"
+              variant="outline"
+              disabled={exportingMode !== null}
+              onClick={() => exportFile("manual")}
+            >
+              {t("exportManual")}
+            </Button>
           </CardContent>
         </Card>
       </div>
