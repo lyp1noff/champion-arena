@@ -106,9 +106,48 @@ jobs:
           provenance: false
           sbom: false
 
+  build-nginx:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'stage' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: docker/setup-buildx-action@v3
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Meta (nginx)
+        id: meta_nginx
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NS }}-nginx
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.ref_name == 'main' && 'prod' || 'stage' }}
+
+      - name: Build+Push (nginx)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./arena/nginx
+          file: ./arena/nginx/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta_nginx.outputs.tags }}
+          labels: ${{ steps.meta_nginx.outputs.labels }}
+          provenance: false
+          sbom: false
+
   redeploy:
     runs-on: ubuntu-latest
-    needs: [ build-backend, build-frontend ]
+    needs: [ build-backend, build-frontend, build-nginx ]
     environment: ${{ github.ref_name == 'main' && 'prod' || 'stage' }}
     steps:
       - name: Trigger Portainer stack webhook

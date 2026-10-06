@@ -70,9 +70,11 @@ def upgrade() -> None:
     )
 
     for t in TABLES_WITH_TIMESTAMPS:
+        # asyncpg prepares one SQL command at a time, so DROP and CREATE
+        # cannot be sent together in a single op.execute() call.
+        op.execute(f"DROP TRIGGER IF EXISTS trg_{t}_updated_at ON {t};")
         op.execute(
             f"""
-            DROP TRIGGER IF EXISTS trg_{t}_updated_at ON {t};
             CREATE TRIGGER trg_{t}_updated_at
             BEFORE UPDATE ON {t}
             FOR EACH ROW

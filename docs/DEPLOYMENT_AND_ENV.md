@@ -45,6 +45,7 @@ Required:
 - `POSTGRES_DB`
 - `JWT_SECRET`
 - `SERVICE_TOKEN`
+- `CLOUDFLARE_TUNNEL_TOKEN` - token for the remotely managed Cloudflare Tunnel
 
 Required when using Redis/websocket outside local dev:
 
@@ -102,11 +103,35 @@ Optional:
 - prod-ish stack: root `docker-compose.yml`
 - local build override: `arena/docker-compose.dev.yml`
 
+The production request path is:
+
+```text
+Cloudflare -> cloudflared -> nginx -> frontend/backend
+```
+
+Create a remotely managed tunnel in Cloudflare and configure its public
+hostname to use `http://nginx:80` as the service URL. Put the tunnel token in
+the deployment environment as `CLOUDFLARE_TUNNEL_TOKEN`.
+
+The production nginx configuration is baked into the `champion-nginx` image so
+that a Portainer Git stack does not depend on host bind mounts. The service
+intentionally has no published host port. Once the tunnel has been verified,
+stop the host nginx service and block inbound TCP ports 80 and 443 at the
+host/provider firewall. Keep outbound TCP/UDP port 7844 available for
+`cloudflared` and do not remove SSH access until the tunnel deployment has been
+verified.
+
+Cloudflare Access is not required: the application remains public through the
+tunnel while direct access to the origin is closed.
+
 Run:
 
 ```bash
 docker compose --env-file arena/.env.docker -f docker-compose.yml -f arena/docker-compose.dev.yml up --build
 ```
+
+The dev override disables `cloudflared` by default. To test the tunnel with the
+local stack, append `--profile tunnel` and provide a valid tunnel token.
 
 ### Tatami
 

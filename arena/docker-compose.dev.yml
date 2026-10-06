@@ -36,3 +36,8 @@ services:
     depends_on:
       - backend
       - frontend
+  cloudflared:
+    # The local stack does not need an external tunnel by default. Enable it
+    # explicitly with `--profile tunnel` when testing Cloudflare end to end.
+    profiles:
+      - tunnel

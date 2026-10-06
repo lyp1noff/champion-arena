@@ -73,5 +73,27 @@ services:
     depends_on:
       - backend
 
+  nginx:
+    image: ghcr.io/lyp1noff/champion-nginx:${IMAGE_TAG:-latest}
+    container_name: champion-nginx
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: champion-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - nginx
+
 volumes:
   pg_data:
