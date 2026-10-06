@@ -16,9 +16,20 @@ const inter = Inter({ subsets: ["latin", "cyrillic"] });
 export const metadata: Metadata = {
   title: "Champion",
   description: "Champion Tournament Management Platform",
+  applicationName: "Champion",
+  manifest: "/site.webmanifest",
   icons: {
-    icon: [{ url: "/favicon.ico", type: "image/x-icon" }],
-    shortcut: "/favicon.ico",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any", type: "image/x-icon" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Champion",
+    statusBarStyle: "default",
   },
 };
 
