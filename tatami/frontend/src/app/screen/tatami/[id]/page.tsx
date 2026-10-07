@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useRouteParams } from "@/lib/router";
 import { useTatamiStore } from "@/store/tatami";
-import Image from "next/image";
 
 export default function ScreenTatami() {
-  const { id: tatamiId } = useParams();
+  const { id: tatamiId } = useRouteParams();
   const [isHydrated, setIsHydrated] = useState(false);
 
   const {
@@ -67,7 +66,7 @@ export default function ScreenTatami() {
 
   // Handle timer updates locally on screen
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
     if (status === "running" && startTimestamp) {
       interval = setInterval(() => {
         const now = Date.now();
@@ -197,21 +196,17 @@ export default function ScreenTatami() {
               <br />
               ВІДДІЛЕННЯ КАРАТЕ
             </span>
-            <Image
+            <img
               src="/champ_logo.svg"
               alt="Champion Logo"
-              width={0}
-              height={0}
-              priority
               style={{ width: "160px", height: "auto" }}
             />
           </div>
-          <Image
+          <img
             src="/champ_ippon.png"
             alt="Champion Ippon Logo"
             width={240}
             height={240}
-            priority
             className="object-contain"
             // style={{ width: "160px", height: "auto" }}
           />

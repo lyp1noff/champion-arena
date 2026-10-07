@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTatamiStore } from "@/store/tatami";
 
 import { Button } from "@/components/ui/button";
-import { useParams } from "next/navigation";
+import { useRouteParams } from "@/lib/router";
 import { TimerDisplay } from "./components/TimerDisplay";
 import { MatchControls } from "./components/MatchControls";
 import { FighterControls } from "./components/FighterControls";
@@ -16,7 +16,7 @@ import { TimeSetting } from "./components/TimeSetting";
 import { createEmptyMatch } from "@/lib/emptyMatch";
 
 export default function ManageTatami() {
-  const { id: tatamiId, match_id } = useParams();
+  const { id: tatamiId, match_id } = useRouteParams();
   const {
     status,
     startTimestamp,
@@ -41,7 +41,7 @@ export default function ManageTatami() {
   const [showTimeSettingDialog, setShowTimeSettingDialog] = useState(false);
   const [localElapsed, setLocalElapsed] = useState(0);
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setIsHydrated(true);

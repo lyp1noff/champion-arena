@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useAppRouter, useRouteParams } from "@/lib/router";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,9 +9,9 @@ import { Athlete, Bracket, BracketMatch, Tournament } from "@/lib/interfaces";
 import { getBrackets, getCurrentTournament, getMatches, getTournament } from "@/lib/api";
 
 export default function TatamiSetupPage() {
-  const router = useRouter();
+  const router = useAppRouter();
 
-  const { id: tatamiId } = useParams();
+  const { id: tatamiId } = useRouteParams();
 
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [brackets, setBrackets] = useState<Bracket[]>([]);

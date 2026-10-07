@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -212,7 +211,7 @@ export default function SetupPage() {
                 </Button>
               )}
               <Button asChild variant="outline" className="px-4">
-                <Link href="/admin/brackets">Open Bracket Admin</Link>
+                <a href="/admin/brackets">Open Bracket Admin</a>
               </Button>
             </div>
 
