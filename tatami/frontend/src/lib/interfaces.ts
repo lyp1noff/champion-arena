@@ -46,12 +46,16 @@ export interface Athlete {
   age?: number;
 }
 
-interface Match {
+export interface Match {
   external_id: string;
   round_type?: string;
+  stage?: string;
+  repechage_side?: string;
+  repechage_step?: number;
   athlete1?: Athlete;
   athlete2?: Athlete;
   winner?: Athlete;
+  winner_id?: number;
   score_athlete1?: number;
   score_athlete2?: number;
   status: "not_started" | "started" | "finished";

@@ -4,24 +4,28 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { BracketParticipantControls } from "@/components/admin/bracket-participant-controls";
 import { BracketParticipantTable } from "@/components/admin/bracket-participant-table";
+import { BracketResults } from "@/components/admin/bracket-results";
 import { SearchablePicker } from "@/components/admin/searchable-picker";
 import {
   addBracketParticipant,
+  correctMatchResult,
   deleteBracketParticipant,
   getBracketParticipants,
   getBrackets,
   getCurrentTournament,
   getExternalAthletes,
+  getMatches,
   moveBracketParticipant,
   updateBracketParticipantSeed,
 } from "@/lib/api";
-import { Athlete, Bracket, BracketParticipant } from "@/lib/interfaces";
+import { Athlete, Bracket, BracketMatch, BracketParticipant } from "@/lib/interfaces";
 import { useI18n } from "@/lib/i18n";
 
 export function BracketAdmin() {
   const { t } = useI18n();
   const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [participants, setParticipants] = useState<BracketParticipant[]>([]);
+  const [matches, setMatches] = useState<BracketMatch[]>([]);
   const [externalAthletes, setExternalAthletes] = useState<Athlete[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
   const [selectedBracket, setSelectedBracket] = useState<number | null>(null);
@@ -31,6 +35,7 @@ export function BracketAdmin() {
   const [seedEdits, setSeedEdits] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [participantActionLoading, setParticipantActionLoading] = useState(false);
+  const [resultActionLoading, setResultActionLoading] = useState(false);
 
   const fetchParticipants = useCallback(async (bracketId: number | null) => {
     if (!bracketId) {
@@ -43,6 +48,14 @@ export function BracketAdmin() {
     setSeedEdits(Object.fromEntries(data.map((participant) => [participant.id, String(participant.seed)])));
   }, []);
 
+  const fetchMatches = useCallback(async (bracketId: number | null) => {
+    if (!bracketId) {
+      setMatches([]);
+      return;
+    }
+    setMatches(await getMatches(String(bracketId)));
+  }, []);
+
   const fetchBrackets = useCallback(async (tournamentId: number, preferredBracketId: number | null = null) => {
     const data = await getBrackets(String(tournamentId));
     setBrackets(data);
@@ -53,8 +66,8 @@ export function BracketAdmin() {
         : data[0]?.external_id ?? null;
 
     setSelectedBracket(resolvedBracketId);
-    await fetchParticipants(resolvedBracketId);
-  }, [fetchParticipants]);
+    await Promise.all([fetchParticipants(resolvedBracketId), fetchMatches(resolvedBracketId)]);
+  }, [fetchMatches, fetchParticipants]);
 
   useEffect(() => {
     const bootstrapPage = async () => {
@@ -80,14 +93,16 @@ export function BracketAdmin() {
   useEffect(() => {
     if (!selectedBracket) {
       setParticipants([]);
+      setMatches([]);
       return;
     }
 
-    fetchParticipants(selectedBracket).catch((error) => {
-      console.error("Error fetching participants:", error);
+    Promise.all([fetchParticipants(selectedBracket), fetchMatches(selectedBracket)]).catch((error) => {
+      console.error("Error fetching bracket data:", error);
       setParticipants([]);
+      setMatches([]);
     });
-  }, [fetchParticipants, selectedBracket]);
+  }, [fetchMatches, fetchParticipants, selectedBracket]);
 
   const addableAthletes = useMemo(() => {
     return externalAthletes.filter((athlete) => {
@@ -198,6 +213,22 @@ export function BracketAdmin() {
     }
   };
 
+  const handleCorrectResult = async (
+    bracketMatch: BracketMatch,
+    score1: number,
+    score2: number,
+    winnerId: number,
+  ) => {
+    if (!selectedBracket) return;
+    try {
+      setResultActionLoading(true);
+      await correctMatchResult(bracketMatch.match.external_id, score1, score2, winnerId);
+      await fetchMatches(selectedBracket);
+    } finally {
+      setResultActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="rounded-lg border bg-white p-6">
@@ -245,6 +276,7 @@ export function BracketAdmin() {
 
       {selectedBracket ? (
         <>
+          <BracketResults matches={matches} loading={resultActionLoading} onCorrect={handleCorrectResult} />
           <BracketParticipantControls
             athletes={addableAthletes}
             selectedAthleteExternalId={selectedAthleteExternalId}

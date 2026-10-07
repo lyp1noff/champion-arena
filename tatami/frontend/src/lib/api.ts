@@ -51,6 +51,29 @@ export async function finishMatch(
   }
 }
 
+export async function correctMatchResult(
+  matchId: string,
+  scoreAthlete1: number,
+  scoreAthlete2: number,
+  winnerId: number,
+): Promise<void> {
+  const response = await fetch(`${BACKEND_URL}/matches/${matchId}/correct-result`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      score_athlete1: scoreAthlete1,
+      score_athlete2: scoreAthlete2,
+      winner_id: winnerId,
+    }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(data?.detail ?? "Failed to correct match result");
+  }
+}
+
 export async function updateScores(matchId: string, scoreAthlete1: number, scoreAthlete2: number): Promise<void> {
   const response = await fetch(`${BACKEND_URL}/matches/${matchId}/scores`, {
     method: "PATCH",

@@ -12,13 +12,13 @@ from champion_domain import (
     should_generate_repechage,
 )
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.logger import logger
 from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match
-from src.schemas import FinishMatchSchema, MatchWithBracketSchema, UpdateMatchScoresSchema
+from src.schemas import CorrectMatchResultSchema, FinishMatchSchema, MatchWithBracketSchema, UpdateMatchScoresSchema
 from src.services.outbox import (
     create_bracket_upsert_outbox,
     create_match_finish_outbox,
@@ -46,9 +46,24 @@ async def _apply_winner_to_next_match(
     winner_id: int,
     action: ProgressionAction,
 ) -> None:
+    target = await _get_progression_target_match(db, bm, action)
+    if target is None:
+        return
+    next_match, slot = target
+    if slot == 1:
+        next_match.athlete1_id = winner_id
+    else:
+        next_match.athlete2_id = winner_id
+
+
+async def _get_progression_target_match(
+    db: AsyncSession,
+    bm: BracketMatch,
+    action: ProgressionAction,
+) -> tuple[Match, int] | None:
     if action.kind == "repechage":
         if action.repechage_round_number is None or action.repechage_position is None:
-            return
+            return None
         next_bm = (
             await db.execute(
                 select(BracketMatch).where(
@@ -59,15 +74,13 @@ async def _apply_winner_to_next_match(
             )
         ).scalar_one_or_none()
         if next_bm is None:
-            return
+            return None
         next_match = await db.get(Match, next_bm.match_id)
-        if next_match is not None:
-            next_match.athlete1_id = winner_id
-        return
+        return (next_match, 1) if next_match is not None else None
 
     if action.kind == "main":
         if action.main_round_number is None or action.main_position is None:
-            return
+            return None
         next_bm = (
             await db.execute(
                 select(BracketMatch).where(
@@ -78,14 +91,13 @@ async def _apply_winner_to_next_match(
             )
         ).scalar_one_or_none()
         if next_bm is None:
-            return
+            return None
         next_match = await db.get(Match, next_bm.match_id)
         if next_match is None or next_match.stage != "main":
-            return
-        if action.slot == 1:
-            next_match.athlete1_id = winner_id
-        else:
-            next_match.athlete2_id = winner_id
+            return None
+        return next_match, 1 if action.slot == 1 else 2
+
+    return None
 
 
 async def _get_bracket_for_match(match_id: int, db: AsyncSession) -> Bracket | None:
@@ -381,6 +393,124 @@ async def finish_match(match_id: str, finish_data: FinishMatchSchema, db: AsyncS
 
     await db.commit()
     return {"message": f"Match {match_id} finished successfully"}
+
+
+async def correct_match_result(
+    match_id: str,
+    correction: CorrectMatchResultSchema,
+    db: AsyncSession,
+) -> dict[str, str]:
+    match = (
+        await db.execute(select(Match).where(Match.external_id == match_id).with_for_update())
+    ).scalar_one_or_none()
+    if match is None:
+        raise HTTPException(status_code=404, detail=f"Match {match_id} not found")
+    if match.status != "finished":
+        raise HTTPException(status_code=409, detail="Only a finished match result can be corrected")
+    if correction.winner_id not in {match.athlete1_id, match.athlete2_id}:
+        raise HTTPException(status_code=400, detail="Winner must be one of the match athletes")
+
+    winner = await db.get(Athlete, correction.winner_id)
+    if winner is None:
+        raise HTTPException(status_code=400, detail=f"Winner athlete {correction.winner_id} not found")
+
+    bm = (
+        await db.execute(select(BracketMatch).where(BracketMatch.match_id == match.id).with_for_update())
+    ).scalar_one_or_none()
+    if bm is None:
+        raise HTTPException(status_code=409, detail="Match is not attached to a bracket")
+
+    bracket = await db.get(Bracket, bm.bracket_id, with_for_update=True)
+    if bracket is None:
+        raise HTTPException(status_code=409, detail="Bracket not found")
+
+    old_winner_id = match.winner_id
+    winner_changed = old_winner_id != correction.winner_id
+    main_rounds = await _get_main_rounds_count(bm.bracket_id, db)
+    classification = classify_bracket_match(
+        round_number=bm.round_number,
+        position=bm.position,
+        main_rounds=main_rounds,
+    )
+    stage = match.stage or ("repechage" if classification.is_repechage else "main")
+    repechage_side = match.repechage_side or classification.repechage_side
+    repechage_step = match.repechage_step if match.repechage_step is not None else classification.repechage_step
+    runtime = decide_finish_flow_runtime(
+        origin="local",
+        stage=stage,
+        current_round_number=bm.round_number,
+        current_position=bm.position,
+        explicit_next_slot=bm.next_slot,
+        repechage_side=repechage_side,
+        repechage_step=repechage_step,
+        allow_implicit_main_slot=False,
+        main_rounds=main_rounds,
+    )
+
+    target: tuple[Match, int] | None = None
+    repechage_rows: list[tuple[BracketMatch, Match]] = []
+    rebuild_repechage = False
+    if winner_changed:
+        if old_winner_id is None:
+            raise HTTPException(status_code=409, detail="Finished match has no current winner")
+
+        if runtime.progression_action is not None:
+            target = await _get_progression_target_match(db, bm, runtime.progression_action)
+        if stage == "main" and bm.round_number < main_rounds and target is None:
+            raise HTTPException(status_code=409, detail="The dependent match could not be resolved")
+        if target is not None:
+            next_match, target_slot = target
+            current_target_athlete = next_match.athlete1_id if target_slot == 1 else next_match.athlete2_id
+            if next_match.status != "not_started":
+                raise HTTPException(status_code=409, detail="The dependent match has already started")
+            if current_target_athlete != old_winner_id:
+                raise HTTPException(status_code=409, detail="The dependent bracket slot no longer contains this winner")
+
+        if stage == "main" and bm.round_number < main_rounds:
+            repechage_result = await db.execute(
+                select(BracketMatch, Match)
+                .join(Match, Match.id == BracketMatch.match_id)
+                .where(BracketMatch.bracket_id == bm.bracket_id, Match.stage == "repechage")
+                .with_for_update()
+            )
+            repechage_rows = [(rep_bm, rep_match) for rep_bm, rep_match in repechage_result.all()]
+            if any(rep_match.status != "not_started" for _, rep_match in repechage_rows):
+                raise HTTPException(status_code=409, detail="Repechage has already started")
+            rebuild_repechage = bool(repechage_rows)
+
+    match.score_athlete1 = correction.score_athlete1
+    match.score_athlete2 = correction.score_athlete2
+    match.winner_id = correction.winner_id
+
+    if target is not None:
+        next_match, target_slot = target
+        if target_slot == 1:
+            next_match.athlete1_id = correction.winner_id
+        else:
+            next_match.athlete2_id = correction.winner_id
+
+    if rebuild_repechage:
+        repechage_bracket_match_ids = [rep_bm.id for rep_bm, _ in repechage_rows]
+        repechage_match_ids = [rep_match.id for _, rep_match in repechage_rows]
+        await db.execute(delete(BracketMatch).where(BracketMatch.id.in_(repechage_bracket_match_ids)))
+        await db.execute(delete(Match).where(Match.id.in_(repechage_match_ids)))
+        await db.flush()
+        await _ensure_repechage_generated(bm.bracket_id, db)
+
+    aggregate_version = _touch_bracket(bracket)
+    await create_match_finish_outbox(
+        match,
+        winner.external_id,
+        correction.score_athlete1,
+        correction.score_athlete2,
+        aggregate_version,
+        db,
+    )
+    _touch_bracket(bracket)
+    await create_bracket_upsert_outbox(bracket, db)
+
+    await db.commit()
+    return {"message": f"Match {match_id} result corrected successfully"}
 
 
 async def update_match_scores(match_id: str, scores_data: UpdateMatchScoresSchema, db: AsyncSession) -> dict[str, str]:

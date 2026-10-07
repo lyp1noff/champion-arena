@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
-from src.schemas import FinishMatchSchema, MatchWithBracketSchema, UpdateMatchScoresSchema
+from src.schemas import CorrectMatchResultSchema, FinishMatchSchema, MatchWithBracketSchema, UpdateMatchScoresSchema
+from src.services.matches import correct_match_result as correct_match_result_service
 from src.services.matches import finish_match as finish_match_service
 from src.services.matches import get_match as get_match_service
 from src.services.matches import start_match as start_match_service
@@ -31,6 +32,15 @@ async def finish_match(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     return await finish_match_service(match_id, finish_data, db)
+
+
+@router.post("/{match_id}/correct-result", response_model=dict)
+async def correct_match_result(
+    match_id: str,
+    correction: CorrectMatchResultSchema,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    return await correct_match_result_service(match_id, correction, db)
 
 
 @router.patch("/{match_id}/scores", response_model=dict)
