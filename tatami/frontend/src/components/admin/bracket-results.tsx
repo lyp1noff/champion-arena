@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BracketMatch } from "@/lib/interfaces";
 import { useI18n } from "@/lib/i18n";
 
@@ -24,7 +25,10 @@ function athleteName(athlete: BracketMatch["match"]["athlete1"]): string {
 
 export function BracketResults({ matches, loading, onCorrect }: BracketResultsProps) {
   const { t } = useI18n();
-  const finishedMatches = useMemo(() => matches.filter(({ match }) => match.status === "finished"), [matches]);
+  const finishedMatches = useMemo(
+    () => matches.filter(({ match }) => match.status === "finished" && match.athlete1 && match.athlete2),
+    [matches],
+  );
   const [selected, setSelected] = useState<BracketMatch | null>(null);
   const [score1, setScore1] = useState("0");
   const [score2, setScore2] = useState("0");
@@ -113,14 +117,26 @@ export function BracketResults({ matches, loading, onCorrect }: BracketResultsPr
                   <input className="admin-input" type="number" min="0" value={score2} onChange={(event) => setScore2(event.target.value)} />
                 </label>
               </div>
-              <label className="admin-field">
+              <div className="admin-field">
                 <span>{t("match.winner")}</span>
-                <select className="admin-input" value={winnerId} onChange={(event) => setWinnerId(event.target.value)}>
-                  <option value="" disabled>{t("match.selectWinner")}</option>
-                  {selected.match.athlete1 ? <option value={selected.match.athlete1.id}>{athleteName(selected.match.athlete1)}</option> : null}
-                  {selected.match.athlete2 ? <option value={selected.match.athlete2.id}>{athleteName(selected.match.athlete2)}</option> : null}
-                </select>
-              </label>
+                <Select value={winnerId} onValueChange={setWinnerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("match.selectWinner")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selected.match.athlete1 ? (
+                      <SelectItem value={String(selected.match.athlete1.id)}>
+                        {athleteName(selected.match.athlete1)}
+                      </SelectItem>
+                    ) : null}
+                    {selected.match.athlete2 ? (
+                      <SelectItem value={String(selected.match.athlete2.id)}>
+                        {athleteName(selected.match.athlete2)}
+                      </SelectItem>
+                    ) : null}
+                  </SelectContent>
+                </Select>
+              </div>
               {error ? <div className="result-editor__error">{error}</div> : null}
             </div>
           ) : null}

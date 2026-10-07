@@ -212,7 +212,6 @@ input[type="number"], input[type="text"] { min-height: 36px; border: 1px solid #
 .result-editor__scores { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .result-editor__scores label > span, .result-editor > .admin-field > span { display: block; min-height: 34px; margin-bottom: 6px; color: #374151; font-size: 13px; font-weight: 600; line-height: 1.3; }
 .result-editor__scores input { font-family: "Geist Mono", Consolas, monospace; font-size: 20px; text-align: center; }
-.result-editor select { appearance: auto; }
 .result-editor__error { padding: 10px 12px; border: 1px solid #fecaca; border-radius: 6px; background: #fef2f2; color: #b91c1c; font-size: 13px; }
 
 .match-admin { width: min(100% - 32px, 1040px); margin: 0 auto; padding: 24px 0 40px; }

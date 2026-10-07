@@ -276,7 +276,6 @@ export function BracketAdmin() {
 
       {selectedBracket ? (
         <>
-          <BracketResults matches={matches} loading={resultActionLoading} onCorrect={handleCorrectResult} />
           <BracketParticipantControls
             athletes={addableAthletes}
             selectedAthleteExternalId={selectedAthleteExternalId}
@@ -304,6 +303,7 @@ export function BracketAdmin() {
             onMove={handleMoveParticipant}
             onRemove={handleRemoveParticipant}
           />
+          <BracketResults matches={matches} loading={resultActionLoading} onCorrect={handleCorrectResult} />
         </>
       ) : (
         <div className="rounded-lg border bg-white p-6">
