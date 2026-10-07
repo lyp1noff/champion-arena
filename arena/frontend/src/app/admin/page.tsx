@@ -34,6 +34,9 @@ export default function Admin() {
         <Link href="/admin/athletes">
           <Button>{t("athletes")}</Button>
         </Link>
+        <Link href="/admin/coaches">
+          <Button>{t("coaches")}</Button>
+        </Link>
         <Button variant="outline" onClick={handleLogout}>
           Logout
         </Button>

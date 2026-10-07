@@ -1,8 +1,8 @@
 import uuid
 from datetime import UTC, date, datetime, time
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
-from pydantic import AliasPath, BaseModel, ConfigDict, Field, computed_field
+from pydantic import AliasPath, BaseModel, ConfigDict, Field, StringConstraints, computed_field
 
 from src.models import BracketType, MatchStatus
 
@@ -70,18 +70,26 @@ class PaginatedAthletesResponse(OrmResponseModel):
     limit: int
 
 
+CoachName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+CoachFirstName = Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)]
+
+
 class CoachBase(OrmResponseModel):
-    last_name: str
-    first_name: str
-    credentials: Optional[str] = None
+    last_name: CoachName
+    first_name: CoachFirstName = ""
 
 
 class CoachCreate(CoachBase):
     pass
 
 
+class CoachUpdate(CoachBase):
+    pass
+
+
 class CoachResponse(CoachBase):
     id: int
+    athlete_count: int = 0
 
 
 class CategoryBase(OrmResponseModel):

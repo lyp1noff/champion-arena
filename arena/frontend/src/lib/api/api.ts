@@ -1,4 +1,5 @@
 import { BACKEND_URL } from "@/lib/config";
+import { Coach, CoachInput } from "@/lib/interfaces";
 import { isClient } from "@/lib/utils";
 
 export async function fetchWithRefresh(input: RequestInfo, init?: RequestInit): Promise<Response> {
@@ -28,7 +29,12 @@ export async function fetchWithRefresh(input: RequestInfo, init?: RequestInit): 
   return response;
 }
 
-export async function getCoaches() {
+async function apiError(response: Response, fallback: string): Promise<Error> {
+  const data = await response.json().catch(() => null);
+  return new Error(typeof data?.detail === "string" ? data.detail : fallback);
+}
+
+export async function getCoaches(): Promise<Coach[]> {
   const res = await fetchWithRefresh(`${BACKEND_URL}/coaches`, { cache: "no-store" });
 
   if (!res.ok) {
@@ -36,6 +42,31 @@ export async function getCoaches() {
   }
 
   return res.json();
+}
+
+export async function createCoach(data: CoachInput): Promise<Coach> {
+  const res = await fetchWithRefresh(`${BACKEND_URL}/coaches`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw await apiError(res, "Failed to create coach");
+  return res.json();
+}
+
+export async function updateCoach(id: number, data: CoachInput): Promise<Coach> {
+  const res = await fetchWithRefresh(`${BACKEND_URL}/coaches/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw await apiError(res, "Failed to update coach");
+  return res.json();
+}
+
+export async function deleteCoach(id: number): Promise<void> {
+  const res = await fetchWithRefresh(`${BACKEND_URL}/coaches/${id}`, { method: "DELETE" });
+  if (!res.ok) throw await apiError(res, "Failed to delete coach");
 }
 
 export async function uploadImage(file: File, path: string): Promise<string | null> {

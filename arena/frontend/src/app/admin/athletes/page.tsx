@@ -40,6 +40,9 @@ function AthletesTableWrapper() {
         <Link href="/admin/athletes/create">
           <Button variant="outline">Create New Athlete</Button>
         </Link>
+        <Link href="/admin/coaches">
+          <Button variant="outline">Manage Coaches</Button>
+        </Link>
       </div>
       <DataTable
         columns={columns}
