@@ -105,9 +105,12 @@ export type BracketUpdate = Partial<Bracket>;
 
 export interface Coach {
   id: number;
-  name: string;
+  first_name: string;
   last_name: string;
+  athlete_count: number;
 }
+
+export type CoachInput = Pick<Coach, "first_name" | "last_name">;
 
 export type BracketMatchAthlete = {
   id: number;
