@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "@/lib/i18n";
 
 type DialogContextValue = { open: boolean; setOpen: (open: boolean) => void };
 const DialogContext = createContext<DialogContextValue | null>(null);
@@ -24,6 +25,7 @@ export function DialogTrigger({ asChild, children }: { asChild?: boolean; childr
 
 export function DialogContent({ className = "", children, showCloseButton = true }: { className?: string; children: React.ReactNode; showCloseButton?: boolean }) {
   const { open, setOpen } = useDialog();
+  const { t } = useI18n();
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
@@ -35,7 +37,7 @@ export function DialogContent({ className = "", children, showCloseButton = true
     <div className="dialog-layer" role="presentation" onMouseDown={() => setOpen(false)}>
       <section className={`dialog-content ${className}`.trim()} role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
         {children}
-        {showCloseButton && <button type="button" className="dialog-close" aria-label="Close" onClick={() => setOpen(false)}>×</button>}
+        {showCloseButton && <button type="button" className="dialog-close" aria-label={t("common.close")} onClick={() => setOpen(false)}>×</button>}
       </section>
     </div>, document.body,
   );

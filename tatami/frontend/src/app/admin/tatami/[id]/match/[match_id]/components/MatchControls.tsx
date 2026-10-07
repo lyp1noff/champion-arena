@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 
 interface MatchControlsProps {
   status: string;
@@ -8,14 +9,12 @@ interface MatchControlsProps {
 }
 
 export function MatchControls({ status, onStart, onPause, onResume }: MatchControlsProps) {
+  const { t } = useI18n();
   return (
-    <>
-      {/* Match Controls */}
-      <div className="flex justify-center space-x-2">
-        {status === "running" && <Button onClick={onPause}>Pause</Button>}
-        {status === "idle" && <Button onClick={onStart}>Start</Button>}
-        {status === "paused" && <Button onClick={onResume}>Resume</Button>}
-      </div>
-    </>
+    <div className="match-primary-control">
+      {status === "running" && <Button onClick={onPause}>{t("match.pause")}</Button>}
+      {status === "idle" && <Button onClick={onStart}>{t("match.start")}</Button>}
+      {status === "paused" && <Button onClick={onResume}>{t("match.resume")}</Button>}
+    </div>
   );
 }

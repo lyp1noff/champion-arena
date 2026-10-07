@@ -37,9 +37,7 @@ async def get_bracket_with_tournament_for_match(match_id: int, db: AsyncSession)
 
 
 async def get_bracket_with_tournament(bracket_id: int, db: AsyncSession) -> Optional[Bracket]:
-    result = await db.execute(
-        select(Bracket).where(Bracket.id == bracket_id).options(selectinload(Bracket.tournament))
-    )
+    result = await db.execute(select(Bracket).where(Bracket.id == bracket_id).options(selectinload(Bracket.tournament)))
     return result.scalar_one_or_none()
 
 

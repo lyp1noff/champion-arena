@@ -1,0 +1,241 @@
+.tatami-screen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.tatami-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: center;
+}
+
+.tatami-background {
+  position: absolute;
+  inset: 0;
+  opacity: .15;
+}
+
+.tatami-background__gradient {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to right in oklab, color(display-p3 .26642 .49122 .98862), #fb2c36);
+}
+
+.tatami-background__gradient.is-swapped {
+  background: linear-gradient(to right in oklab, #fb2c36, color(display-p3 .26642 .49122 .98862));
+}
+
+.tatami-branding {
+  position: absolute;
+  bottom: 5%;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  opacity: .1;
+  filter: drop-shadow(0 0 10px #000);
+  transform: translateX(-50%);
+}
+
+.tatami-branding__club {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 32px;
+}
+
+.tatami-branding__label {
+  padding-bottom: 8px;
+  color: var(--champion-yellow);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  text-align: center;
+}
+
+.tatami-branding__champion-logo {
+  width: 160px;
+  height: auto;
+}
+
+.tatami-branding__ippon-logo {
+  object-fit: contain;
+}
+
+.tatami-heading {
+  position: absolute;
+  top: 32px;
+  z-index: 10;
+  color: #d1d5db;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tatami-heading--bracket {
+  left: 32px;
+}
+
+.tatami-heading--number {
+  right: 32px;
+}
+
+.tatami-timer,
+.tatami-fighter,
+.tatami-athlete {
+  position: absolute;
+  z-index: 10;
+  text-align: center;
+}
+
+.tatami-timer,
+.tatami-fighter {
+  top: 50%;
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, .7));
+}
+
+.tatami-timer {
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.tatami-timer__value {
+  color: #fff;
+  font-family: "Geist Mono", Consolas, "Courier New", monospace;
+  font-size: 14rem;
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+
+.tatami-timer__value.is-paused {
+  color: var(--champion-yellow);
+}
+
+.tatami-timer__value.is-expiring {
+  color: #fb2c36;
+}
+
+.tatami-timer__separator {
+  margin-right: -30px;
+  margin-left: -30px;
+}
+
+.tatami-timer__centisecond {
+  font-size: 8rem;
+}
+
+.tatami-fighter--left {
+  left: 16.666667%;
+  transform: translate(-50%, -50%);
+}
+
+.tatami-fighter--right {
+  right: 16.666667%;
+  transform: translate(50%, -50%);
+}
+
+.tatami-fighter__score {
+  font-size: 22rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tatami-fighter__score.is-blue {
+  color: #3280ff;
+}
+
+@supports (color: color(display-p3 0 0 0%)) {
+  .tatami-fighter__score.is-blue {
+    color: color(display-p3 .26642 .49122 .98862);
+  }
+}
+
+.tatami-fighter__score.is-red {
+  color: #fb2c36;
+}
+
+.tatami-penalties {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 64px;
+}
+
+.tatami-penalty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 104px;
+  height: 96px;
+  border: 2px solid rgba(255, 255, 255, .5);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, .5);
+  font-size: 60px;
+  font-weight: 600;
+  line-height: 1;
+  transition: color .2s, background-color .2s, border-color .2s;
+}
+
+.tatami-penalty.is-active {
+  border-color: var(--champion-yellow);
+  background: var(--champion-yellow);
+  color: #000;
+}
+
+.tatami-senshu {
+  position: absolute;
+  top: 25%;
+  z-index: 10;
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, .7));
+}
+
+.tatami-senshu--left {
+  left: 120px;
+}
+
+.tatami-senshu--right {
+  right: 120px;
+}
+
+.tatami-senshu__indicator {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  transition: background-color .2s;
+}
+
+.tatami-senshu__indicator.is-active {
+  background: #22c55e;
+}
+
+.tatami-athlete {
+  top: 87.5%;
+  transform: translateY(-50%);
+}
+
+.tatami-athlete--left {
+  left: 16.666667%;
+  transform: translate(-50%, -50%);
+}
+
+.tatami-athlete--right {
+  right: 16.666667%;
+  transform: translate(50%, -50%);
+}
+
+.tatami-athlete__name {
+  max-width: 576px;
+  overflow-wrap: break-word;
+  font-size: 48px;
+  line-height: 1.25;
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, .7));
+}

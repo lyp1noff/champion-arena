@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ExternalMatch } from "@/lib/interfaces";
+import { useI18n } from "@/lib/i18n";
 
 interface FighterControlsProps {
   currentMatch: ExternalMatch | null;
@@ -26,47 +27,50 @@ export function FighterControls({
   onSetShido,
   onSetSenshu,
 }: FighterControlsProps) {
+  const { t } = useI18n();
   const fighters = swap_status ? [2, 1] : [1, 2];
   const disabled = currentMatch?.status !== "started";
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="fighter-grid">
       {fighters.map((id) => {
         const athlete = id === 1 ? currentMatch?.athlete1 : currentMatch?.athlete2;
+        const coaches = athlete?.coaches_last_name as string[] | string | undefined;
+        const coach = Array.isArray(coaches) ? coaches.filter(Boolean).join(", ") : coaches?.trim();
         const athleteName = athlete
-          ? `${athlete.last_name} ${athlete.first_name} (${athlete.coaches_last_name})`
-          : `Fighter ${id}`;
+          ? `${athlete.last_name} ${athlete.first_name}${coach ? ` · ${coach}` : ""}`
+          : t("match.fighter", { id });
 
         return (
-          <div key={id} className="border rounded-lg p-4">
-            <h3 className={`font-semibold text-xl mb-2 ${id === 1 ? "text-red-500" : "text-blue-500"}`}>
-              {athleteName}
-            </h3>
+          <section key={id} className={`fighter-card ${id === 1 ? "fighter-card--red" : "fighter-card--blue"}`}>
+            <h2 className="fighter-card__name">{athleteName}</h2>
 
             {/* Score */}
-            <div className="mb-4">
-              <div className="flex flex-row pb-2">
+            <div className="fighter-score">
+              <div className="fighter-score__heading">
                 <Button
                   disabled={disabled}
                   variant="outline"
                   onClick={() => onSetSenshu(senshu === id ? 0 : (id as 1 | 2))}
-                  className={`size-sm w-10 transition-color ${
-                    senshu === id ? "bg-green-500 hover:bg-green-600" : "bg-transparent"
-                  }`}
+                  className={senshu === id ? "senshu-button is-active" : "senshu-button"}
+                  title="Senshu"
                 >
                   S
                 </Button>
-                <p className="ml-2 text-2xl font-bold flex items-center">Score: {id === 1 ? score1 : score2}</p>
+                <div className="fighter-score__value">
+                  <span>{t("match.score")}</span>
+                  <strong>{id === 1 ? score1 : score2}</strong>
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="score-adjustments">
                 {/* Plus buttons */}
-                <div className="flex gap-2 justify-center">
+                <div className="score-adjustments__row">
                   {[1, 2, 3].map((v) => (
                     <Button
                       disabled={disabled}
                       key={v}
                       variant="outline"
-                      className="w-10"
+                      className="score-button"
                       size="sm"
                       onClick={() => onAdjustScore(id as 1 | 2, v)}
                     >
@@ -75,13 +79,13 @@ export function FighterControls({
                   ))}
                 </div>
                 {/* Minus buttons */}
-                <div className="flex gap-2 justify-center">
+                <div className="score-adjustments__row">
                   {[-1, -2, -3].map((v) => (
                     <Button
                       disabled={disabled}
                       key={v}
                       variant="outline"
-                      className="w-10"
+                      className="score-button"
                       size="sm"
                       onClick={() => onAdjustScore(id as 1 | 2, v)}
                     >
@@ -93,10 +97,11 @@ export function FighterControls({
             </div>
 
             {/* Shido */}
-            <div>
-              <div className="flex gap-2 flex-wrap justify-center">
+            <div className="fighter-penalties">
+              <span className="fighter-penalties__label">{t("match.penalty")}</span>
+              <div className="fighter-penalties__buttons">
                 {[
-                  { value: 0, label: "None" },
+                  { value: 0, label: t("match.none") },
                   { value: 1, label: "C1" },
                   { value: 2, label: "C2" },
                   { value: 3, label: "C3" },
@@ -115,7 +120,7 @@ export function FighterControls({
                 ))}
               </div>
             </div>
-          </div>
+          </section>
         );
       })}
     </div>

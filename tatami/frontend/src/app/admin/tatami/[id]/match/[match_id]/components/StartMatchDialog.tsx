@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { ExternalMatch } from "@/lib/interfaces";
 import { useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 interface StartMatchDialogProps {
   currentMatch: ExternalMatch | null;
@@ -18,6 +19,7 @@ interface StartMatchDialogProps {
 }
 
 export function StartMatchDialog({ currentMatch, status, onStartMatch }: StartMatchDialogProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -31,28 +33,28 @@ export function StartMatchDialog({ currentMatch, status, onStartMatch }: StartMa
 
   const athlete1Name = currentMatch?.athlete1
     ? `${currentMatch.athlete1.last_name} ${currentMatch.athlete1.first_name} (${currentMatch.athlete1.coaches_last_name})`
-    : "Fighter 1";
+    : t("match.fighter", { id: 1 });
 
   const athlete2Name = currentMatch?.athlete2
     ? `${currentMatch.athlete2.last_name} ${currentMatch.athlete2.first_name} (${currentMatch.athlete2.coaches_last_name})`
-    : "Fighter 2";
+    : t("match.fighter", { id: 2 });
 
   const isDisabled = status === "running" || currentMatch?.status === "started";
 
   return (
     <div className="border rounded-lg p-4 border-green-500 bg-green-50">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-green-800">Start Match</h3>
+        <h3 className="font-semibold text-green-800">{t("match.start")}</h3>
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" className="text-green-800 border-green-500" disabled={isDisabled}>
-              Start Match
+              {t("match.start")}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Start Match</DialogTitle>
-              <DialogDescription>Review match details and start the competition.</DialogDescription>
+              <DialogTitle>{t("match.start")}</DialogTitle>
+              <DialogDescription>{t("match.startDescription")}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
@@ -74,11 +76,11 @@ export function StartMatchDialog({ currentMatch, status, onStartMatch }: StartMa
                 {/* Match Details */}
                 <div className="text-center space-y-1">
                   <div className="text-sm text-gray-600">
-                    <strong>Match ID:</strong> {currentMatch?.external_id}
+                    <strong>{t("match.id")}:</strong> {currentMatch?.external_id}
                   </div>
                   <div className="text-sm text-gray-600">
-                    <strong>Status:</strong>{" "}
-                    {currentMatch?.status === "not_started" ? "Ready to Start" : currentMatch?.status}
+                    <strong>{t("common.status")}:</strong>{" "}
+                    {currentMatch?.status === "not_started" ? t("match.ready") : currentMatch?.status}
                   </div>
                 </div>
               </div>
@@ -86,10 +88,10 @@ export function StartMatchDialog({ currentMatch, status, onStartMatch }: StartMa
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleStart} className="bg-green-600 hover:bg-green-700" disabled={isDisabled}>
-                Start Match
+                {t("match.start")}
               </Button>
             </DialogFooter>
           </DialogContent>

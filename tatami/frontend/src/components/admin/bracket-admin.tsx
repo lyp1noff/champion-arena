@@ -16,8 +16,10 @@ import {
   updateBracketParticipantSeed,
 } from "@/lib/api";
 import { Athlete, Bracket, BracketParticipant } from "@/lib/interfaces";
+import { useI18n } from "@/lib/i18n";
 
 export function BracketAdmin() {
+  const { t } = useI18n();
   const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [participants, setParticipants] = useState<BracketParticipant[]>([]);
   const [externalAthletes, setExternalAthletes] = useState<Athlete[]>([]);
@@ -110,7 +112,7 @@ export function BracketAdmin() {
       await fetchBrackets(selectedTournament, selectedBracket);
     } catch (error) {
       console.error("Error adding participant:", error);
-      alert(error instanceof Error ? error.message : "Failed to add participant");
+      alert(error instanceof Error ? error.message : t("brackets.addError"));
     } finally {
       setParticipantActionLoading(false);
     }
@@ -127,7 +129,7 @@ export function BracketAdmin() {
       await fetchBrackets(selectedTournament, selectedBracket);
     } catch (error) {
       console.error("Error removing participant:", error);
-      alert(error instanceof Error ? error.message : "Failed to remove participant");
+      alert(error instanceof Error ? error.message : t("brackets.removeError"));
     } finally {
       setParticipantActionLoading(false);
     }
@@ -150,7 +152,7 @@ export function BracketAdmin() {
       await fetchBrackets(selectedTournament, selectedBracket);
     } catch (error) {
       console.error("Error moving participant:", error);
-      alert(error instanceof Error ? error.message : "Failed to move participant");
+      alert(error instanceof Error ? error.message : t("brackets.moveError"));
     } finally {
       setParticipantActionLoading(false);
     }
@@ -163,7 +165,7 @@ export function BracketAdmin() {
 
     const seedValue = parseInt(seedEdits[participantId] ?? "", 10);
     if (!Number.isFinite(seedValue) || seedValue < 1) {
-      alert("Seed must be a positive number");
+      alert(t("brackets.seedPositive"));
       return;
     }
 
@@ -173,7 +175,24 @@ export function BracketAdmin() {
       await fetchBrackets(selectedTournament, selectedBracket);
     } catch (error) {
       console.error("Error updating seed:", error);
-      alert(error instanceof Error ? error.message : "Failed to update seed");
+      alert(error instanceof Error ? error.message : t("brackets.seedError"));
+    } finally {
+      setParticipantActionLoading(false);
+    }
+  };
+
+  const handleSeedReorder = async (participantId: number, targetSeed: number) => {
+    if (!selectedTournament || !selectedBracket) {
+      return;
+    }
+
+    try {
+      setParticipantActionLoading(true);
+      await updateBracketParticipantSeed(selectedBracket, participantId, targetSeed);
+      await fetchBrackets(selectedTournament, selectedBracket);
+    } catch (error) {
+      console.error("Error reordering participant:", error);
+      alert(error instanceof Error ? error.message : t("brackets.reorderError"));
     } finally {
       setParticipantActionLoading(false);
     }
@@ -182,7 +201,7 @@ export function BracketAdmin() {
   if (loading) {
     return (
       <div className="rounded-lg border bg-white p-6">
-        <p className="text-sm text-gray-600">Loading bracket admin...</p>
+        <p className="text-sm text-gray-600">{t("brackets.loading")}</p>
       </div>
     );
   }
@@ -190,25 +209,25 @@ export function BracketAdmin() {
   if (!selectedTournament) {
     return (
       <div className="rounded-lg border bg-white p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Bracket Admin</h1>
-        <p className="mt-2 text-sm text-gray-600">Select and bootstrap a tournament first in setup.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("brackets.title")}</h1>
+        <p className="mt-2 text-sm text-gray-600">{t("brackets.noTournament")}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-lg border bg-white p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Bracket Admin</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Add athletes from the full arena list, remove them from one bracket only, or move them between brackets.
-          Every change regenerates the affected brackets locally.
-        </p>
+    <div className="bracket-admin">
+      <div className="admin-card admin-card--intro">
+        <div>
+          <h1>{t("brackets.title")}</h1>
+          <p>{t("brackets.description")}</p>
+        </div>
+        <span className="admin-count">{t("brackets.athleteCount", { count: participants.length })}</span>
       </div>
 
-      <div className="space-y-3 rounded-lg border bg-white p-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Selected Bracket</label>
+      <div className="admin-card bracket-selector">
+        <div className="admin-field">
+          <label>{t("brackets.selected")}</label>
           <SearchablePicker
             options={brackets.map((bracket) => ({
               value: bracket.external_id.toString(),
@@ -216,9 +235,9 @@ export function BracketAdmin() {
               keywords: `${bracket.display_name || bracket.category} ${bracket.category}`,
             }))}
             value={selectedBracket?.toString()}
-            placeholder="Choose a bracket"
-            searchPlaceholder="Search brackets..."
-            emptyText="No brackets found."
+            placeholder={t("brackets.choose")}
+            searchPlaceholder={t("brackets.search")}
+            emptyText={t("brackets.none")}
             onChange={(value) => setSelectedBracket(parseInt(value, 10))}
           />
         </div>
@@ -249,13 +268,14 @@ export function BracketAdmin() {
               setSeedEdits((current) => ({ ...current, [participantId]: value }))
             }
             onSeedSave={handleSeedSave}
+            onReorder={handleSeedReorder}
             onMove={handleMoveParticipant}
             onRemove={handleRemoveParticipant}
           />
         </>
       ) : (
         <div className="rounded-lg border bg-white p-6">
-          <p className="text-sm text-gray-600">No brackets available for the selected tournament.</p>
+          <p className="text-sm text-gray-600">{t("brackets.noAvailable")}</p>
         </div>
       )}
     </div>

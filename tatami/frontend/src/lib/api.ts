@@ -10,7 +10,7 @@ import {
   SyncTournamentResponse,
 } from "./interfaces";
 
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "/api";
+export const BACKEND_URL = "/api";
 
 export async function getMatch(matchId: string): Promise<ExternalMatch> {
   const response = await fetch(`${BACKEND_URL}/matches/${matchId}`);

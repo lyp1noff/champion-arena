@@ -1,16 +1,16 @@
 import { BracketAdmin } from "@/components/admin/bracket-admin";
+import { useI18n } from "@/lib/i18n";
 
 export default function BracketsAdminPage() {
+  const { t } = useI18n();
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="flex items-center justify-between">
-          <a href="/admin/setup" className="text-sm text-gray-600 underline-offset-4 hover:underline">
-            Back to setup
-          </a>
-        </div>
+    <main className="admin-page">
+      <div className="admin-page__content admin-page__content--wide">
+        <nav className="admin-page__nav">
+          <a href="/admin/setup">← {t("brackets.back")}</a>
+        </nav>
         <BracketAdmin />
       </div>
-    </div>
+    </main>
   );
 }

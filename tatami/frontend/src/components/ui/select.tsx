@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 type SelectContextValue = { value?: string; open: boolean; setOpen: (open: boolean) => void; choose: (value: string) => void; labels: Record<string, string>; register: (value: string, label: string) => void };
 const SelectContext = createContext<SelectContextValue | null>(null);
@@ -13,7 +14,7 @@ export function Select({ value, onValueChange, children }: { value?: string; onV
 }
 
 export function SelectTrigger({ className = "", children }: React.HTMLAttributes<HTMLButtonElement>) { const { open, setOpen } = useSelect(); return <button type="button" className={`select-trigger ${className}`.trim()} aria-expanded={open} onClick={() => setOpen(!open)}>{children}<span aria-hidden="true">▾</span></button>; }
-export function SelectValue({ placeholder = "Select" }: { placeholder?: string }) { const { value, labels } = useSelect(); return <span className="select-value">{value ? labels[value] ?? value : placeholder}</span>; }
+export function SelectValue({ placeholder }: { placeholder?: string }) { const { value, labels } = useSelect(); const { t } = useI18n(); return <span className="select-value">{value ? labels[value] ?? value : placeholder ?? t("common.select")}</span>; }
 export function SelectContent({ className = "", children }: React.HTMLAttributes<HTMLDivElement>) {
   const { open, setOpen } = useSelect();
   useEffect(() => {

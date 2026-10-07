@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouteParams } from "@/lib/router";
 import { useTatamiStore } from "@/store/tatami";
+import "./tatami-screen.css";
 
 export default function ScreenTatami() {
   const { id: tatamiId } = useRouteParams();
@@ -101,26 +102,12 @@ export default function ScreenTatami() {
     const labels = ["C1", "C2", "C3", "HC", "H"];
 
     return (
-      <div className="flex gap-3 justify-center mt-16">
+      <div className="tatami-penalties">
         {labels.map((label, i) => {
           const isActive = i < count;
 
-          // const isLast = i === labels.length - 1;
-          // const bgClass = isActive
-          //   ? isLast
-          //     ? "bg-red-500 border-red-500 text-black"
-          //     : "bg-[var(--champion-yellow)] border-[var(--champion-yellow)] text-black"
-          //   : "border-white/50 text-white/50";
-
-          const bgClass = isActive
-            ? "bg-[var(--champion-yellow)] border-[var(--champion-yellow)] text-black"
-            : "border-white/50 text-white/50";
-
           return (
-            <div
-              key={i}
-              className={`w-26 h-24 rounded-xl border-2 flex items-center justify-center font-semibold text-6xl transition-colors duration-200 ${bgClass}`}
-            >
+            <div key={label} className={`tatami-penalty ${isActive ? "is-active" : ""}`}>
               {label}
             </div>
           );
@@ -130,9 +117,9 @@ export default function ScreenTatami() {
   };
 
   const getTimerColor = () => {
-    if (status === "paused" && remaining > 0) return "text-[var(--champion-yellow)]";
-    if (remaining <= 15000) return "text-red-500";
-    return "text-white";
+    if (status === "paused" && remaining > 0) return "is-paused";
+    if (remaining <= 15000) return "is-expiring";
+    return "";
   };
 
   const chars = formatPartsArray(remaining);
@@ -143,14 +130,14 @@ export default function ScreenTatami() {
         shido: shido1,
         senshuActive: senshu === 1,
         athlete: currentMatch?.athlete1,
-        colorClass: "text-red-500",
+        colorClass: "is-red",
       }
     : {
         score: score2,
         shido: shido2,
         senshuActive: senshu === 2,
         athlete: currentMatch?.athlete2,
-        colorClass: "text-blue-500",
+        colorClass: "is-blue",
       };
 
   const rightFighter = swap_status
@@ -159,39 +146,31 @@ export default function ScreenTatami() {
         shido: shido2,
         senshuActive: senshu === 2,
         athlete: currentMatch?.athlete2,
-        colorClass: "text-blue-500",
+        colorClass: "is-blue",
       }
     : {
         score: score1,
         shido: shido1,
         senshuActive: senshu === 1,
         athlete: currentMatch?.athlete1,
-        colorClass: "text-red-500",
+        colorClass: "is-red",
       };
 
   return (
-    <div className="w-screen h-screen bg-black text-white flex flex-col relative overflow-hidden">
+    <div className="tatami-screen">
       <div
-        className="absolute left-1/2 top-1/2 origin-center"
+        className="tatami-stage"
         style={{
-          width: "1920px",
-          height: "1080px",
           transform: `translate(-50%, -50%) scale(${scale})`,
         }}
       >
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-15">
-          <div
-            className={`w-full h-full bg-gradient-to-r ${
-              swap_status ? "from-red-500 to-blue-500" : "from-blue-500 to-red-500"
-            }`}
-          ></div>
+        <div className="tatami-background">
+          <div className={`tatami-background__gradient ${swap_status ? "is-swapped" : ""}`} />
         </div>
 
-        {/* Center Logo */}
-        <div className="absolute flex bottom-1/20 left-1/2 transform -translate-x-1/2 z-10 opacity-10 drop-shadow-[0_0_10px_rgba(0,0,0,1)]">
-          <div className="px-8 flex flex-col items-center">
-            <span className="text-xl font-semibold text-[var(--champion-yellow)] text-center pb-2">
+        <div className="tatami-branding">
+          <div className="tatami-branding__club">
+            <span className="tatami-branding__label">
               ЦФСН {'"'}ІППОН{'"'}
               <br />
               ВІДДІЛЕННЯ КАРАТЕ
@@ -199,7 +178,7 @@ export default function ScreenTatami() {
             <img
               src="/champ_logo.svg"
               alt="Champion Logo"
-              style={{ width: "160px", height: "auto" }}
+              className="tatami-branding__champion-logo"
             />
           </div>
           <img
@@ -207,69 +186,46 @@ export default function ScreenTatami() {
             alt="Champion Ippon Logo"
             width={240}
             height={240}
-            className="object-contain"
-            // style={{ width: "160px", height: "auto" }}
+            className="tatami-branding__ippon-logo"
           />
         </div>
 
-        {/* Bracket Name - Top Left */}
-        <div className="absolute top-8 left-8 text-5xl font-bold text-gray-300 z-10">
+        <div className="tatami-heading tatami-heading--bracket">
           {currentMatch?.bracket_display_name || ""}
         </div>
 
-        {/* Tatami Number - Top Right */}
-        <div className="absolute top-8 right-8 text-5xl font-bold text-gray-300 z-10">TATAMI {tatamiId}</div>
+        <div className="tatami-heading tatami-heading--number">TATAMI {tatamiId}</div>
 
         {isHydrated && currentMatch && currentMatch?.status !== "finished" && (
           <>
-            {/* Timer Display - Top Center */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center drop-shadow-[0_0_10px_rgba(0,0,0,0.7)] z-10">
-              <div className={`text-[14rem] font-mono tracking-tight font-bold ${getTimerColor()}`}>
+            <div className="tatami-timer">
+              <div className={`tatami-timer__value ${getTimerColor()}`}>
                 {chars.map((ch, i) => {
                   const isCenti = i >= chars.length - 2;
+                  const isSeparator = ch === ":" || ch === ".";
                   return (
                     <span
                       key={i}
-                      className={ch === ":" || ch === "." ? "mx-[-30px]" : isCenti ? "text-[8rem]" : "px-0"}
+                      className={isSeparator ? "tatami-timer__separator" : isCenti ? "tatami-timer__centisecond" : undefined}
                     >
                       {ch}
                     </span>
                   );
                 })}
               </div>
-
-              {/* Progress Bar */}
-              {/* <div className="w-128 h-4 bg-gray-800 rounded-full overflow-hidden mx-auto mb-2">
-                <div
-                  className={`h-full ${remaining < 15000 ? "bg-red-500" : "bg-gray-300"}`}
-                  style={{ width: `${remainingProgress}%` }}
-                ></div>
-              </div> */}
-
-              {/* Duration Info */}
-              {/* <div className="text-lg text-gray-400">
-              {Math.floor(durationMs / (60 * 1000))}:
-              {String(Math.floor((durationMs % (60 * 1000)) / 1000)).padStart(2, "0")}.
-              {String(Math.floor((durationMs % 1000) / 10)).padStart(2, "0")} match
-            </div> */}
             </div>
 
-            {/* Left Fighter Score */}
-            <div className="absolute top-1/2 left-1/6 transform -translate-x-1/2 -translate-y-1/2 text-center drop-shadow-[0_0_10px_rgba(0,0,0,0.7)] z-10">
-              <div className={`text-[20rem] font-bold leading-none ${leftFighter.colorClass}`}>{leftFighter.score}</div>
+            <div className="tatami-fighter tatami-fighter--left">
+              <div className={`tatami-fighter__score ${leftFighter.colorClass}`}>{leftFighter.score}</div>
               {renderDots(leftFighter.shido)}
             </div>
 
-            {/* Seshu - Left Fighter */}
-            <div className="absolute top-1/4 left-30 transform text-center drop-shadow-[0_0_10px_rgba(0,0,0,0.7)] z-10">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-colors duration-200 ${leftFighter.senshuActive ? "bg-green-500" : ""}`}
-              ></div>
+            <div className="tatami-senshu tatami-senshu--left">
+              <div className={`tatami-senshu__indicator ${leftFighter.senshuActive ? "is-active" : ""}`} />
             </div>
 
-            {/* Name Display - Left Fighter (25% from left edge, lower) */}
-            <div className="absolute top-7/8 left-1/6 transform -translate-x-1/2 -translate-y-1/2 text-center z-10">
-              <div className="text-5xl max-w-xl break-words leading-tight drop-shadow-[0_0_10px_rgba(0,0,0,0.7)]">
+            <div className="tatami-athlete tatami-athlete--left">
+              <div className="tatami-athlete__name">
                 {leftFighter?.athlete
                   ? `${leftFighter.athlete.last_name} ${leftFighter.athlete.first_name}${
                       leftFighter.athlete.coaches_last_name && leftFighter.athlete.coaches_last_name.length > 0
@@ -280,24 +236,19 @@ export default function ScreenTatami() {
               </div>
             </div>
 
-            {/* Right Fighter Score */}
-            <div className="absolute top-1/2 right-1/6 transform translate-x-1/2 -translate-y-1/2 text-center drop-shadow-[0_0_10px_rgba(0,0,0,0.7)] z-10">
-              <div className={`text-[20rem] font-bold leading-none ${rightFighter.colorClass}`}>
+            <div className="tatami-fighter tatami-fighter--right">
+              <div className={`tatami-fighter__score ${rightFighter.colorClass}`}>
                 {rightFighter.score}
               </div>
               {renderDots(rightFighter.shido)}
             </div>
 
-            {/* Seshu - Right Fighter */}
-            <div className="absolute top-1/4 right-30 transform text-center drop-shadow-[0_0_10px_rgba(0,0,0,0.7)] z-10">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-colors duration-200 ${rightFighter.senshuActive ? "bg-green-500" : ""}`}
-              ></div>
+            <div className="tatami-senshu tatami-senshu--right">
+              <div className={`tatami-senshu__indicator ${rightFighter.senshuActive ? "is-active" : ""}`} />
             </div>
 
-            {/* Name Display - Right Fighter (25% from right edge, lower) */}
-            <div className="absolute top-7/8 right-1/6 transform translate-x-1/2 -translate-y-1/2 text-center z-10">
-              <div className="text-5xl max-w-xl break-words leading-tight drop-shadow-[0_0_10px_rgba(0,0,0,0.7)]">
+            <div className="tatami-athlete tatami-athlete--right">
+              <div className="tatami-athlete__name">
                 {rightFighter?.athlete
                   ? `${rightFighter.athlete.last_name} ${rightFighter.athlete.first_name}${
                       rightFighter.athlete.coaches_last_name && rightFighter.athlete.coaches_last_name.length > 0
@@ -309,24 +260,6 @@ export default function ScreenTatami() {
             </div>
           </>
         )}
-
-        {/* Debug info */}
-        {/* {isHydrated && (
-        <div className="absolute bottom-4 left-4 text-xs text-gray-500 z-20 bg-black/50 p-2 rounded">
-          <div>Status: {status}</div>
-          <div>Match: {currentMatch?.external_id || "none"}</div>
-          <div>
-            Scores: {score1} - {score2}
-          </div>
-          <div>
-            Shido: {shido1} - {shido2}
-          </div>
-          <div>Hydrated: {isHydrated.toString()}</div>
-        </div>
-      )} */}
-
-        {/* Connection Status */}
-        {/* <div className="absolute bottom-4 left-4 text-xs text-gray-500">Connected via BroadcastChannel</div> */}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ interface TimerDisplayProps {
 }
 
 export function TimerDisplay({ remaining, durationMs }: TimerDisplayProps) {
+  const { t } = useI18n();
   const format = (ms: number) => {
     const clamped = Math.max(0, ms);
     const s = Math.floor(clamped / 1000);
@@ -14,11 +15,14 @@ export function TimerDisplay({ remaining, durationMs }: TimerDisplayProps) {
   };
 
   return (
-    <div className="text-center">
-      <div className="text-6xl font-mono mb-2">{format(remaining)}</div>
-      <div className="text-sm text-gray-600">
-        Duration: {Math.floor(durationMs / 60000)}:{String(Math.floor((durationMs % 60000) / 1000)).padStart(2, "0")}
+    <div className="match-timer">
+      <div className="match-timer__value">{format(remaining)}</div>
+      <div className="match-timer__duration">
+        {t("match.duration", {
+          duration: `${Math.floor(durationMs / 60000)}:${String(Math.floor((durationMs % 60000) / 1000)).padStart(2, "0")}`,
+        })}
       </div>
     </div>
   );
 }
+import { useI18n } from "@/lib/i18n";

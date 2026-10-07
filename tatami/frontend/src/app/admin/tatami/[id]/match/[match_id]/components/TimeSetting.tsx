@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useI18n } from "@/lib/i18n";
 
 interface TimeSettingProps {
   timeSettingInput: { minutes: number; seconds: number };
@@ -24,20 +25,21 @@ export function TimeSetting({
   onShowTimeSettingDialogChange,
   onSaveTimeSetting,
 }: TimeSettingProps) {
+  const { t } = useI18n();
   return (
     <div className="border rounded-lg p-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Time Setting</h3>
+        <h3 className="font-semibold">{t("match.timeSetting")}</h3>
         <Dialog open={showTimeSettingDialog} onOpenChange={onShowTimeSettingDialogChange}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm">
-              Setting Time
+              {t("match.setTime")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Setting Match Time</DialogTitle>
-              <DialogDescription>Set total time for the match.</DialogDescription>
+              <DialogTitle>{t("match.settingTitle")}</DialogTitle>
+              <DialogDescription>{t("match.settingDescription")}</DialogDescription>
             </DialogHeader>
             <div className="flex items-center gap-2 justify-center py-4">
               <input
@@ -50,7 +52,7 @@ export function TimeSetting({
                   onTimeSettingInputChange("minutes", value);
                 }}
                 className="w-20 px-3 py-2 border rounded text-center text-lg"
-                placeholder="M"
+                placeholder={t("match.minutesShort")}
               />
               <span className="text-lg font-bold">:</span>
               <input
@@ -63,14 +65,14 @@ export function TimeSetting({
                   onTimeSettingInputChange("seconds", value);
                 }}
                 className="w-20 px-3 py-2 border rounded text-center text-lg"
-                placeholder="S"
+                placeholder={t("match.secondsShort")}
               />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => onShowTimeSettingDialogChange(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
-              <Button onClick={onSaveTimeSetting}>Save Time</Button>
+              <Button onClick={onSaveTimeSetting}>{t("match.saveTime")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

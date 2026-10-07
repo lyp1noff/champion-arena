@@ -15,7 +15,7 @@ export type TatamiState = {
   currentMatch: ExternalMatch | null;
   setState: (partial: Partial<TatamiState>) => void;
   reset: () => void;
-  setMatch: (match: ExternalMatch) => void;
+  setMatch: (match: ExternalMatch, durationMs?: number) => void;
   setDuration: (durationMs: number) => void;
 };
 
@@ -75,9 +75,9 @@ function reset() {
   update({ ...defaults, swap_status: state.swap_status });
 }
 
-function setMatch(match: ExternalMatch) {
-  if (state.currentMatch?.external_id === match.external_id) return;
-  update({ ...defaults, swap_status: state.swap_status, currentMatch: match });
+function setMatch(match: ExternalMatch, durationMs: number = defaults.durationMs) {
+  if (match.external_id && state.currentMatch?.external_id === match.external_id) return;
+  update({ ...defaults, durationMs, swap_status: state.swap_status, currentMatch: match });
 }
 
 state = {

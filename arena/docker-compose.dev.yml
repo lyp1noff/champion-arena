@@ -12,9 +12,6 @@ services:
       context: ./arena/frontend
       dockerfile: ./Dockerfile
       args:
-        # Browser requests stay on the frontend origin so auth cookies are
-        # visible to Next middleware regardless of the host used for dev.
-        NEXT_PUBLIC_BACKEND_URL: /api
         NEXT_PUBLIC_CDN_URL: ${NEXT_PUBLIC_CDN_URL}
         NEXT_PUBLIC_ANALYTICS_URL: ${NEXT_PUBLIC_ANALYTICS_URL}
         NEXT_PUBLIC_ANALYTICS_ID: ${NEXT_PUBLIC_ANALYTICS_ID}

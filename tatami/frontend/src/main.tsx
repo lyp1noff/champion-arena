@@ -8,20 +8,26 @@ import TatamiSetupPage from "@/app/admin/tatami/[id]/page";
 import ManageTatami from "@/app/admin/tatami/[id]/match/[match_id]/page";
 import ScreenTatami from "@/app/screen/tatami/[id]/page";
 import "@/app/globals.css";
+import { I18nProvider, LanguageSwitcher, useI18n } from "@/lib/i18n";
 
 function NotFound() {
-  return <main className="page-shell"><h1>Page not found</h1><a href="/admin/setup">Open Tatami setup</a></main>;
+  const { t } = useI18n();
+  return <main className="page-shell"><h1>{t("notFound.title")}</h1><a href="/admin/setup">{t("notFound.openSetup")}</a></main>;
 }
 
 function Router() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
-  if (path === "/") return <Home />;
-  if (path === "/admin/setup") return <SetupPage />;
-  if (path === "/admin/brackets") return <BracketsAdminPage />;
   if (/^\/screen\/tatami\/[^/]+$/.test(path)) return <ScreenTatami />;
-  if (/^\/admin\/tatami\/[^/]+\/match\/[^/]+$/.test(path)) return <ManageTatami />;
-  if (/^\/admin\/tatami\/[^/]+$/.test(path)) return <TatamiSetupPage />;
-  return <NotFound />;
+  let page: React.ReactNode;
+  if (path === "/") page = <Home />;
+  else if (path === "/admin/setup") page = <SetupPage />;
+  else if (path === "/admin/brackets") page = <BracketsAdminPage />;
+  else if (/^\/admin\/tatami\/[^/]+\/match\/[^/]+$/.test(path)) page = <ManageTatami />;
+  else if (/^\/admin\/tatami\/[^/]+$/.test(path)) page = <TatamiSetupPage />;
+  else page = <NotFound />;
+  return <>{page}<LanguageSwitcher /></>;
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(<React.StrictMode><Router /></React.StrictMode>);
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode><I18nProvider><Router /></I18nProvider></React.StrictMode>,
+);

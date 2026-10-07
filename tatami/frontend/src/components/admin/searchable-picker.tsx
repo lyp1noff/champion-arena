@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -29,7 +29,10 @@ export function SearchablePicker({
 }: SearchablePickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [placement, setPlacement] = useState<"top" | "bottom">("bottom");
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const listboxId = useId();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -54,43 +57,82 @@ export function SearchablePicker({
     });
   }, [normalizedQuery, options]);
 
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [normalizedQuery]);
+
+  const choose = (nextValue: string) => {
+    onChange(nextValue);
+    setOpen(false);
+    setQuery("");
+  };
+
+  const toggle = () => {
+    if (!open && rootRef.current) {
+      const bounds = rootRef.current.getBoundingClientRect();
+      const spaceAbove = bounds.top;
+      const spaceBelow = window.innerHeight - bounds.bottom;
+      setPlacement(spaceBelow < 380 && spaceAbove > spaceBelow ? "top" : "bottom");
+    }
+    setOpen((current) => !current);
+  };
+
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="searchable-picker">
       <Button
         type="button"
         variant="outline"
-        className="w-full justify-between overflow-hidden text-left"
-        onClick={() => setOpen((current) => !current)}
+        className="searchable-picker__trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listboxId}
+        onClick={toggle}
       >
-        <span className="truncate">{selected?.label ?? placeholder}</span>
-        <span className="ml-2 text-xs text-gray-500">▼</span>
+        <span className="searchable-picker__value" title={selected?.label}>
+          {selected?.label ?? placeholder}
+        </span>
+        <span className="searchable-picker__chevron" aria-hidden="true">⌄</span>
       </Button>
 
       {open ? (
-        <div className="absolute z-20 mt-2 w-full rounded-md border bg-white shadow-lg">
-          <div className="border-b p-2">
+        <div className={`searchable-picker__menu is-${placement}`}>
+          <div className="searchable-picker__search-wrap">
             <input
               autoFocus
-              className="h-9 w-full rounded-md border px-3 text-sm outline-none"
+              className="searchable-picker__search"
               placeholder={searchPlaceholder}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setOpen(false);
+                } else if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setHighlightedIndex((current) => Math.min(current + 1, Math.max(0, filteredOptions.length - 1)));
+                } else if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setHighlightedIndex((current) => Math.max(current - 1, 0));
+                } else if (event.key === "Enter" && filteredOptions[highlightedIndex]) {
+                  event.preventDefault();
+                  choose(filteredOptions[highlightedIndex].value);
+                }
+              }}
             />
           </div>
-          <div className="max-h-64 overflow-y-auto p-1">
+          <div id={listboxId} className="searchable-picker__options" role="listbox">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-6 text-center text-sm text-gray-500">{emptyText}</div>
+              <div className="searchable-picker__empty">{emptyText}</div>
             ) : (
-              filteredOptions.map((option) => (
+              filteredOptions.map((option, index) => (
                 <button
                   key={option.value}
                   type="button"
-                  className="block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-gray-100"
-                  onClick={() => {
-                    onChange(option.value);
-                    setOpen(false);
-                    setQuery("");
-                  }}
+                  className={`searchable-picker__option ${index === highlightedIndex ? "is-highlighted" : ""}`}
+                  role="option"
+                  aria-selected={option.value === value}
+                  title={option.label}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  onClick={() => choose(option.value)}
                 >
                   {option.label}
                 </button>
