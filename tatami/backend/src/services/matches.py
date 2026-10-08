@@ -456,7 +456,8 @@ async def correct_match_result(
 
         if runtime.progression_action is not None:
             target = await _get_progression_target_match(db, bm, runtime.progression_action)
-        if stage == "main" and bm.round_number < main_rounds and target is None:
+        is_elimination_match = stage == "main" and bracket.type != "round_robin"
+        if is_elimination_match and bm.round_number < main_rounds and target is None:
             raise HTTPException(status_code=409, detail="The dependent match could not be resolved")
         if target is not None:
             next_match, target_slot = target
@@ -466,7 +467,7 @@ async def correct_match_result(
             if current_target_athlete != old_winner_id:
                 raise HTTPException(status_code=409, detail="The dependent bracket slot no longer contains this winner")
 
-        if stage == "main" and bm.round_number < main_rounds:
+        if is_elimination_match and bm.round_number < main_rounds:
             repechage_result = await db.execute(
                 select(BracketMatch, Match)
                 .join(Match, Match.id == BracketMatch.match_id)
