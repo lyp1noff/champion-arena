@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { BracketParticipantControls } from "@/components/admin/bracket-participant-controls";
 import { BracketParticipantTable } from "@/components/admin/bracket-participant-table";
+import { BracketPreview } from "@/components/admin/bracket-preview";
 import { BracketResults } from "@/components/admin/bracket-results";
 import { SearchablePicker } from "@/components/admin/searchable-picker";
 import {
@@ -111,6 +112,17 @@ export function BracketAdmin() {
     });
   }, [externalAthletes, participants]);
 
+  const selectedBracketData = useMemo(
+    () => brackets.find((bracket) => bracket.external_id === selectedBracket),
+    [brackets, selectedBracket],
+  );
+
+  const handleBracketChange = (value: string) => {
+    setParticipants([]);
+    setMatches([]);
+    setSelectedBracket(parseInt(value, 10));
+  };
+
   const handleAddParticipant = async () => {
     if (!selectedTournament || !selectedBracket || !selectedAthleteExternalId) {
       return;
@@ -145,6 +157,7 @@ export function BracketAdmin() {
     } catch (error) {
       console.error("Error removing participant:", error);
       alert(error instanceof Error ? error.message : t("brackets.removeError"));
+      throw error;
     } finally {
       setParticipantActionLoading(false);
     }
@@ -253,7 +266,6 @@ export function BracketAdmin() {
           <h1>{t("brackets.title")}</h1>
           <p>{t("brackets.description")}</p>
         </div>
-        <span className="admin-count">{t("brackets.athleteCount", { count: participants.length })}</span>
       </div>
 
       <div className="admin-card bracket-selector">
@@ -269,13 +281,16 @@ export function BracketAdmin() {
             placeholder={t("brackets.choose")}
             searchPlaceholder={t("brackets.search")}
             emptyText={t("brackets.none")}
-            onChange={(value) => setSelectedBracket(parseInt(value, 10))}
+            onChange={handleBracketChange}
           />
         </div>
       </div>
 
       {selectedBracket ? (
         <>
+          {selectedBracketData ? (
+            <BracketPreview bracket={selectedBracketData} matches={matches} participantCount={participants.length} />
+          ) : null}
           <BracketParticipantControls
             athletes={addableAthletes}
             selectedAthleteExternalId={selectedAthleteExternalId}
