@@ -1,0 +1,17 @@
+FROM ghcr.io/astral-sh/uv:python3.12-trixie-slim
+
+WORKDIR /workspace/tatami/backend
+
+ENV PATH="/workspace/tatami/backend/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    UV_LINK_MODE=copy
+
+COPY domain/pyproject.toml /workspace/domain/pyproject.toml
+COPY domain/README.md /workspace/domain/README.md
+COPY domain/champion_domain /workspace/domain/champion_domain
+COPY tatami/backend/pyproject.toml tatami/backend/uv.lock ./
+RUN uv sync --locked && uv pip install "watchfiles>=1,<2"
+
+COPY tatami/backend ./
+
+CMD ["uv", "run", "uvicorn", "src.main:app", "--reload", "--reload-dir", "/workspace/tatami/backend/src", "--reload-dir", "/workspace/domain/champion_domain", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]

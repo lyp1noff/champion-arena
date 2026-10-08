@@ -31,12 +31,8 @@ front-dev:
 outbox-dev:
 	cd outbox && go run cmd/outbox-worker/main.go
 
-# Other
-db:
-	docker compose --env-file .env up db
-
 docker-dev:
-	docker compose -f docker-compose.yml --env-file .env.docker up --build && docker compose down
+	$(MAKE) -C .. tatami
 
 # Combined
 format: front-format back-format

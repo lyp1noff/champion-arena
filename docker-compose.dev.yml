@@ -1,0 +1,198 @@
+services:
+  db:
+    image: postgres:17.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: champ
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d champ"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:8.2.2-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  arena-backend:
+    build:
+      context: .
+      dockerfile: ./arena/backend/Dockerfile.dev
+    image: champion-backend:dev
+    pull_policy: build
+    env_file:
+      - ./arena/.env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: champ
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BACKEND_WORKERS: 1
+      DEV_MODE: "true"
+      WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-false}
+    ports:
+      - "127.0.0.1:8010:8000"
+    volumes:
+      - ./arena/backend/src:/workspace/arena/backend/src
+      - ./arena/backend/alembic:/workspace/arena/backend/alembic
+      - ./arena/backend/alembic.ini:/workspace/arena/backend/alembic.ini
+      - ./arena/backend/assets:/workspace/arena/backend/assets
+      - ./domain/champion_domain:/workspace/domain/champion_domain
+      - arena_pdf_storage:/workspace/arena/backend/pdf_storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/ping || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  arena-frontend:
+    build:
+      context: ./arena/frontend
+      dockerfile: ./Dockerfile.dev
+    image: champion-frontend:dev
+    pull_policy: build
+    env_file:
+      - ./arena/.env
+    environment:
+      BACKEND_INTERNAL_URL: http://arena-backend:8000
+    ports:
+      - "127.0.0.1:3010:3000"
+    volumes:
+      - ./arena/frontend:/app
+      - arena_frontend_node_modules:/app/node_modules
+      - arena_frontend_next:/app/.next
+    depends_on:
+      arena-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+
+  arena-nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./arena/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      arena-backend:
+        condition: service_healthy
+      arena-frontend:
+        condition: service_healthy
+
+  tatami-backend:
+    build:
+      context: .
+      dockerfile: ./tatami/backend/Dockerfile.dev
+    image: champion-tatami-backend:dev
+    pull_policy: build
+    env_file:
+      - ./tatami/.env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: champ_local
+      DEV_MODE: "true"
+      WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-false}
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - ./tatami/backend/src:/workspace/tatami/backend/src
+      - ./domain/champion_domain:/workspace/domain/champion_domain
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/tournaments')"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+
+  tatami-frontend:
+    build:
+      context: ./tatami/frontend
+      dockerfile: ./Dockerfile.dev
+    image: champion-tatami-frontend:dev
+    pull_policy: build
+    volumes:
+      - ./tatami/frontend:/app
+      - tatami_frontend_node_modules:/app/node_modules
+    depends_on:
+      tatami-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+
+  tatami-outbox:
+    build:
+      context: ./tatami/outbox
+      dockerfile: ./Dockerfile.dev
+    image: champion-tatami-outbox:dev
+    pull_policy: build
+    env_file:
+      - ./tatami/.env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: champ_local
+    volumes:
+      - ./tatami/outbox:/app
+      - tatami_go_build_cache:/root/.cache/go-build
+      - tatami_go_mod_cache:/go/pkg/mod
+    depends_on:
+      db:
+        condition: service_healthy
+
+  tatami-nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    volumes:
+      - ./tatami/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      tatami-backend:
+        condition: service_healthy
+      tatami-frontend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  arena_pdf_storage:
+  arena_frontend_node_modules:
+  arena_frontend_next:
+  tatami_frontend_node_modules:
+  tatami_go_build_cache:
+  tatami_go_mod_cache:

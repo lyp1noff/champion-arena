@@ -7,7 +7,6 @@ from starlette.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
 from src.dependencies.auth import get_current_user
-from src.middleware import add_cors_middleware
 from src.routers import routers
 from src.services.broadcast import broadcast
 
@@ -22,7 +21,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(lifespan=lifespan)
-add_cors_middleware(app)
 
 
 @app.middleware("http")
