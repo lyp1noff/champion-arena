@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CustomBaseModel(BaseModel):
@@ -134,6 +134,12 @@ class UpdateMatchScoresSchema(BaseModel):
 class FinishMatchSchema(BaseModel):
     score_athlete1: int
     score_athlete2: int
+    winner_id: int
+
+
+class CorrectMatchResultSchema(BaseModel):
+    score_athlete1: int = Field(ge=0)
+    score_athlete2: int = Field(ge=0)
     winner_id: int
 
 

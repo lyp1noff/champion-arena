@@ -11,6 +11,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExternalMatch } from "@/lib/interfaces";
 import { useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 interface FinishMatchDialogProps {
   currentMatch: ExternalMatch | null;
@@ -27,6 +28,7 @@ export function FinishMatchDialog({
   swap_status,
   onFinishMatch,
 }: FinishMatchDialogProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [selectedWinner, setSelectedWinner] = useState<number>(0);
 
@@ -58,7 +60,7 @@ export function FinishMatchDialog({
     const score = id === 1 ? score1 : score2;
     return {
       id: athlete?.id || 0,
-      name: athlete ? `${athlete.last_name} ${athlete.first_name}` : `Fighter ${id}`,
+      name: athlete ? `${athlete.last_name} ${athlete.first_name}` : t("match.fighter", { id }),
       score,
       colorClass: id === 1 ? "text-red-600" : "text-blue-600",
     };
@@ -70,18 +72,18 @@ export function FinishMatchDialog({
   return (
     <div className="border rounded-lg p-4 border-red-500 bg-red-50">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-red-800">Finish Match</h3>
+        <h3 className="font-semibold text-red-800">{t("match.finish")}</h3>
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button variant="destructive" size="sm">
-              Finish Match
+              {t("match.finish")}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Finish Match</DialogTitle>
+              <DialogTitle>{t("match.finish")}</DialogTitle>
               <DialogDescription>
-                Review the final scores and select the winner. This action cannot be undone.
+                {t("match.finishDescription")}
               </DialogDescription>
             </DialogHeader>
 
@@ -100,17 +102,17 @@ export function FinishMatchDialog({
 
               {/* Winner Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Winner</label>
+                <label className="text-sm font-medium">{t("match.winner")}</label>
                 <Select value={selectedWinner.toString()} onValueChange={(value) => setSelectedWinner(Number(value))}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select winner" />
+                    <SelectValue placeholder={t("match.selectWinner")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={f1.id.toString()}>
-                      {f1.name} ({f1.score} points)
+                      {f1.name} ({t("match.points", { count: f1.score })})
                     </SelectItem>
                     <SelectItem value={f2.id.toString()}>
-                      {f2.name} ({f2.score} points)
+                      {f2.name} ({t("match.points", { count: f2.score })})
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -119,10 +121,10 @@ export function FinishMatchDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button variant="destructive" onClick={handleFinish}>
-                Finish Match
+                {t("match.finish")}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { SearchablePicker } from "@/components/admin/searchable-picker";
 import { Athlete } from "@/lib/interfaces";
+import { useI18n } from "@/lib/i18n";
 
 interface BracketParticipantControlsProps {
   athletes: Athlete[];
@@ -31,41 +32,49 @@ export function BracketParticipantControls({
   onSeedChange,
   onAdd,
 }: BracketParticipantControlsProps) {
+  const { t } = useI18n();
   return (
-    <div className="space-y-3 rounded-lg border bg-white p-4">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Add Participant</h2>
-        <p className="text-sm text-gray-600">Athletes come from the full arena list, not only the current tournament.</p>
+    <div className="admin-card add-participant">
+      <div className="admin-card__heading">
+        <h2>{t("brackets.addParticipant")}</h2>
+        <p>{t("brackets.addHint")}</p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_120px_160px]">
-        <SearchablePicker
-          options={athletes.map((athlete) => {
-            const externalId = athlete.external_id ?? athlete.id;
-            const label = getAthleteLabel(athlete);
-            return {
-              value: externalId.toString(),
-              label,
-              keywords: label,
-            };
-          })}
-          value={selectedAthleteExternalId?.toString()}
-          placeholder="Select athlete"
-          searchPlaceholder="Search athletes..."
-          emptyText="No athletes found."
-          onChange={(value) => onSelectAthlete(parseInt(value, 10))}
-        />
+      <div className="add-participant__fields">
+        <div className="admin-field">
+          <label>{t("common.athlete")}</label>
+          <SearchablePicker
+            options={athletes.map((athlete) => {
+              const externalId = athlete.external_id ?? athlete.id;
+              const label = getAthleteLabel(athlete);
+              return {
+                value: externalId.toString(),
+                label,
+                keywords: label,
+              };
+            })}
+            value={selectedAthleteExternalId?.toString()}
+            placeholder={t("brackets.selectAthlete")}
+            searchPlaceholder={t("brackets.searchAthletes")}
+            emptyText={t("brackets.noAthletes")}
+            onChange={(value) => onSelectAthlete(parseInt(value, 10))}
+          />
+        </div>
 
-        <input
-          className="h-9 rounded-md border px-3 text-sm"
-          placeholder="Seed"
-          inputMode="numeric"
-          value={participantSeed}
-          onChange={(event) => onSeedChange(event.target.value)}
-        />
+        <div className="admin-field">
+          <label htmlFor="participant-seed">{t("brackets.seed")}</label>
+          <input
+            id="participant-seed"
+            className="admin-input"
+            placeholder={t("brackets.auto")}
+            inputMode="numeric"
+            value={participantSeed}
+            onChange={(event) => onSeedChange(event.target.value)}
+          />
+        </div>
 
-        <Button onClick={onAdd} disabled={loading || !selectedAthleteExternalId}>
-          Add To Bracket
+        <Button className="add-participant__submit" onClick={onAdd} disabled={loading || !selectedAthleteExternalId}>
+          {t("brackets.add")}
         </Button>
       </div>
     </div>

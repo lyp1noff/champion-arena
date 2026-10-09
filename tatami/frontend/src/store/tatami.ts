@@ -1,5 +1,4 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { useSyncExternalStore } from "react";
 import { ExternalMatch } from "@/lib/interfaces";
 
 export type TatamiState = {
@@ -16,84 +15,87 @@ export type TatamiState = {
   currentMatch: ExternalMatch | null;
   setState: (partial: Partial<TatamiState>) => void;
   reset: () => void;
-  setMatch: (match: ExternalMatch) => void;
+  setMatch: (match: ExternalMatch, durationMs?: number) => void;
   setDuration: (durationMs: number) => void;
 };
 
-export const useTatamiStore = create<TatamiState>()(
-  persist(
-    (set) => ({
-      status: "idle",
-      startTimestamp: null,
-      pausedElapsed: 0,
-      durationMs: 60 * 1000, // 1 minute default
-      score1: 0,
-      score2: 0,
-      shido1: 0,
-      shido2: 0,
-      senshu: 0,
-      swap_status: false,
-      currentMatch: null,
+const STORAGE_KEY = "tatami-storage";
+const listeners = new Set<() => void>();
 
-      setState: (partial) => set(partial),
+const defaults = {
+  status: "idle" as const,
+  startTimestamp: null,
+  pausedElapsed: 0,
+  durationMs: 60 * 1000,
+  score1: 0,
+  score2: 0,
+  shido1: 0,
+  shido2: 0,
+  senshu: 0,
+  swap_status: false,
+  currentMatch: null,
+};
 
-      reset: () =>
-        set((state) => ({
-          status: "idle",
-          startTimestamp: null,
-          pausedElapsed: 0,
-          durationMs: 60 * 1000,
-          score1: 0,
-          score2: 0,
-          shido1: 0,
-          shido2: 0,
-          senshu: 0,
-          swap_status: state.swap_status,
-          currentMatch: null,
-        })),
+function readPersistedState(): Partial<TatamiState> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as { state?: Partial<TatamiState> };
+    return parsed.state ?? {};
+  } catch {
+    return {};
+  }
+}
 
-      setMatch: (match: ExternalMatch) =>
-        set((state) => {
-          const isSameMatch = state.currentMatch?.external_id === match.external_id;
-          return isSameMatch
-            ? {
-                ...state,
-              }
-            : {
-                currentMatch: match,
-                status: "idle",
-                startTimestamp: null,
-                pausedElapsed: 0,
-                durationMs: 60 * 1000,
-                score1: 0,
-                score2: 0,
-                shido1: 0,
-                shido2: 0,
-                senshu: 0,
-                swap_status: state.swap_status,
-              };
-        }),
+let state: TatamiState;
 
-      setDuration: (durationMs: number) =>
-        set({
-          durationMs,
-        }),
-    }),
-    {
-      name: "tatami-storage",
-      partialize: (state) => ({
-        status: state.status,
-        startTimestamp: state.startTimestamp,
-        pausedElapsed: state.pausedElapsed,
-        durationMs: state.durationMs,
-        score1: state.score1,
-        score2: state.score2,
-        shido1: state.shido1,
-        shido2: state.shido2,
-        senshu: state.senshu,
-        swap_status: state.swap_status,
-        currentMatch: state.currentMatch,
-      }),
-    },
-  ),
-);
+function persistedSnapshot(value: TatamiState) {
+  return {
+    status: value.status,
+    startTimestamp: value.startTimestamp,
+    pausedElapsed: value.pausedElapsed,
+    durationMs: value.durationMs,
+    score1: value.score1,
+    score2: value.score2,
+    shido1: value.shido1,
+    shido2: value.shido2,
+    senshu: value.senshu,
+    swap_status: value.swap_status,
+    currentMatch: value.currentMatch,
+  };
+}
+
+function update(partial: Partial<TatamiState>) {
+  state = { ...state, ...partial };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: persistedSnapshot(state), version: 1 }));
+  listeners.forEach((listener) => listener());
+}
+
+function reset() {
+  update({ ...defaults, swap_status: state.swap_status });
+}
+
+function setMatch(match: ExternalMatch, durationMs: number = defaults.durationMs) {
+  if (match.external_id && state.currentMatch?.external_id === match.external_id) return;
+  update({ ...defaults, durationMs, swap_status: state.swap_status, currentMatch: match });
+}
+
+state = {
+  ...defaults,
+  ...readPersistedState(),
+  setState: update,
+  reset,
+  setMatch,
+  setDuration: (durationMs: number) => update({ durationMs }),
+};
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function useTatamiStoreHook() {
+  return useSyncExternalStore(subscribe, () => state, () => state);
+}
+
+export const useTatamiStore = Object.assign(useTatamiStoreHook, { setState: update });

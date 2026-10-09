@@ -4,22 +4,29 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { BracketParticipantControls } from "@/components/admin/bracket-participant-controls";
 import { BracketParticipantTable } from "@/components/admin/bracket-participant-table";
+import { BracketPreview } from "@/components/admin/bracket-preview";
+import { BracketResults } from "@/components/admin/bracket-results";
 import { SearchablePicker } from "@/components/admin/searchable-picker";
 import {
   addBracketParticipant,
+  correctMatchResult,
   deleteBracketParticipant,
   getBracketParticipants,
   getBrackets,
   getCurrentTournament,
   getExternalAthletes,
+  getMatches,
   moveBracketParticipant,
   updateBracketParticipantSeed,
 } from "@/lib/api";
-import { Athlete, Bracket, BracketParticipant } from "@/lib/interfaces";
+import { Athlete, Bracket, BracketMatch, BracketParticipant } from "@/lib/interfaces";
+import { useI18n } from "@/lib/i18n";
 
 export function BracketAdmin() {
+  const { t } = useI18n();
   const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [participants, setParticipants] = useState<BracketParticipant[]>([]);
+  const [matches, setMatches] = useState<BracketMatch[]>([]);
   const [externalAthletes, setExternalAthletes] = useState<Athlete[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
   const [selectedBracket, setSelectedBracket] = useState<number | null>(null);
@@ -29,6 +36,7 @@ export function BracketAdmin() {
   const [seedEdits, setSeedEdits] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [participantActionLoading, setParticipantActionLoading] = useState(false);
+  const [resultActionLoading, setResultActionLoading] = useState(false);
 
   const fetchParticipants = useCallback(async (bracketId: number | null) => {
     if (!bracketId) {
@@ -41,6 +49,14 @@ export function BracketAdmin() {
     setSeedEdits(Object.fromEntries(data.map((participant) => [participant.id, String(participant.seed)])));
   }, []);
 
+  const fetchMatches = useCallback(async (bracketId: number | null) => {
+    if (!bracketId) {
+      setMatches([]);
+      return;
+    }
+    setMatches(await getMatches(String(bracketId)));
+  }, []);
+
   const fetchBrackets = useCallback(async (tournamentId: number, preferredBracketId: number | null = null) => {
     const data = await getBrackets(String(tournamentId));
     setBrackets(data);
@@ -51,8 +67,8 @@ export function BracketAdmin() {
         : data[0]?.external_id ?? null;
 
     setSelectedBracket(resolvedBracketId);
-    await fetchParticipants(resolvedBracketId);
-  }, [fetchParticipants]);
+    await Promise.all([fetchParticipants(resolvedBracketId), fetchMatches(resolvedBracketId)]);
+  }, [fetchMatches, fetchParticipants]);
 
   useEffect(() => {
     const bootstrapPage = async () => {
@@ -78,14 +94,16 @@ export function BracketAdmin() {
   useEffect(() => {
     if (!selectedBracket) {
       setParticipants([]);
+      setMatches([]);
       return;
     }
 
-    fetchParticipants(selectedBracket).catch((error) => {
-      console.error("Error fetching participants:", error);
+    Promise.all([fetchParticipants(selectedBracket), fetchMatches(selectedBracket)]).catch((error) => {
+      console.error("Error fetching bracket data:", error);
       setParticipants([]);
+      setMatches([]);
     });
-  }, [fetchParticipants, selectedBracket]);
+  }, [fetchMatches, fetchParticipants, selectedBracket]);
 
   const addableAthletes = useMemo(() => {
     return externalAthletes.filter((athlete) => {
@@ -93,6 +111,17 @@ export function BracketAdmin() {
       return !participants.some((participant) => participant.athlete?.external_id === externalId);
     });
   }, [externalAthletes, participants]);
+
+  const selectedBracketData = useMemo(
+    () => brackets.find((bracket) => bracket.external_id === selectedBracket),
+    [brackets, selectedBracket],
+  );
+
+  const handleBracketChange = (value: string) => {
+    setParticipants([]);
+    setMatches([]);
+    setSelectedBracket(parseInt(value, 10));
+  };
 
   const handleAddParticipant = async () => {
     if (!selectedTournament || !selectedBracket || !selectedAthleteExternalId) {
@@ -110,7 +139,7 @@ export function BracketAdmin() {
       await fetchBrackets(selectedTournament, selectedBracket);
     } catch (error) {
       console.error("Error adding participant:", error);
-      alert(error instanceof Error ? error.message : "Failed to add participant");
+      alert(error instanceof Error ? error.message : t("brackets.addError"));
     } finally {
       setParticipantActionLoading(false);
     }
@@ -127,7 +156,8 @@ export function BracketAdmin() {
       await fetchBrackets(selectedTournament, selectedBracket);
     } catch (error) {
       console.error("Error removing participant:", error);
-      alert(error instanceof Error ? error.message : "Failed to remove participant");
+      alert(error instanceof Error ? error.message : t("brackets.removeError"));
+      throw error;
     } finally {
       setParticipantActionLoading(false);
     }
@@ -150,7 +180,7 @@ export function BracketAdmin() {
       await fetchBrackets(selectedTournament, selectedBracket);
     } catch (error) {
       console.error("Error moving participant:", error);
-      alert(error instanceof Error ? error.message : "Failed to move participant");
+      alert(error instanceof Error ? error.message : t("brackets.moveError"));
     } finally {
       setParticipantActionLoading(false);
     }
@@ -163,7 +193,7 @@ export function BracketAdmin() {
 
     const seedValue = parseInt(seedEdits[participantId] ?? "", 10);
     if (!Number.isFinite(seedValue) || seedValue < 1) {
-      alert("Seed must be a positive number");
+      alert(t("brackets.seedPositive"));
       return;
     }
 
@@ -173,16 +203,49 @@ export function BracketAdmin() {
       await fetchBrackets(selectedTournament, selectedBracket);
     } catch (error) {
       console.error("Error updating seed:", error);
-      alert(error instanceof Error ? error.message : "Failed to update seed");
+      alert(error instanceof Error ? error.message : t("brackets.seedError"));
     } finally {
       setParticipantActionLoading(false);
+    }
+  };
+
+  const handleSeedReorder = async (participantId: number, targetSeed: number) => {
+    if (!selectedTournament || !selectedBracket) {
+      return;
+    }
+
+    try {
+      setParticipantActionLoading(true);
+      await updateBracketParticipantSeed(selectedBracket, participantId, targetSeed);
+      await fetchBrackets(selectedTournament, selectedBracket);
+    } catch (error) {
+      console.error("Error reordering participant:", error);
+      alert(error instanceof Error ? error.message : t("brackets.reorderError"));
+    } finally {
+      setParticipantActionLoading(false);
+    }
+  };
+
+  const handleCorrectResult = async (
+    bracketMatch: BracketMatch,
+    score1: number,
+    score2: number,
+    winnerId: number,
+  ) => {
+    if (!selectedBracket) return;
+    try {
+      setResultActionLoading(true);
+      await correctMatchResult(bracketMatch.match.external_id, score1, score2, winnerId);
+      await fetchMatches(selectedBracket);
+    } finally {
+      setResultActionLoading(false);
     }
   };
 
   if (loading) {
     return (
       <div className="rounded-lg border bg-white p-6">
-        <p className="text-sm text-gray-600">Loading bracket admin...</p>
+        <p className="text-sm text-gray-600">{t("brackets.loading")}</p>
       </div>
     );
   }
@@ -190,25 +253,24 @@ export function BracketAdmin() {
   if (!selectedTournament) {
     return (
       <div className="rounded-lg border bg-white p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Bracket Admin</h1>
-        <p className="mt-2 text-sm text-gray-600">Select and bootstrap a tournament first in setup.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("brackets.title")}</h1>
+        <p className="mt-2 text-sm text-gray-600">{t("brackets.noTournament")}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-lg border bg-white p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Bracket Admin</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Add athletes from the full arena list, remove them from one bracket only, or move them between brackets.
-          Every change regenerates the affected brackets locally.
-        </p>
+    <div className="bracket-admin">
+      <div className="admin-card admin-card--intro">
+        <div>
+          <h1>{t("brackets.title")}</h1>
+          <p>{t("brackets.description")}</p>
+        </div>
       </div>
 
-      <div className="space-y-3 rounded-lg border bg-white p-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Selected Bracket</label>
+      <div className="admin-card bracket-selector">
+        <div className="admin-field">
+          <label>{t("brackets.selected")}</label>
           <SearchablePicker
             options={brackets.map((bracket) => ({
               value: bracket.external_id.toString(),
@@ -216,16 +278,19 @@ export function BracketAdmin() {
               keywords: `${bracket.display_name || bracket.category} ${bracket.category}`,
             }))}
             value={selectedBracket?.toString()}
-            placeholder="Choose a bracket"
-            searchPlaceholder="Search brackets..."
-            emptyText="No brackets found."
-            onChange={(value) => setSelectedBracket(parseInt(value, 10))}
+            placeholder={t("brackets.choose")}
+            searchPlaceholder={t("brackets.search")}
+            emptyText={t("brackets.none")}
+            onChange={handleBracketChange}
           />
         </div>
       </div>
 
       {selectedBracket ? (
         <>
+          {selectedBracketData ? (
+            <BracketPreview bracket={selectedBracketData} matches={matches} participantCount={participants.length} />
+          ) : null}
           <BracketParticipantControls
             athletes={addableAthletes}
             selectedAthleteExternalId={selectedAthleteExternalId}
@@ -249,13 +314,15 @@ export function BracketAdmin() {
               setSeedEdits((current) => ({ ...current, [participantId]: value }))
             }
             onSeedSave={handleSeedSave}
+            onReorder={handleSeedReorder}
             onMove={handleMoveParticipant}
             onRemove={handleRemoveParticipant}
           />
+          <BracketResults matches={matches} loading={resultActionLoading} onCorrect={handleCorrectResult} />
         </>
       ) : (
         <div className="rounded-lg border bg-white p-6">
-          <p className="text-sm text-gray-600">No brackets available for the selected tournament.</p>
+          <p className="text-sm text-gray-600">{t("brackets.noAvailable")}</p>
         </div>
       )}
     </div>

@@ -95,20 +95,24 @@ func (c *HTTPClient) SendRequest(item database.OutboxItem) (bool, error) {
 	bodyText := strings.TrimSpace(string(bodyBytes))
 
 	if status >= 200 && status < 300 {
-		if strings.HasSuffix(item.Endpoint, "/sync/commands") && len(bodyBytes) > 0 {
+		isSyncResponse := strings.HasSuffix(item.Endpoint, "/sync/commands") ||
+			strings.HasSuffix(item.Endpoint, "/sync/upserts")
+		if isSyncResponse {
 			var syncResp syncCommandsResponse
-			if err := json.Unmarshal(bodyBytes, &syncResp); err == nil {
-				if len(syncResp.Conflicts) > 0 {
-					reason := syncResp.Conflicts[0].Reason
-					if reason == "out_of_order" {
-						return true, fmt.Errorf("sync conflict (retryable): %s", reason)
-					}
-					return false, fmt.Errorf("sync conflict (non-retryable): %s", reason)
-				}
-				if len(syncResp.Accepted) == 0 && len(syncResp.Duplicates) == 0 {
-					return true, fmt.Errorf("sync response has no accepted/duplicates")
-				}
+			if err := json.Unmarshal(bodyBytes, &syncResp); err != nil {
+				return true, fmt.Errorf("invalid sync response: %w", err)
 			}
+			if len(syncResp.Accepted) > 0 || len(syncResp.Duplicates) > 0 {
+				return false, nil
+			}
+			if len(syncResp.Conflicts) > 0 {
+				reason := syncResp.Conflicts[0].Reason
+				if reason == "out_of_order" {
+					return true, fmt.Errorf("sync conflict (retryable): %s", reason)
+				}
+				return false, fmt.Errorf("sync conflict (non-retryable): %s", reason)
+			}
+			return true, fmt.Errorf("sync response has no accepted/duplicates")
 		}
 		return false, nil
 	}

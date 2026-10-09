@@ -13,7 +13,6 @@ POSTGRES_DB = os.getenv("POSTGRES_DB", "champ")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 SERVICE_TOKEN = os.getenv("SERVICE_TOKEN", "service_token")
 JWT_SECRET = os.getenv("JWT_SECRET", "secret")
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("1", "true", "yes")

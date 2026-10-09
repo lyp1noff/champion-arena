@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTatamiStore } from "@/store/tatami";
 
 import { Button } from "@/components/ui/button";
-import { useParams } from "next/navigation";
+import { useRouteParams } from "@/lib/router";
 import { TimerDisplay } from "./components/TimerDisplay";
 import { MatchControls } from "./components/MatchControls";
 import { FighterControls } from "./components/FighterControls";
@@ -14,9 +14,12 @@ import { FinishMatchDialog } from "./components/FinishMatchDialog";
 import { finishMatch as finishMatchApi, getMatch, startMatch as startMatchApi, updateScores } from "@/lib/api";
 import { TimeSetting } from "./components/TimeSetting";
 import { createEmptyMatch } from "@/lib/emptyMatch";
+import { readDefaultMatchDuration } from "@/lib/tatami-settings";
+import { useI18n } from "@/lib/i18n";
 
 export default function ManageTatami() {
-  const { id: tatamiId, match_id } = useParams();
+  const { id: tatamiId, match_id } = useRouteParams();
+  const { t } = useI18n();
   const {
     status,
     startTimestamp,
@@ -41,7 +44,7 @@ export default function ManageTatami() {
   const [showTimeSettingDialog, setShowTimeSettingDialog] = useState(false);
   const [localElapsed, setLocalElapsed] = useState(0);
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -51,19 +54,19 @@ export default function ManageTatami() {
     async (matchId: string) => {
       try {
         const match = await getMatch(matchId);
-        setMatch(match);
+        setMatch(match, readDefaultMatchDuration(tatamiId));
       } catch (error) {
         console.error("Error loading match data:", error);
       }
     },
-    [setMatch],
+    [setMatch, tatamiId],
   );
 
   useEffect(() => {
     if (!isHydrated) return;
 
     if (match_id === "empty") {
-      setMatch(createEmptyMatch());
+      setMatch(createEmptyMatch(), readDefaultMatchDuration(tatamiId));
     } else {
       loadMatchData(match_id as string);
     }
@@ -88,7 +91,7 @@ export default function ManageTatami() {
 
   const finishMatch = async (winnerId: number) => {
     if (!currentMatch) {
-      alert("Please select a match first");
+      alert(t("tatami.selectMatchFirst"));
       return;
     }
 
@@ -99,7 +102,7 @@ export default function ManageTatami() {
       reset();
     } catch (error) {
       console.error("Error finishing match:", error);
-      alert("Error finishing match");
+      alert(t("match.finishError"));
     }
   };
 
@@ -121,7 +124,7 @@ export default function ManageTatami() {
 
   const start = useCallback(async () => {
     if (!currentMatch) {
-      alert("Please select a match first");
+      alert(t("tatami.selectMatchFirst"));
       return;
     }
 
@@ -138,7 +141,7 @@ export default function ManageTatami() {
       setState({ currentMatch: { ...currentMatch, status: "started" } });
     } catch (error) {
       console.error("Error starting match:", error);
-      alert("Error starting match");
+      alert(t("match.startError"));
       return;
     }
 
@@ -165,7 +168,7 @@ export default function ManageTatami() {
 
   const adjustScore = async (fighter: 1 | 2, delta: number) => {
     if (!currentMatch) {
-      alert("Please select a match first");
+      alert(t("tatami.selectMatchFirst"));
       return;
     }
 
@@ -180,7 +183,7 @@ export default function ManageTatami() {
       setState({ [`score${fighter}`]: newScore });
     } catch (error) {
       console.error("Error updating score:", error);
-      alert("Error updating score");
+      alert(t("match.scoreError"));
     }
   };
 
@@ -209,7 +212,7 @@ export default function ManageTatami() {
       timeAdjustInput.milliseconds < 0 ||
       timeAdjustInput.milliseconds > 99
     ) {
-      alert("Invalid time values");
+      alert(t("match.invalidTime"));
       return;
     }
     adjustRemainingTime(timeAdjustInput.minutes, timeAdjustInput.seconds, timeAdjustInput.milliseconds);
@@ -218,7 +221,7 @@ export default function ManageTatami() {
 
   const saveTimeSetting = () => {
     if (timeSettingInput.minutes < 0 || timeSettingInput.seconds < 0 || timeSettingInput.seconds > 59) {
-      alert("Invalid time values");
+      alert(t("match.invalidTime"));
       return;
     }
     setDurationTime(timeSettingInput.minutes, timeSettingInput.seconds);
@@ -287,50 +290,56 @@ export default function ManageTatami() {
     setTimeSettingInput((prev) => ({ ...prev, [field]: value }));
   };
 
+  useEffect(() => {
+    setTimeSettingInput({
+      minutes: Math.floor(durationMs / 60_000),
+      seconds: Math.floor((durationMs % 60_000) / 1000),
+    });
+  }, [durationMs]);
+
   const swap = useCallback(() => {
     setState({ swap_status: !swap_status });
   }, [setState, swap_status]);
 
   if (!isHydrated) {
     return (
-      <div className="p-4 space-y-4 max-w-4xl mx-auto">
-        <div className="text-center">
-          <div className="text-lg">Loading...</div>
-        </div>
-      </div>
+      <main className="match-admin"><p className="match-admin__loading">{t("common.loading")}</p></main>
     );
   }
 
   return (
-    <div className="p-4 space-y-4 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Tatami Control</h1>
-        <div className="flex items-center space-x-2">
+    <main className="match-admin">
+      <header className="match-admin__header">
+        <div>
+          <p className="match-admin__eyebrow">{t("common.tatami", { id: tatamiId })}</p>
+          <h1>{t("match.control")}</h1>
+        </div>
+        <div className="match-admin__header-actions">
           <Button variant="outline" onClick={swap}>
-            Swap competitors
+            {t("match.swap")}
           </Button>
           <Button variant="outline" onClick={() => (window.location.href = `/admin/tatami/${tatamiId}`)}>
-            Setup New Match
+            {t("match.setupNew")}
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* Match Status */}
-      <div className="text-center">
+      <div className="match-status">
         <span
-          className={`px-3 py-1 rounded-full text-sm font-medium ${
+          className={`match-status__badge ${
             currentMatch?.status === "not_started"
-              ? "bg-gray-100 text-gray-800"
+              ? "is-pending"
               : currentMatch?.status === "started"
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
+                ? "is-running"
+                : "is-finished"
           }`}
         >
           {currentMatch?.status === "not_started"
-            ? "Not Started"
+            ? t("match.notStarted")
             : currentMatch?.status === "started"
-              ? "Match Started"
-              : "Match Finished"}
+              ? t("match.started")
+              : t("match.finished")}
         </span>
       </div>
       {currentMatch && currentMatch.status !== "finished" ? (
@@ -352,44 +361,56 @@ export default function ManageTatami() {
             onSetSenshu={setSenshu}
           />
 
-          <TimeAdjustment
-            status={status}
-            timeAdjustInput={timeAdjustInput}
-            showTimeAdjustDialog={showTimeAdjustDialog}
-            onTimeAdjustInputChange={handleTimeAdjustInputChange}
-            onShowTimeAdjustDialogChange={setShowTimeAdjustDialog}
-            onSaveTimeAdjustment={saveTimeAdjustment}
-          />
-
-          <TimeSetting
-            timeSettingInput={timeSettingInput}
-            showTimeSettingDialog={showTimeSettingDialog}
-            onTimeSettingInputChange={handleTimeSettingInputChange}
-            onShowTimeSettingDialogChange={setShowTimeSettingDialog}
-            onSaveTimeSetting={saveTimeSetting}
-          />
-
-          {currentMatch.status === "started" && (
-            <FinishMatchDialog
-              currentMatch={currentMatch}
-              score1={score1}
-              score2={score2}
-              swap_status={swap_status}
-              onFinishMatch={finishMatch}
+          <div className="match-secondary-actions">
+            <TimeSetting
+              timeSettingInput={timeSettingInput}
+              showTimeSettingDialog={showTimeSettingDialog}
+              onTimeSettingInputChange={handleTimeSettingInputChange}
+              onShowTimeSettingDialogChange={setShowTimeSettingDialog}
+              onSaveTimeSetting={saveTimeSetting}
             />
-          )}
+
+            <TimeAdjustment
+              status={status}
+              timeAdjustInput={timeAdjustInput}
+              showTimeAdjustDialog={showTimeAdjustDialog}
+              onTimeAdjustInputChange={handleTimeAdjustInputChange}
+              onShowTimeAdjustDialogChange={setShowTimeAdjustDialog}
+              onSaveTimeAdjustment={saveTimeAdjustment}
+            />
+
+            {currentMatch.status === "started" && (
+              match_id === "empty" ? (
+                <div className="border rounded-lg p-4 border-red-500 bg-red-50">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-red-800">{t("match.finish")}</h3>
+                    <Button variant="destructive" size="sm" onClick={() => finishMatch(0)}>
+                      {t("match.finish")}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <FinishMatchDialog
+                  currentMatch={currentMatch}
+                  score1={score1}
+                  score2={score2}
+                  swap_status={swap_status}
+                  onFinishMatch={finishMatch}
+                />
+              )
+            )}
+          </div>
         </>
       ) : (
-        <div className="border rounded-lg p-4 bg-blue-50">
+        <div className="admin-notice">
           <div className="text-gray-600">
-            No match selected. Please go to{" "}
+            {t("match.noSelection")}{" "}
             <a href={`/admin/tatami/${tatamiId}`} className="text-blue-600 underline">
-              Match Setup
+              {t("match.setup")}
             </a>{" "}
-            to select a match.
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

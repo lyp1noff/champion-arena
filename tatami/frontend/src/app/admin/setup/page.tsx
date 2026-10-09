@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -23,8 +22,10 @@ import {
   syncTournament,
 } from "@/lib/api";
 import { Tournament } from "@/lib/interfaces";
+import { useI18n } from "@/lib/i18n";
 
 export default function SetupPage() {
+  const { t } = useI18n();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [availableTatamis, setAvailableTatamis] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,6 +40,9 @@ export default function SetupPage() {
     failed: number;
     succeeded: number;
   } | null>(null);
+
+  const getOperationStatus = (status: string) =>
+    ["success", "error", "ok"].includes(status) ? t(`setup.status.${status}`) : status;
 
   const fetchOutboxStatus = async () => {
     try {
@@ -108,10 +112,10 @@ export default function SetupPage() {
       setSyncing(true);
       const result = await syncTournament(selectedTournament);
       await Promise.all([fetchAvailableTatamis(selectedTournament), fetchOutboxStatus()]);
-      alert(result.message ?? `Tournament sync ${result.status}`);
+      alert(t("setup.syncResult", { status: getOperationStatus(result.status) }));
     } catch (error) {
       console.error("Error syncing tournament:", error);
-      alert(error instanceof Error ? error.message : "Error syncing tournament");
+      alert(t("setup.syncError"));
     } finally {
       setSyncing(false);
     }
@@ -136,10 +140,10 @@ export default function SetupPage() {
       const result = await rebootstrapTournament(selectedTournament);
       await Promise.all([fetchAvailableTatamis(selectedTournament), fetchOutboxStatus()]);
       handleRebootstrapOpenChange(false);
-      alert(result.message ?? `Tournament rebootstrap ${result.status}`);
+      alert(t("setup.rebootstrapResult", { status: getOperationStatus(result.status) }));
     } catch (error) {
       console.error("Error rebootstraping tournament:", error);
-      alert(error instanceof Error ? error.message : "Error rebootstraping tournament");
+      alert(t("setup.rebootstrapError"));
     } finally {
       setRebootstrapping(false);
     }
@@ -149,41 +153,41 @@ export default function SetupPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-5xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Tournament Setup</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-8">{t("setup.title")}</h1>
 
           <div className="space-y-6">
             {outboxStatus && (
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Outbox Summary</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">{t("setup.outbox")}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <p className="text-2xl font-bold text-gray-900">{outboxStatus.total}</p>
-                    <p className="text-sm text-gray-600">Total</p>
+                    <p className="text-sm text-gray-600">{t("setup.total")}</p>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg">
                     <p className="text-2xl font-bold text-green-800">{outboxStatus.succeeded}</p>
-                    <p className="text-sm text-green-700">Succeeded</p>
+                    <p className="text-sm text-green-700">{t("setup.succeeded")}</p>
                   </div>
                   <div className="p-4 bg-yellow-50 rounded-lg">
                     <p className="text-2xl font-bold text-yellow-800">{outboxStatus.pending}</p>
-                    <p className="text-sm text-yellow-700">Pending</p>
+                    <p className="text-sm text-yellow-700">{t("setup.pending")}</p>
                   </div>
                   <div className="p-4 bg-red-50 rounded-lg">
                     <p className="text-2xl font-bold text-red-800">{outboxStatus.failed}</p>
-                    <p className="text-sm text-red-700">Failed</p>
+                    <p className="text-sm text-red-700">{t("setup.failed")}</p>
                   </div>
                 </div>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Tournament</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t("setup.selectTournament")}</label>
               <Select
                 value={selectedTournament?.toString() || undefined}
                 onValueChange={(value) => handleTournamentSelect(parseInt(value, 10))}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose a tournament" />
+                  <SelectValue placeholder={t("setup.chooseTournament")} />
                 </SelectTrigger>
                 <SelectContent>
                   {tournaments.map((tournament) => (
@@ -198,7 +202,7 @@ export default function SetupPage() {
             <div className="flex flex-wrap gap-4">
               {selectedTournament && (
                 <Button onClick={runTournamentSync} disabled={syncing} variant="outline" className="px-4">
-                  {syncing ? "Syncing..." : "Bootstrap Selected Tournament"}
+                  {syncing ? t("setup.syncing") : t("setup.bootstrap")}
                 </Button>
               )}
               {selectedTournament && (
@@ -208,23 +212,23 @@ export default function SetupPage() {
                   variant="destructive"
                   className="px-4"
                 >
-                  Rebootstrap Tournament
+                  {t("setup.rebootstrap")}
                 </Button>
               )}
               <Button asChild variant="outline" className="px-4">
-                <Link href="/admin/brackets">Open Bracket Admin</Link>
+                <a href="/admin/brackets">{t("setup.openBrackets")}</a>
               </Button>
             </div>
 
             {selectedTournament && (
               <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-blue-800">Selected: {tournaments.find((t) => t.id === selectedTournament)?.name}</p>
+                <p className="text-blue-800">{t("setup.selected", { name: tournaments.find((item) => item.id === selectedTournament)?.name ?? "" })}</p>
               </div>
             )}
 
             {selectedTournament && availableTatamis.length > 0 && (
               <div>
-                <h2 className="text-lg font-semibold mb-4">Available Tatamis</h2>
+                <h2 className="text-lg font-semibold mb-4">{t("setup.availableTatamis")}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {availableTatamis.map((tatamiId) => (
                     <Button
@@ -232,7 +236,7 @@ export default function SetupPage() {
                       onClick={() => handleTatamiSelect(tatamiId)}
                       className="h-20 text-lg font-semibold"
                     >
-                      Tatami {tatamiId}
+                      {t("common.tatami", { id: tatamiId })}
                     </Button>
                   ))}
                 </div>
@@ -241,7 +245,7 @@ export default function SetupPage() {
 
             {selectedTournament && availableTatamis.length === 0 && !loading && (
               <div className="bg-yellow-50 p-4 rounded-lg">
-                <p className="text-yellow-800">No tatamis assigned to this tournament. Bootstrap the tournament first.</p>
+                <p className="text-yellow-800">{t("setup.noTatamis")}</p>
               </div>
             )}
           </div>
@@ -252,25 +256,25 @@ export default function SetupPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {rebootstrapStep === 1 ? "Підтвердження ребутстрапу" : "ОСТАННЄ ПОПЕРЕДЖЕННЯ"}
+              {rebootstrapStep === 1 ? t("setup.rebootstrapTitle") : t("setup.rebootstrapFinalTitle")}
             </DialogTitle>
             <DialogDescription className="text-left">
               {rebootstrapStep === 1
-                ? "Ця дія повністю видалить локальну копію турніру на цьому татамі та заново завантажить її з Arena. Локальні зміни, черга outbox та поточний стан локальної копії будуть скинуті."
-                : "ЦЕ НЕЗВОРОТНА ДІЯ. ЛОКАЛЬНА КОПІЯ ТУРНІРУ БУДЕ ПОВНІСТЮ ЗНИЩЕНА ТА СТВОРЕНА ЗАНОВО З ARENA."}
+                ? t("setup.rebootstrapDescription")
+                : t("setup.rebootstrapFinalDescription")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => handleRebootstrapOpenChange(false)} disabled={rebootstrapping}>
-              Скасувати
+              {t("common.cancel")}
             </Button>
             {rebootstrapStep === 1 ? (
               <Button variant="destructive" onClick={() => setRebootstrapStep(2)} disabled={rebootstrapping}>
-                Підтвердити
+                {t("common.confirm")}
               </Button>
             ) : (
               <Button variant="destructive" onClick={runTournamentRebootstrap} disabled={rebootstrapping}>
-                {rebootstrapping ? "Виконується..." : "ПІДТВЕРДЖУЮ ПОВНИЙ РЕБУТСТРАП"}
+                {rebootstrapping ? t("setup.rebootstrapRunning") : t("setup.rebootstrapFinalConfirm")}
               </Button>
             )}
           </DialogFooter>

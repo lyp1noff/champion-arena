@@ -15,7 +15,8 @@
     "tournaments": "tournaments",
     "viewDetails": "View details",
     "loadError": "Failed to load tournaments",
-    "loadErrorDescription": "Please try again or contact support."
+    "loadErrorDescription": "Please try again or contact support.",
+    "noTournamentsFound": "No tournaments found."
   },
   "TournamentPage": {
     "brackets": "Brackets",

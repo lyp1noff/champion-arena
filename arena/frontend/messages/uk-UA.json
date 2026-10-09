@@ -15,7 +15,8 @@
     "tournaments": "Турніри",
     "viewDetails": "Переглянути деталі",
     "loadError": "Не вдалося завантажити турніри",
-    "loadErrorDescription": "Спробуйте ще раз або зверніться до служби підтримки."
+    "loadErrorDescription": "Спробуйте ще раз або зверніться до служби підтримки.",
+    "noTournamentsFound": "Турнірів не знайдено."
   },
   "TournamentPage": {
     "brackets": "Сітки",

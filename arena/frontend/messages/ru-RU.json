@@ -15,7 +15,8 @@
     "tournaments": "Турниры",
     "viewDetails": "Посмотреть детали",
     "loadError": "Не удалось загрузить турниры",
-    "loadErrorDescription": "Попробуйте еще раз или обратитесь в службу поддержки."
+    "loadErrorDescription": "Попробуйте еще раз или обратитесь в службу поддержки.",
+    "noTournamentsFound": "Турниры не найдены."
   },
   "TournamentPage": {
     "brackets": "Сетки",
