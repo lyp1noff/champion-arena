@@ -1,93 +1,91 @@
-# Outbox Service
+# Tatami Outbox Worker
 
-A Go service for processing outbox items from a PostgreSQL database and sending HTTP requests to external APIs.
+This Go service is the current delivery process for Tatami's transactional outbox. The canonical HTTP contract, DTOs, version rules, and known limitations are documented in `../../docs/SYNC_ARCHITECTURE.md`.
 
-## Structure
+The worker is expected to be replaced by a dedicated Python process in the Tatami backend codebase. Until that migration is complete, this README describes the running Go implementation.
 
-The service is organized into several modules:
+## What it does
 
-- **`main.go`** - Entry point and service initialization
-- **`config.go`** - Configuration management
-- **`models.go`** - Data models and database operations
-- **`http_client.go`** - HTTP client for sending requests
-- **`processor.go`** - Main processing logic
+The Tatami Python backend writes a complete serialized HTTP request to `outbox_items` in the same database transaction as the local tournament change. This worker:
+
+1. polls the shared PostgreSQL database;
+2. claims the oldest `pending` or retryable `failed` row;
+3. sends the stored method, endpoint, payload, and bearer token;
+4. interprets `/sync/upserts` acknowledgements;
+5. marks the row `success`, `failed`, or `skipped`.
+
+It does not create sync DTOs, increment aggregate versions, or decide business conflicts. Those responsibilities belong to the Python producer and Arena receiver.
 
 ## Configuration
 
-The service can be configured using environment variables:
+| Variable | Default | Actual use |
+| --- | --- | --- |
+| `POSTGRES_USER` | empty | PostgreSQL user. |
+| `POSTGRES_PASSWORD` | empty | PostgreSQL password. |
+| `POSTGRES_HOST` | `localhost` | PostgreSQL host. |
+| `POSTGRES_PORT` | `5432` | PostgreSQL port. |
+| `POSTGRES_DB` | empty | PostgreSQL database. |
+| `EXTERNAL_API_TOKEN` | empty | Sent as `Authorization: Bearer ...`. |
+| `PROCESSING_INTERVAL` | `1s` | Poll interval. |
+| `HTTP_TIMEOUT` | `10s` | Per-request HTTP timeout. |
+| `BATCH_SIZE` | `10` | Parsed and logged, but currently unused; processing is one row at a time. |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, or `error`. |
 
-| Variable              | Default  | Description                                  |
-| --------------------- | -------- | -------------------------------------------- |
-| `DATABASE_URL`        | Required | PostgreSQL connection string                 |
-| `EXTERNAL_API_TOKEN`  | ""       | Bearer token for external API authentication |
-| `PROCESSING_INTERVAL` | "5s"     | Interval between processing batches          |
-| `BATCH_SIZE`          | 10       | Number of items to process per batch         |
-| `HTTP_TIMEOUT`        | "10s"    | HTTP request timeout                         |
-| `MAX_RETRIES`         | 3        | Maximum number of retries per item           |
-| `LOG_LEVEL`           | "info"   | Logging level (debug, info, warn, error)     |
+`EXTERNAL_API_URL` is parsed by the config package but delivery uses the endpoint already stored in each outbox row. The Python producer constructs that endpoint from its own `EXTERNAL_API_URL`.
 
-## Database Schema
+## Expected table
 
-The service expects an `outbox_items` table with the following structure:
+The worker reads the SQLAlchemy-managed Tatami table:
 
-```sql
-CREATE TABLE outbox_items (
-    id SERIAL PRIMARY KEY,
-    tournament_id INTEGER,
-    match_id INTEGER,
-    endpoint TEXT NOT NULL,
-    method TEXT NOT NULL,
-    payload TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    retry_count INTEGER NOT NULL DEFAULT 0,
-    max_retries INTEGER NOT NULL DEFAULT 3,
-    error TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
+```text
+outbox_items
+  id              integer primary key
+  tournament_id   nullable local Tatami FK
+  match_id        nullable local Tatami FK
+  endpoint        string
+  method          string
+  payload         nullable serialized JSON
+  status          pending | processing | failed | success | skipped
+  retry_count     integer
+  max_retries     integer
+  error           nullable text
+  created_at      timestamp
+  updated_at      timestamp
 ```
 
-## Features
+Do not maintain a separate Go-owned migration/schema for this table.
 
-- **Batch Processing**: Processes items in configurable batches
-- **Retry Logic**: Automatically retries failed requests up to a configurable limit
-- **Comprehensive Logging**: Detailed logging for debugging and monitoring
-- **Graceful Shutdown**: Handles context cancellation properly
-- **Connection Pooling**: Uses pgx connection pool for efficient database access
-- **Error Handling**: Robust error handling with detailed error messages
+## Acknowledgement behavior
 
-## Running the Service
+For a 2xx `/sync/upserts` response:
 
-1. Set up your environment variables (see Configuration section)
-2. Ensure the database is accessible and the `outbox_items` table exists
-3. Run the service:
+- a non-empty `accepted` or `duplicates` list is success;
+- `seq_gap` may accompany `accepted` and does not turn it into a failure;
+- a conflict without an acknowledgement is non-retryable and becomes `skipped`;
+- invalid or empty acknowledgement JSON is retryable.
+
+Network failures, HTTP 408/429, and 5xx responses are retryable. Other HTTP failures are terminal.
+
+On retryable failure, `retry_count` is incremented and the worker waits 10 seconds. Rows stop being selected once `retry_count` reaches their stored `max_retries` value.
+
+## Running locally
+
+From this directory:
 
 ```bash
-cd outbox
-go run .
+go run ./cmd/outbox-worker
 ```
 
-## Logging
+The normal development and production Compose files start this service with the Tatami backend and database.
 
-The service provides configurable logging with different levels:
+## Current limitations
 
-- **ERROR**: Only error messages
-- **WARN**: Warning and error messages  
-- **INFO**: Information, warning, and error messages (default)
-- **DEBUG**: All messages including detailed debug information
+- Run only one worker replica: claiming has no locking lease or `SKIP LOCKED` protection.
+- A process crash can strand a row in `processing`.
+- The oldest retrying row blocks later rows until success or retry exhaustion.
+- `BATCH_SIZE` does not affect processing.
+- `skipped` is not included by the current Tatami `/outbox/status` endpoint.
+- There is no automatic resend/reconciliation for terminal application conflicts.
+- Cancellation is only wired to a background context; OS signal shutdown is not explicitly handled.
 
-### Log Levels
-
-- **ERROR**: Critical errors that prevent operation
-- **WARN**: Non-critical issues that should be investigated
-- **INFO**: General operational information (startup, batch completion, etc.)
-- **DEBUG**: Detailed information for troubleshooting (individual item processing, HTTP requests, etc.)
-
-Set the `LOG_LEVEL` environment variable to control verbosity. Default is "info" for balanced logging.
-
-## Error Handling
-
-- Database connection errors are fatal and will stop the service
-- Individual item processing errors are logged but don't stop the batch
-- HTTP request failures are retried up to the configured limit
-- Transaction errors are logged and the batch continues with remaining items
+These are migration requirements for the planned Python worker, not guarantees of the current service.
