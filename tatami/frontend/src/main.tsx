@@ -6,7 +6,7 @@ import SetupPage from "@/app/admin/setup/page";
 import BracketsAdminPage from "@/app/admin/brackets/page";
 import TatamiSetupPage from "@/app/admin/tatami/[id]/page";
 import ManageTatami from "@/app/admin/tatami/[id]/match/[match_id]/page";
-import ScreenTatami from "@/app/screen/tatami/[id]/page";
+import ScreenTatami from "@/app/screen/page";
 import "@/app/globals.css";
 import { I18nProvider, LanguageSwitcher, useI18n } from "@/lib/i18n";
 
@@ -17,7 +17,7 @@ function NotFound() {
 
 function Router() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
-  if (/^\/screen\/tatami\/[^/]+$/.test(path)) return <ScreenTatami />;
+  if (path === "/screen") return <ScreenTatami />;
   let page: React.ReactNode;
   if (path === "/") page = <Home />;
   else if (path === "/admin/setup") page = <SetupPage />;

@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouteParams } from "@/lib/router";
 import { useTatamiStore } from "@/store/tatami";
+import { readSelectedTatamiId, SELECTED_TATAMI_STORAGE_KEY } from "@/lib/tatami-settings";
 import "./tatami-screen.css";
 
 export default function ScreenTatami() {
-  const { id: tatamiId } = useRouteParams();
+  const [tatamiId, setTatamiId] = useState<string | null>(() => readSelectedTatamiId());
   const [isHydrated, setIsHydrated] = useState(false);
 
   const {
@@ -29,6 +29,10 @@ export default function ScreenTatami() {
     setIsHydrated(true);
   }, []);
 
+  useEffect(() => {
+    if (!tatamiId) window.location.replace("/admin/setup");
+  }, [tatamiId]);
+
   const [hasPlayedBeep, setHasPlayedBeep] = useState(false);
 
   useEffect(() => {
@@ -49,6 +53,9 @@ export default function ScreenTatami() {
       if (e.key === "tatami-storage") {
         const newState = JSON.parse(e.newValue ?? "{}");
         useTatamiStore.setState(newState.state);
+      }
+      if (e.key === SELECTED_TATAMI_STORAGE_KEY) {
+        setTatamiId(e.newValue);
       }
     };
 
@@ -123,6 +130,8 @@ export default function ScreenTatami() {
   };
 
   const chars = formatPartsArray(remaining);
+
+  if (!tatamiId) return null;
 
   const leftFighter = swap_status
     ? {

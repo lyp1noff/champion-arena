@@ -380,13 +380,24 @@ export default function ManageTatami() {
             />
 
             {currentMatch.status === "started" && (
-              <FinishMatchDialog
-                currentMatch={currentMatch}
-                score1={score1}
-                score2={score2}
-                swap_status={swap_status}
-                onFinishMatch={finishMatch}
-              />
+              match_id === "empty" ? (
+                <div className="border rounded-lg p-4 border-red-500 bg-red-50">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-red-800">{t("match.finish")}</h3>
+                    <Button variant="destructive" size="sm" onClick={() => finishMatch(0)}>
+                      {t("match.finish")}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <FinishMatchDialog
+                  currentMatch={currentMatch}
+                  score1={score1}
+                  score2={score2}
+                  swap_status={swap_status}
+                  onFinishMatch={finishMatch}
+                />
+              )
             )}
           </div>
         </>

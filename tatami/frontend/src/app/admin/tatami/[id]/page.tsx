@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppRouter, useRouteParams } from "@/lib/router";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,7 +11,12 @@ import {
   DEFAULT_MATCH_DURATION_MS,
   MATCH_DURATION_PRESETS,
   readDefaultMatchDuration,
+  readSelectedBracket,
+  readSelectedDay,
   writeDefaultMatchDuration,
+  writeSelectedBracket,
+  writeSelectedDay,
+  writeSelectedTatamiId,
 } from "@/lib/tatami-settings";
 import { useI18n } from "@/lib/i18n";
 
@@ -29,7 +34,20 @@ export default function TatamiSetupPage() {
   const [defaultDurationMs, setDefaultDurationMs] = useState(DEFAULT_MATCH_DURATION_MS);
   const [loading, setLoading] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [includeAllBrackets, setIncludeAllBrackets] = useState<boolean>(false);
   const [includeAllMatches, setIncludeAllMatches] = useState<boolean>(false);
+
+  const availableDays = useMemo(
+    () => [...new Set(brackets.map((bracket) => bracket.day).filter((day): day is number => day != null))].sort((a, b) => a - b),
+    [brackets],
+  );
+  const visibleBrackets = useMemo(
+    () => brackets.filter((bracket) => (
+      bracket.day === selectedDay && (includeAllBrackets || bracket.status !== "finished")
+    )),
+    [brackets, includeAllBrackets, selectedDay],
+  );
 
   const getMatchStatusLabel = (status: string) => {
     if (status === "not_started") return t("match.notStarted");
@@ -38,8 +56,18 @@ export default function TatamiSetupPage() {
     return status;
   };
 
+  const getBracketStatusLabel = (status: string) => {
+    if (status === "pending") return t("brackets.statusPending");
+    if (status === "started") return t("brackets.statusStarted");
+    if (status === "finished") return t("brackets.statusFinished");
+    return status;
+  };
+
   useEffect(() => {
-    if (tatamiId) setDefaultDurationMs(readDefaultMatchDuration(tatamiId));
+    if (tatamiId) {
+      writeSelectedTatamiId(tatamiId);
+      setDefaultDurationMs(readDefaultMatchDuration(tatamiId));
+    }
   }, [tatamiId]);
 
   // Load tournament and brackets on mount
@@ -131,35 +159,51 @@ export default function TatamiSetupPage() {
   }, [fetchMatches, selectedBracket]);
 
   useEffect(() => {
-    const saved = localStorage.getItem("selectedBracket");
-    if (saved) {
-      setSelectedBracket(saved);
-      fetchMatches(saved);
+    if (!selectedTournament || availableDays.length === 0) {
+      setSelectedDay(null);
+      return;
     }
 
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "selectedBracket") {
-        const v = e.newValue ?? "";
-        setSelectedBracket(v);
-        setSelectedMatch(null);
-        setMatches([]);
-        if (v) fetchMatches(v);
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [fetchMatches]);
+    const storedDay = readSelectedDay(tatamiId, selectedTournament);
+    const nextDay = storedDay !== null && availableDays.includes(storedDay) ? storedDay : availableDays[0];
+    setSelectedDay(nextDay);
+    writeSelectedDay(tatamiId, selectedTournament, nextDay);
+  }, [availableDays, selectedTournament, tatamiId]);
+
+  useEffect(() => {
+    setSelectedMatch(null);
+    setMatches([]);
+
+    if (!selectedTournament || selectedDay === null) {
+      setSelectedBracket("");
+      return;
+    }
+
+    const storedBracket = readSelectedBracket(tatamiId, selectedTournament, selectedDay);
+    setSelectedBracket(
+      storedBracket && visibleBrackets.some((bracket) => String(bracket.external_id) === storedBracket)
+        ? storedBracket
+        : "",
+    );
+  }, [selectedDay, selectedTournament, tatamiId, visibleBrackets]);
+
+  const handleDayChange = (value: string) => {
+    const day = Number(value);
+    if (!selectedTournament || !Number.isInteger(day)) return;
+    writeSelectedDay(tatamiId, selectedTournament, day);
+    setSelectedDay(day);
+    setSelectedBracket("");
+    setSelectedMatch(null);
+    setMatches([]);
+  };
 
   const handleBracketChange = (bracketId: string) => {
     setSelectedBracket(bracketId);
     setSelectedMatch(null);
     setMatches([]);
 
-    if (bracketId) {
-      localStorage.setItem("selectedBracket", bracketId);
-      fetchMatches(bracketId);
-    } else {
-      localStorage.removeItem("selectedBracket");
+    if (bracketId && selectedTournament && selectedDay !== null) {
+      writeSelectedBracket(tatamiId, selectedTournament, selectedDay, bracketId);
     }
   };
 
@@ -186,6 +230,25 @@ export default function TatamiSetupPage() {
       : athlete.coaches_last_name;
     return `${athlete.last_name} ${athlete.first_name}${coaches ? ` (${coaches})` : ""}`;
   };
+
+  const renderAthleteName = (athlete?: Athlete) => {
+    if (!athlete) return t("common.unknown");
+    const coaches = Array.isArray(athlete.coaches_last_name)
+      ? athlete.coaches_last_name.filter(Boolean).join(", ")
+      : athlete.coaches_last_name;
+    return (
+      <>
+        <strong>{athlete.last_name}</strong>{` ${athlete.first_name}${coaches ? ` (${coaches})` : ""}`}
+      </>
+    );
+  };
+
+  const renderMatchOption = (bracketMatch: BracketMatch) => (
+    <>
+      {t("tatami.round")} {bracketMatch.round_number} | {t("tatami.matchInline")} {bracketMatch.position}: {renderAthleteName(bracketMatch.match.athlete1)} {t("tatami.versus")} {renderAthleteName(bracketMatch.match.athlete2)}
+      {bracketMatch.match.status !== "not_started" && ` (${getMatchStatusLabel(bracketMatch.match.status)})`}
+    </>
+  );
 
   const handleStartMatch = () => {
     if (!selectedMatch) {
@@ -214,7 +277,7 @@ export default function TatamiSetupPage() {
           </div>
           <a
             className="button button--outline button--default"
-            href={`/screen/tatami/${tatamiId}`}
+            href="/screen"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -228,6 +291,23 @@ export default function TatamiSetupPage() {
             <h2 className="text-xl font-semibold mb-4">{t("tatami.matchSelection")}</h2>
 
             <div className="space-y-4">
+              {/* Day Selection */}
+              <div>
+                <label className="block text-sm font-medium mb-2">{t("tatami.selectDayLabel")}</label>
+                <Select value={selectedDay?.toString()} onValueChange={handleDayChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("tatami.selectDay")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableDays.map((day) => (
+                      <SelectItem key={day} value={String(day)}>
+                        {t("tatami.day", { day })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Bracket Selection */}
               <div>
                 <label className="block text-sm font-medium mb-2">{t("tatami.bracket")}</label>
@@ -236,15 +316,34 @@ export default function TatamiSetupPage() {
                     <SelectValue placeholder={t("tatami.selectBracket")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {brackets.map((bracket) => (
+                    {visibleBrackets.map((bracket) => (
                       <SelectItem key={String(bracket.external_id)} value={String(bracket.external_id)}>
                         {t("tatami.day", { day: bracket.day ?? "-" })} - {bracket.start_time?.slice(0, 5) ?? "--:--"} - {bracket.display_name}
+                        {bracket.status && bracket.status !== "pending" ? ` (${getBracketStatusLabel(bracket.status)})` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+
+                <div className="flex items-center space-x-2 mt-4">
+                  <Checkbox
+                    id="include-all-brackets"
+                    checked={includeAllBrackets}
+                    onCheckedChange={(checked) => setIncludeAllBrackets(checked as boolean)}
+                  />
+                  <label
+                    htmlFor="include-all-brackets"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {t("tatami.includeAllBrackets")}
+                  </label>
+                </div>
+
                 {brackets.length === 0 && !loading && (
                   <p className="text-sm text-red-600 mt-1">{t("tatami.noBrackets", { id: tatamiId })}</p>
+                )}
+                {brackets.length > 0 && visibleBrackets.length === 0 && !loading && (
+                  <p className="text-sm text-red-600 mt-1">{t("tatami.noAvailableBrackets")}</p>
                 )}
               </div>
 
@@ -254,18 +353,14 @@ export default function TatamiSetupPage() {
                   <label className="block text-sm font-medium mb-2">{t("tatami.match")}</label>
                   <Select value={selectedMatch?.external_id} onValueChange={(value) => handleMatchChange(value)}>
                     <SelectTrigger>
-                      <SelectValue placeholder={t("tatami.selectMatch")} />
+                      {selectedMatchData
+                        ? <span className="select-value">{renderMatchOption(selectedMatchData)}</span>
+                        : <SelectValue placeholder={t("tatami.selectMatch")} />}
                     </SelectTrigger>
                     <SelectContent>
                       {matches.map((bracketMatch) => (
                         <SelectItem key={String(bracketMatch.external_id)} value={String(bracketMatch.external_id)}>
-                          {t("tatami.matchOption", {
-                            round: bracketMatch.round_number,
-                            position: bracketMatch.position,
-                            athlete1: bracketMatch.match.athlete1 ? getAthleteName(bracketMatch.match.athlete1) : t("common.unknown"),
-                            athlete2: bracketMatch.match.athlete2 ? getAthleteName(bracketMatch.match.athlete2) : t("common.unknown"),
-                          })}
-                          {bracketMatch.match.status !== "not_started" && ` (${getMatchStatusLabel(bracketMatch.match.status)})`}
+                          {renderMatchOption(bracketMatch)}
                         </SelectItem>
                       ))}
                     </SelectContent>
