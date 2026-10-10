@@ -91,13 +91,27 @@ export async function updateScores(matchId: string, scoreAthlete1: number, score
 }
 
 // Setup API functions
-export async function getTournaments(): Promise<Tournament[]> {
+export async function getExternalTournaments(): Promise<Tournament[]> {
   const response = await fetch(`${BACKEND_URL}/external/tournaments`);
   if (!response.ok) {
-    throw new Error("Failed to fetch tournaments");
+    throw new Error("Failed to fetch external tournaments");
   }
   const data = await response.json();
   return data || [];
+}
+
+export async function getLocalTournaments(): Promise<Tournament[]> {
+  const response = await fetch(`${BACKEND_URL}/tournaments`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch local tournaments");
+  }
+
+  const data: Array<Tournament & { external_id: number }> = await response.json();
+  return data.map(({ external_id, ...tournament }) => ({
+    ...tournament,
+    // All Tatami routes and settings use the Arena tournament id.
+    id: external_id,
+  }));
 }
 
 export async function getExternalAthletes(): Promise<Athlete[]> {

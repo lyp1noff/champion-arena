@@ -14,15 +14,24 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   getCurrentTournament,
+  getExternalTournaments,
+  getLocalTournaments,
   getOutboxStatus,
   getTatamis,
   rebootstrapTournament,
-  getTournaments,
   setCurrentTournament,
   syncTournament,
 } from "@/lib/api";
 import { Tournament } from "@/lib/interfaces";
 import { useI18n } from "@/lib/i18n";
+
+function mergeTournaments(local: Tournament[], external: Tournament[]): Tournament[] {
+  const byId = new Map(local.map((tournament) => [tournament.id, tournament]));
+  for (const tournament of external) {
+    byId.set(tournament.id, tournament);
+  }
+  return Array.from(byId.values());
+}
 
 export default function SetupPage() {
   const { t } = useI18n();
@@ -75,11 +84,11 @@ export default function SetupPage() {
     const bootstrapPage = async () => {
       try {
         setLoading(true);
-        const [tournamentData, currentTournament] = await Promise.all([
-          getTournaments(),
+        const [localTournaments, currentTournament] = await Promise.all([
+          getLocalTournaments(),
           getCurrentTournament(),
         ]);
-        setTournaments(tournamentData);
+        setTournaments(localTournaments);
         setSelectedTournament(currentTournament.current_tournament_id);
 
         if (currentTournament.current_tournament_id) {
@@ -89,6 +98,16 @@ export default function SetupPage() {
         console.error("Error bootstrapping setup page:", error);
       } finally {
         setLoading(false);
+      }
+
+      // Arena is optional at runtime. Locally bootstrapped tournaments are
+      // already usable; when Arena is reachable, extend the picker with
+      // tournaments that can still be bootstrapped.
+      try {
+        const externalTournaments = await getExternalTournaments();
+        setTournaments((localTournaments) => mergeTournaments(localTournaments, externalTournaments));
+      } catch (error) {
+        console.info("Arena is unavailable; using local tournaments only", error);
       }
     };
 
