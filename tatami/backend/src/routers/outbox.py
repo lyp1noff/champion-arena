@@ -13,10 +13,15 @@ from src.services.outbox import (
     create_match_scores_outbox,
     get_bracket_with_tournament_for_match,
 )
+from src.statuses import OutboxStatus
 
 router = APIRouter(prefix="/outbox", tags=["outbox"])
 
-ACTIVE_STATUSES = ("pending", "processing", "retry_wait")
+ACTIVE_STATUSES = (
+    OutboxStatus.PENDING.value,
+    OutboxStatus.PROCESSING.value,
+    OutboxStatus.RETRY_WAIT.value,
+)
 
 
 def _payload_metadata(payload: str | None) -> dict[str, Any]:
@@ -70,16 +75,16 @@ async def _status_count(db: AsyncSession, status: str) -> int:
 @router.get("/status")
 async def get_outbox_status(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     total = int(await db.scalar(select(func.count()).select_from(OutboxItem)) or 0)
-    pending = await _status_count(db, "pending")
-    processing = await _status_count(db, "processing")
-    retry_wait = await _status_count(db, "retry_wait")
+    pending = await _status_count(db, OutboxStatus.PENDING.value)
+    processing = await _status_count(db, OutboxStatus.PROCESSING.value)
+    retry_wait = await _status_count(db, OutboxStatus.RETRY_WAIT.value)
     dead_letter_count = await db.scalar(
         select(func.count())
         .select_from(OutboxItem)
-        .where(OutboxItem.status == "dead_letter", OutboxItem.resolved_at.is_(None))
+        .where(OutboxItem.status == OutboxStatus.DEAD_LETTER.value, OutboxItem.resolved_at.is_(None))
     )
     dead_letter = int(dead_letter_count or 0)
-    succeeded = await _status_count(db, "success")
+    succeeded = await _status_count(db, OutboxStatus.SUCCESS.value)
     oldest_pending_at = await db.scalar(
         select(func.min(OutboxItem.created_at)).where(OutboxItem.status.in_(ACTIVE_STATUSES))
     )
@@ -98,7 +103,7 @@ async def get_outbox_status(db: AsyncSession = Depends(get_db)) -> dict[str, Any
         "oldest_pending_at": oldest_pending_at,
         "worker": {
             "alive": worker_alive,
-            "status": worker.status if worker else "unknown",
+            "phase": worker.phase if worker else "unknown",
             "heartbeat_at": worker.heartbeat_at if worker else None,
             "last_success_at": worker.last_success_at if worker else None,
             "last_error": worker.last_error if worker else None,
@@ -118,7 +123,7 @@ async def list_outbox_items(
     if status == "active":
         filters.append(OutboxItem.status.in_(ACTIVE_STATUSES))
     elif status == "attention":
-        filters.extend((OutboxItem.status == "dead_letter", OutboxItem.resolved_at.is_(None)))
+        filters.extend((OutboxItem.status == OutboxStatus.DEAD_LETTER.value, OutboxItem.resolved_at.is_(None)))
     elif status and status != "all":
         filters.append(OutboxItem.status == status)
 
@@ -146,7 +151,7 @@ async def list_outbox_items(
 async def retry_all_outbox_items(db: AsyncSession = Depends(get_db)) -> dict[str, int]:
     result = await db.execute(
         update(OutboxItem)
-        .where(OutboxItem.status == "retry_wait", OutboxItem.resolved_at.is_(None))
+        .where(OutboxItem.status == OutboxStatus.RETRY_WAIT.value, OutboxItem.resolved_at.is_(None))
         .values(next_attempt_at=datetime.now(UTC), lease_until=None)
     )
     worker = await db.get(OutboxWorkerState, 1)
@@ -175,9 +180,9 @@ async def retry_outbox_item(item_id: int, db: AsyncSession = Depends(get_db)) ->
     item = await db.get(OutboxItem, item_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Outbox item not found")
-    if item.status != "retry_wait":
+    if item.status != OutboxStatus.RETRY_WAIT.value:
         raise HTTPException(status_code=409, detail="Only retryable delivery failures can be retried")
-    item.status = "retry_wait"
+    item.status = OutboxStatus.RETRY_WAIT.value
     item.next_attempt_at = datetime.now(UTC)
     item.lease_until = None
     worker = await db.get(OutboxWorkerState, 1)
@@ -192,7 +197,7 @@ async def reconcile_outbox_item(item_id: int, db: AsyncSession = Depends(get_db)
     item = await db.get(OutboxItem, item_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Outbox item not found")
-    if item.status != "dead_letter" or item.resolved_at is not None:
+    if item.status != OutboxStatus.DEAD_LETTER.value or item.resolved_at is not None:
         raise HTTPException(status_code=409, detail="Only unresolved dead-letter items can be reconciled")
 
     metadata = _payload_metadata(item.payload)

@@ -20,7 +20,12 @@ import {
   retryOutboxItem,
 } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import type { OutboxItem, OutboxStatus } from "@/lib/interfaces";
+import {
+  OUTBOX_STATUS,
+  OUTBOX_WORKER_PHASE,
+  type OutboxItem,
+  type OutboxStatus,
+} from "@/lib/interfaces";
 
 const PAGE_SIZE = 50;
 const filters = ["active", "attention", "success", "all"] as const;
@@ -34,7 +39,7 @@ function formatDate(value?: string | null): string {
 function statusTone(status: OutboxStatus | null): string {
   if (!status?.worker.alive) return "sync-banner--danger";
   if (status.dead_letter > 0) return "sync-banner--danger";
-  if (status.worker.status === "offline_wait") return "sync-banner--warning";
+  if (status.worker.phase === OUTBOX_WORKER_PHASE.OFFLINE_WAIT) return "sync-banner--warning";
   if (status.outstanding > 0) return "sync-banner--info";
   return "sync-banner--success";
 }
@@ -42,7 +47,7 @@ function statusTone(status: OutboxStatus | null): string {
 function statusLabel(status: OutboxStatus | null, t: (key: string, params?: Record<string, string | number>) => string) {
   if (!status?.worker.alive) return t("outbox.workerStopped");
   if (status.dead_letter > 0) return t("outbox.actionRequired", { count: status.dead_letter });
-  if (status.worker.status === "offline_wait") return t("outbox.offline", { count: status.outstanding });
+  if (status.worker.phase === OUTBOX_WORKER_PHASE.OFFLINE_WAIT) return t("outbox.offline", { count: status.outstanding });
   if (status.outstanding > 0) return t("outbox.synchronizing", { count: status.outstanding });
   return t("outbox.upToDate");
 }
@@ -202,8 +207,8 @@ export default function OutboxAdminPage() {
                   <td>{formatDate(item.next_attempt_at)}</td>
                   <td><div className="sync-actions">
                     <Button size="sm" variant="outline" onClick={() => showDetails(item.id)}>{t("outbox.details")}</Button>
-                    {item.status === "retry_wait" && <Button size="sm" disabled={busyId !== null} onClick={() => retryOne(item)}>{t("outbox.retry")}</Button>}
-                    {item.status === "dead_letter" && !item.resolved_at && <Button size="sm" disabled={busyId !== null} onClick={() => reconcile(item)}>{t("outbox.reconcile")}</Button>}
+                    {item.status === OUTBOX_STATUS.RETRY_WAIT && <Button size="sm" disabled={busyId !== null} onClick={() => retryOne(item)}>{t("outbox.retry")}</Button>}
+                    {item.status === OUTBOX_STATUS.DEAD_LETTER && !item.resolved_at && <Button size="sm" disabled={busyId !== null} onClick={() => reconcile(item)}>{t("outbox.reconcile")}</Button>}
                   </div></td>
                 </tr>
               ))}
@@ -231,8 +236,8 @@ export default function OutboxAdminPage() {
             <pre className="sync-payload">{JSON.stringify(selected.payload, null, 2)}</pre>
           </div>}
           <DialogFooter>
-            {selected?.status === "retry_wait" && <Button disabled={busyId !== null} onClick={() => retryOne(selected)}>{t("outbox.retry")}</Button>}
-            {selected?.status === "dead_letter" && !selected.resolved_at && <Button disabled={busyId !== null} onClick={() => reconcile(selected)}>{t("outbox.reconcile")}</Button>}
+            {selected?.status === OUTBOX_STATUS.RETRY_WAIT && <Button disabled={busyId !== null} onClick={() => retryOne(selected)}>{t("outbox.retry")}</Button>}
+            {selected?.status === OUTBOX_STATUS.DEAD_LETTER && !selected.resolved_at && <Button disabled={busyId !== null} onClick={() => reconcile(selected)}>{t("outbox.reconcile")}</Button>}
             <Button variant="outline" onClick={() => setSelected(null)}>{t("common.close")}</Button>
           </DialogFooter>
         </DialogContent>

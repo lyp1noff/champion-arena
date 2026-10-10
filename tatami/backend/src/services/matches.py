@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from champion_domain import (
+    BracketStatus,
     FinishedMainMatch,
+    MatchStatus,
     ProgressionAction,
     classify_bracket_match,
     compute_main_rounds,
@@ -168,7 +170,7 @@ async def _ensure_repechage_generated(bracket_id: int, db: AsyncSession) -> bool
             .where(
                 BracketMatch.bracket_id == bracket_id,
                 BracketMatch.round_number < main_rounds,
-                Match.status == "finished",
+                Match.status == MatchStatus.FINISHED.value,
             )
         )
     ).all()
@@ -214,7 +216,7 @@ async def _ensure_repechage_generated(bracket_id: int, db: AsyncSession) -> bool
             stage="repechage",
             repechage_side=plan.side,
             repechage_step=plan.step,
-            status="not_started",
+            status=MatchStatus.NOT_STARTED,
         )
         db.add(rep_match)
         await db.flush()
@@ -233,10 +235,6 @@ async def _ensure_repechage_generated(bracket_id: int, db: AsyncSession) -> bool
 
 def _touch_bracket(bracket: Bracket) -> int:
     bracket.version = (bracket.version or 0) + 1
-    if bracket.status == "started":
-        bracket.state = "running"
-    elif bracket.status == "finished":
-        bracket.state = "finished"
     return bracket.version
 
 
@@ -259,24 +257,23 @@ async def get_match(match_id: str, db: AsyncSession) -> MatchWithBracketSchema:
 async def start_match(match_id: str, db: AsyncSession) -> dict[str, str]:
     match = await _load_match_by_external_id_or_404(db, match_id)
 
-    if match.status == "started":
+    if match.status == MatchStatus.STARTED.value:
         raise HTTPException(status_code=400, detail=f"Match {match_id} is already in progress")
 
-    if match.status == "finished":
+    if match.status == MatchStatus.FINISHED.value:
         raise HTTPException(status_code=400, detail=f"Match {match_id} is already finished")
 
     if match.athlete1_id is None or match.athlete2_id is None:
         raise HTTPException(status_code=400, detail="Match has no athletes")
 
-    match.status = "started"
+    match.status = MatchStatus.STARTED.value
     match.started_at = datetime.now(timezone.utc)
 
     bracket = await _get_bracket_for_match(match.id, db)
     aggregate_version = 1
     if bracket is not None:
-        if bracket.status != "finished":
-            bracket.status = "started"
-        bracket.state = "running"
+        if bracket.status != BracketStatus.FINISHED.value:
+            bracket.status = BracketStatus.STARTED.value
         aggregate_version = _touch_bracket(bracket)
 
     await create_match_start_outbox(match, aggregate_version, db)
@@ -288,10 +285,10 @@ async def start_match(match_id: str, db: AsyncSession) -> dict[str, str]:
 async def finish_match(match_id: str, finish_data: FinishMatchSchema, db: AsyncSession) -> dict[str, str]:
     match = await _load_match_by_external_id_or_404(db, match_id)
 
-    if match.status == "finished":
+    if match.status == MatchStatus.FINISHED.value:
         raise HTTPException(status_code=400, detail=f"Match {match_id} is already finished")
 
-    if match.status == "not_started":
+    if match.status == MatchStatus.NOT_STARTED.value:
         raise HTTPException(status_code=400, detail=f"Match {match_id} has not been started")
 
     if finish_data.winner_id not in [match.athlete1_id, match.athlete2_id]:
@@ -307,7 +304,7 @@ async def finish_match(match_id: str, finish_data: FinishMatchSchema, db: AsyncS
     match.score_athlete1 = finish_data.score_athlete1
     match.score_athlete2 = finish_data.score_athlete2
     match.winner_id = finish_data.winner_id
-    match.status = "finished"
+    match.status = MatchStatus.FINISHED.value
     match.ended_at = datetime.now(timezone.utc)
 
     bm_result = await db.execute(select(BracketMatch).where(BracketMatch.match_id == match.id))
@@ -362,18 +359,17 @@ async def finish_match(match_id: str, finish_data: FinishMatchSchema, db: AsyncS
                 select(func.count())
                 .select_from(Match)
                 .join(BracketMatch, BracketMatch.match_id == Match.id)
-                .where(BracketMatch.bracket_id == bm.bracket_id, Match.status == "finished")
+                .where(BracketMatch.bracket_id == bm.bracket_id, Match.status == MatchStatus.FINISHED.value)
             )
             post = decide_finish_flow_post(
                 is_repechage_match=is_repechage_match,
                 generated_repechage=generated_repechage,
                 total_matches=total_matches,
                 finished_matches=finished_matches,
-                current_bracket_status=bracket.status,
+                current_bracket_status=BracketStatus(bracket.status),
             )
             if post.completion.should_finish_bracket:
-                bracket.status = "finished"
-                bracket.state = "finished"
+                bracket.status = BracketStatus.FINISHED.value
 
     await create_match_finish_outbox(
         match,
@@ -405,7 +401,7 @@ async def correct_match_result(
     ).scalar_one_or_none()
     if match is None:
         raise HTTPException(status_code=404, detail=f"Match {match_id} not found")
-    if match.status != "finished":
+    if match.status != MatchStatus.FINISHED.value:
         raise HTTPException(status_code=409, detail="Only a finished match result can be corrected")
     if correction.winner_id not in {match.athlete1_id, match.athlete2_id}:
         raise HTTPException(status_code=400, detail="Winner must be one of the match athletes")
@@ -462,7 +458,7 @@ async def correct_match_result(
         if target is not None:
             next_match, target_slot = target
             current_target_athlete = next_match.athlete1_id if target_slot == 1 else next_match.athlete2_id
-            if next_match.status != "not_started":
+            if next_match.status != MatchStatus.NOT_STARTED.value:
                 raise HTTPException(status_code=409, detail="The dependent match has already started")
             if current_target_athlete != old_winner_id:
                 raise HTTPException(status_code=409, detail="The dependent bracket slot no longer contains this winner")
@@ -475,7 +471,7 @@ async def correct_match_result(
                 .with_for_update()
             )
             repechage_rows = [(rep_bm, rep_match) for rep_bm, rep_match in repechage_result.all()]
-            if any(rep_match.status != "not_started" for _, rep_match in repechage_rows):
+            if any(rep_match.status != MatchStatus.NOT_STARTED.value for _, rep_match in repechage_rows):
                 raise HTTPException(status_code=409, detail="Repechage has already started")
             rebuild_repechage = bool(repechage_rows)
 
@@ -517,7 +513,7 @@ async def correct_match_result(
 async def update_match_scores(match_id: str, scores_data: UpdateMatchScoresSchema, db: AsyncSession) -> dict[str, str]:
     match = await _load_match_by_external_id_or_404(db, match_id)
 
-    if match.status != "started":
+    if match.status != MatchStatus.STARTED.value:
         raise HTTPException(status_code=400, detail=f"Cannot update scores for not started match {match_id}")
 
     if scores_data.score_athlete1 is not None:

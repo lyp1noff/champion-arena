@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BracketMatch } from "@/lib/interfaces";
+import { BracketMatch, MATCH_STATUS } from "@/lib/interfaces";
 import { useI18n } from "@/lib/i18n";
 
 interface BracketResultsProps {
@@ -26,7 +26,7 @@ function athleteName(athlete: BracketMatch["match"]["athlete1"]): string {
 export function BracketResults({ matches, loading, onCorrect }: BracketResultsProps) {
   const { t } = useI18n();
   const finishedMatches = useMemo(
-    () => matches.filter(({ match }) => match.status === "finished" && match.athlete1 && match.athlete2),
+    () => matches.filter(({ match }) => match.status === MATCH_STATUS.FINISHED && match.athlete1 && match.athlete2),
     [matches],
   );
   const [selected, setSelected] = useState<BracketMatch | null>(null);

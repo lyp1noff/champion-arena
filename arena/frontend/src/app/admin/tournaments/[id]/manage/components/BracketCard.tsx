@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 
-import { Bracket, Participant } from "@/lib/interfaces";
+import { BRACKET_STATUS, Bracket, Participant } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
 interface BracketCardProps {
@@ -47,7 +47,11 @@ export default function BracketCard({
               </Badge>
               <Badge
                 variant={
-                  bracket.status === "pending" ? "secondary" : bracket.status === "started" ? "destructive" : "outline"
+                  bracket.status === BRACKET_STATUS.PENDING
+                    ? "secondary"
+                    : bracket.status === BRACKET_STATUS.STARTED
+                      ? "destructive"
+                      : "outline"
                 }
               >
                 {bracket.status.charAt(0).toUpperCase() + bracket.status.slice(1)}

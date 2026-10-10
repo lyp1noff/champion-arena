@@ -24,6 +24,8 @@ from sqlalchemy.orm import (
     relationship,
 )
 
+from champion_domain import ApplicationStatus, BracketStatus, MatchStatus, TournamentStatus
+
 from .database import Base
 
 
@@ -37,41 +39,9 @@ class UserRole(enum.Enum):
     USER = "user"
 
 
-class TournamentStatus(enum.Enum):
-    DRAFT = "draft"
-    UPCOMING = "upcoming"
-    STARTED = "started"
-    FINISHED = "finished"
-
-
-class ApplicationStatus(enum.Enum):
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-
-
 class BracketType(enum.Enum):
     SINGLE_ELIMINATION = "single_elimination"
     ROUND_ROBIN = "round_robin"
-
-
-class BracketStatus(enum.Enum):
-    PENDING = "pending"
-    STARTED = "started"
-    FINISHED = "finished"
-
-
-class BracketState(enum.Enum):
-    DRAFT = "draft"
-    LOCKED = "locked"
-    RUNNING = "running"
-    FINISHED = "finished"
-
-
-class MatchStatus(enum.Enum):
-    NOT_STARTED = "not_started"
-    STARTED = "started"
-    FINISHED = "finished"
 
 
 class MatchStage(enum.Enum):
@@ -153,7 +123,10 @@ class Category(Base, TimestampMixin):
 
 class Tournament(Base, TimestampMixin):
     __tablename__ = "tournaments"
-    __table_args__ = (CheckConstraint("end_date >= start_date", name="check_tournament_dates"),)
+    __table_args__ = (
+        CheckConstraint("end_date >= start_date", name="check_tournament_dates"),
+        CheckConstraint("status IN ('draft', 'upcoming', 'started', 'finished')", name="ck_tournaments_status"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), index=True)
@@ -174,7 +147,10 @@ class Tournament(Base, TimestampMixin):
 
 class Application(Base, TimestampMixin):
     __tablename__ = "applications"
-    __table_args__ = (UniqueConstraint("athlete_id", "category_id", "tournament_id", name="uix_application_unique"),)
+    __table_args__ = (
+        UniqueConstraint("athlete_id", "category_id", "tournament_id", name="uix_application_unique"),
+        CheckConstraint("status IN ('pending', 'approved', 'rejected')", name="ck_applications_status"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     tournament_id: Mapped[int] = mapped_column(ForeignKey("tournaments.id", ondelete="CASCADE"), index=True)
@@ -191,6 +167,7 @@ class Bracket(Base, TimestampMixin):
     __tablename__ = "brackets"
     __table_args__ = (
         UniqueConstraint("tournament_id", "category_id", "group_id", name="uix_tournament_category_group"),
+        CheckConstraint("status IN ('pending', 'started', 'finished')", name="ck_brackets_status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -199,7 +176,6 @@ class Bracket(Base, TimestampMixin):
     group_id: Mapped[int] = mapped_column(default=1)
     type: Mapped[str] = mapped_column(String(50), default=BracketType.SINGLE_ELIMINATION.value)
     status: Mapped[str] = mapped_column(String(20), default=BracketStatus.PENDING.value)
-    state: Mapped[str] = mapped_column(String(20), default=BracketState.DRAFT.value, index=True)
     version: Mapped[int] = mapped_column(default=1)
     place_1_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True
@@ -272,6 +248,7 @@ class BracketMatch(Base):
 
 class Match(Base, TimestampMixin):
     __tablename__ = "matches"
+    __table_args__ = (CheckConstraint("status IN ('not_started', 'started', 'finished')", name="ck_matches_status"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     athlete1_id: Mapped[Optional[int]] = mapped_column(

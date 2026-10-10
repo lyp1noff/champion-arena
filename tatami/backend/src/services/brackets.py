@@ -4,7 +4,13 @@ from datetime import datetime, timezone
 from typing import Sequence
 from uuid import uuid4
 
-from champion_domain import SeededParticipant, is_bracket_structurally_mutable, plan_bracket_matches
+from champion_domain import (
+    BracketStatus,
+    MatchStatus,
+    SeededParticipant,
+    is_bracket_structurally_mutable,
+    plan_bracket_matches,
+)
 from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +34,7 @@ async def get_bracket_by_external_id(db: AsyncSession, bracket_external_id: int)
 
 
 def _ensure_bracket_editable(bracket: Bracket) -> None:
-    if not is_bracket_structurally_mutable(bracket.state):
+    if not is_bracket_structurally_mutable(BracketStatus(bracket.status or BracketStatus.PENDING.value)):
         raise HTTPException(status_code=409, detail="Running or finished bracket is structurally immutable")
 
 
@@ -110,7 +116,7 @@ async def regenerate_bracket(db: AsyncSession, bracket: Bracket) -> None:
     )
 
     for planned in planned_matches:
-        is_bye_win = planned.status == "finished" and planned.winner_id is not None
+        is_bye_win = planned.status == MatchStatus.FINISHED.value and planned.winner_id is not None
         match = Match(
             external_id=str(uuid4()),
             athlete1_id=planned.athlete1_id,

@@ -12,7 +12,10 @@ back-install:
 	cd backend && uv sync
 
 back-dev:
-	cd backend && uv sync && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8001
+	cd backend && uv sync && uv run alembic upgrade head && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8001
+
+back-migrate:
+	cd backend && uv run alembic upgrade head
 
 # Frontend
 front-format:

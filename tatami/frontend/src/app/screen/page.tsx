@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTatamiStore } from "@/store/tatami";
+import { TIMER_STATUS, useTatamiStore } from "@/store/tatami";
+import { MATCH_STATUS } from "@/lib/interfaces";
 import { readSelectedTatamiId, SELECTED_TATAMI_STORAGE_KEY } from "@/lib/tatami-settings";
 import "./tatami-screen.css";
 
@@ -10,7 +11,7 @@ export default function ScreenTatami() {
   const [isHydrated, setIsHydrated] = useState(false);
 
   const {
-    status,
+    timerStatus,
     startTimestamp,
     pausedElapsed,
     durationMs,
@@ -36,7 +37,7 @@ export default function ScreenTatami() {
   const [hasPlayedBeep, setHasPlayedBeep] = useState(false);
 
   useEffect(() => {
-    if (status !== "running") {
+    if (timerStatus !== TIMER_STATUS.RUNNING) {
       setHasPlayedBeep(false);
       return;
     }
@@ -46,7 +47,7 @@ export default function ScreenTatami() {
       beep.play().catch(() => {});
       setHasPlayedBeep(true);
     }
-  }, [localElapsed, durationMs, status, hasPlayedBeep]);
+  }, [localElapsed, durationMs, timerStatus, hasPlayedBeep]);
 
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
@@ -75,7 +76,7 @@ export default function ScreenTatami() {
   // Handle timer updates locally on screen
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
-    if (status === "running" && startTimestamp) {
+    if (timerStatus === TIMER_STATUS.RUNNING && startTimestamp) {
       interval = setInterval(() => {
         const now = Date.now();
         const elapsed = pausedElapsed + (now - startTimestamp);
@@ -90,7 +91,7 @@ export default function ScreenTatami() {
         clearInterval(interval);
       }
     };
-  }, [status, startTimestamp, pausedElapsed]);
+  }, [timerStatus, startTimestamp, pausedElapsed]);
 
   const formatPartsArray = (ms: number): string[] => {
     const clamped = Math.max(0, ms);
@@ -124,7 +125,7 @@ export default function ScreenTatami() {
   };
 
   const getTimerColor = () => {
-    if (status === "paused" && remaining > 0) return "is-paused";
+    if (timerStatus === TIMER_STATUS.PAUSED && remaining > 0) return "is-paused";
     if (remaining <= 15000) return "is-expiring";
     return "";
   };
@@ -205,7 +206,7 @@ export default function ScreenTatami() {
 
         <div className="tatami-heading tatami-heading--number">TATAMI {tatamiId}</div>
 
-        {isHydrated && currentMatch && currentMatch?.status !== "finished" && (
+        {isHydrated && currentMatch && currentMatch?.status !== MATCH_STATUS.FINISHED && (
           <>
             <div className="tatami-timer">
               <div className={`tatami-timer__value ${getTimerColor()}`}>

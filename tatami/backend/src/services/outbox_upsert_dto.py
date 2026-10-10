@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from champion_domain import BracketStatus, MatchStatus
 from champion_domain.use_cases import StructureMatch, StructureParticipant
 from pydantic import BaseModel
 
@@ -18,7 +19,7 @@ class MatchUpsertPayloadDTO(BaseModel):
     repechage_step: int | None = None
     score_athlete1: int | None = None
     score_athlete2: int | None = None
-    status: str
+    status: MatchStatus
     started_at: datetime | None = None
     ended_at: datetime | None = None
 
@@ -37,7 +38,7 @@ class StructureMatchPayloadDTO(BaseModel):
     stage: str
     repechage_side: str | None = None
     repechage_step: int | None = None
-    status: str
+    status: MatchStatus
     athlete1_id: int | None = None
     athlete2_id: int | None = None
     winner_id: int | None = None
@@ -50,8 +51,7 @@ class StructureMatchPayloadDTO(BaseModel):
 class BracketUpsertPayloadDTO(BaseModel):
     type: str
     group_id: int = 1
-    status: str | None = None
-    state: str | None = None
+    status: BracketStatus | None = None
     participants: list[StructureParticipantPayloadDTO]
     matches: list[StructureMatchPayloadDTO]
 
@@ -108,7 +108,6 @@ def make_bracket_upsert_payload(
     bracket_type: str,
     group_id: int,
     status: str | None,
-    state: str | None,
     participants: list[StructureParticipant],
     matches: list[StructureMatch],
 ) -> dict[str, Any]:
@@ -144,7 +143,6 @@ def make_bracket_upsert_payload(
         type=bracket_type,
         group_id=group_id,
         status=status,
-        state=state,
         participants=payload_participants,
         matches=payload_matches,
     ).model_dump(mode="json")

@@ -321,9 +321,6 @@ async def sync_tournament(tournament_id: int, db: AsyncSession, force: bool = Fa
             bracket_obj = bracket_result.scalar_one_or_none()
 
             remote_status = b["status"]
-            remote_state = b.get("state") or (
-                "finished" if remote_status == "finished" else "running" if remote_status == "started" else "draft"
-            )
             remote_version = int(b.get("version") or 1)
 
             if bracket_obj is None:
@@ -334,7 +331,6 @@ async def sync_tournament(tournament_id: int, db: AsyncSession, force: bool = Fa
                     type=b["type"],
                     group_id=b.get("group_id") or 1,
                     status=remote_status,
-                    state=remote_state,
                     version=remote_version,
                     display_name=b.get("display_name") or b["category"],
                 )
@@ -347,7 +343,6 @@ async def sync_tournament(tournament_id: int, db: AsyncSession, force: bool = Fa
                 bracket_obj.type = b["type"]
                 bracket_obj.group_id = b.get("group_id") or 1
                 bracket_obj.status = remote_status
-                bracket_obj.state = remote_state
                 bracket_obj.version = remote_version
                 bracket_obj.display_name = b.get("display_name") or b["category"]
                 updated_brackets += 1

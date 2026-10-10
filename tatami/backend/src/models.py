@@ -1,8 +1,11 @@
 from datetime import date, datetime, time
 from typing import List, Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, Time, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, Time, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column, relationship
+
+from champion_domain import MatchStatus
+from src.statuses import OutboxStatus, OutboxWorkerPhase
 
 
 class Base(DeclarativeBase):
@@ -21,6 +24,9 @@ class TimestampMixin:
 
 class Tournament(Base, TimestampMixin):
     __tablename__ = "tournaments"
+    __table_args__ = (
+        CheckConstraint("status IN ('draft', 'upcoming', 'started', 'finished')", name="ck_tournaments_status"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     external_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
@@ -39,6 +45,9 @@ class Tournament(Base, TimestampMixin):
 
 class Bracket(Base, TimestampMixin):
     __tablename__ = "brackets"
+    __table_args__ = (
+        CheckConstraint("status IN ('pending', 'started', 'finished')", name="ck_brackets_status"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     external_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
@@ -47,7 +56,6 @@ class Bracket(Base, TimestampMixin):
     type: Mapped[str] = mapped_column(String, nullable=False)
     group_id: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[Optional[str]] = mapped_column(String)
-    state: Mapped[str] = mapped_column(String, nullable=False, default="draft")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     display_name: Mapped[Optional[str]] = mapped_column(String)
 
@@ -121,6 +129,7 @@ class Athlete(Base, TimestampMixin):
 
 class Match(Base):
     __tablename__ = "matches"
+    __table_args__ = (CheckConstraint("status IN ('not_started', 'started', 'finished')", name="ck_matches_status"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     external_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
@@ -133,7 +142,7 @@ class Match(Base):
     stage: Mapped[str] = mapped_column(String, nullable=False, default="main")
     repechage_side: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     repechage_step: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    status: Mapped[str] = mapped_column(String, default="not_started")
+    status: Mapped[str] = mapped_column(String, default=MatchStatus.NOT_STARTED.value)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -146,9 +155,6 @@ class Match(Base):
 
     bracket_matches: Mapped[List["BracketMatch"]] = relationship(
         "BracketMatch", back_populates="match", cascade="all, delete"
-    )
-    match_state: Mapped[Optional["MatchState"]] = relationship(
-        "MatchState", uselist=False, back_populates="match", cascade="all, delete"
     )
     outbox_items: Mapped[List["OutboxItem"]] = relationship("OutboxItem", back_populates="match")
 
@@ -184,12 +190,18 @@ class BracketParticipant(Base):
 
 class OutboxItem(Base, TimestampMixin):
     __tablename__ = "outbox_items"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'processing', 'retry_wait', 'success', 'dead_letter')",
+            name="ck_outbox_items_status",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     tournament_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("tournaments.id"), nullable=True)
     match_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("matches.id"), nullable=True)
     payload: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String, default="pending")
+    status: Mapped[str] = mapped_column(String, default=OutboxStatus.PENDING.value)
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     failure_kind: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -204,34 +216,19 @@ class OutboxItem(Base, TimestampMixin):
 
 class OutboxWorkerState(Base):
     __tablename__ = "outbox_worker_state"
+    __table_args__ = (
+        CheckConstraint(
+            "phase IN ('starting', 'idle', 'working', 'offline_wait', 'stopped')",
+            name="ck_outbox_worker_phase",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     heartbeat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
-    status: Mapped[str] = mapped_column(String(30), default="starting")
+    phase: Mapped[str] = mapped_column(String(30), default=OutboxWorkerPhase.STARTING.value)
     last_success_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     circuit_open_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-
-
-class MatchState(Base, TimestampMixin):
-    __tablename__ = "match_states"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    match_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("matches.id", ondelete="CASCADE"), unique=True, nullable=False
-    )
-    status: Mapped[str] = mapped_column(String, default="idle")
-    start_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    paused_elapsed: Mapped[int] = mapped_column(Integer, default=0)
-    elapsed: Mapped[int] = mapped_column(Integer, default=0)
-    duration_ms: Mapped[int] = mapped_column(Integer, default=60000)
-    score1: Mapped[int] = mapped_column(Integer, default=0)
-    score2: Mapped[int] = mapped_column(Integer, default=0)
-    shido1: Mapped[int] = mapped_column(Integer, default=0)
-    shido2: Mapped[int] = mapped_column(Integer, default=0)
-
-    match: Mapped["Match"] = relationship("Match", back_populates="match_state")
-
 
 class GlobalSettings(Base):
     __tablename__ = "global_settings"

@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from src.services.sync_structure_dto import parse_structure_payload_dto
+from src.services.bracket_upsert_dto import parse_structure_payload_dto
 
 
 def test_parse_structure_payload_dto_derives_main_labels() -> None:
@@ -30,14 +30,13 @@ def test_parse_structure_payload_dto_derives_main_labels() -> None:
         "state": "locked",
     }
 
-    participants, matches, state, status = parse_structure_payload_dto(payload)
+    participants, matches, status = parse_structure_payload_dto(payload)
     assert len(participants) == 2
     assert len(matches) == 1
     assert matches[0].round_type == "final"
     assert matches[0].stage == "main"
     assert matches[0].repechage_side is None
     assert matches[0].repechage_step is None
-    assert state == "locked"
     assert status is None
 
 
@@ -67,7 +66,7 @@ def test_parse_structure_payload_dto_derives_repechage_labels() -> None:
         "state": None,
     }
 
-    _, matches, _, status = parse_structure_payload_dto(payload)
+    _, matches, status = parse_structure_payload_dto(payload)
     assert len(matches) == 1
     assert matches[0].stage == "repechage"
     assert matches[0].round_type == "round"

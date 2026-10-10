@@ -5,6 +5,8 @@ from typing import Any
 from uuid import UUID
 
 from champion_domain import (
+    BracketStatus,
+    MatchStatus,
     StructureMatchInput,
     StructureParticipantInput,
     build_structure_match,
@@ -27,7 +29,7 @@ class StructureMatchDTO(BaseModel):
     next_slot: int | None = None
     round_type: str | None = None
     stage: str = "main"
-    status: str
+    status: MatchStatus
     athlete1_id: int | None = None
     athlete2_id: int | None = None
     winner_id: int | None = None
@@ -40,15 +42,14 @@ class StructureMatchDTO(BaseModel):
 
 
 class BracketStructureSnapshotDTO(BaseModel):
-    status: str | None = None
+    status: BracketStatus | None = None
     participants: list[StructureParticipantDTO]
     matches: list[StructureMatchDTO]
-    state: str | None = None
 
 
 def parse_structure_payload_dto(
     payload: dict[str, Any],
-) -> tuple[list[StructureParticipant], list[StructureMatch], str | None, str | None]:
+) -> tuple[list[StructureParticipant], list[StructureMatch], BracketStatus | None]:
     try:
         snapshot = BracketStructureSnapshotDTO.model_validate(payload)
     except ValidationError as exc:
@@ -84,4 +85,4 @@ def parse_structure_payload_dto(
         )
         for item in snapshot.matches
     ]
-    return participants, matches, snapshot.state, snapshot.status
+    return participants, matches, snapshot.status

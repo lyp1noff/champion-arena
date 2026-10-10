@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 
-import { Bracket, BracketMatch, Athlete } from "@/lib/interfaces";
+import { BRACKET_STATUS, MATCH_STATUS, Bracket, BracketMatch, Athlete } from "@/lib/interfaces";
 import { useI18n } from "@/lib/i18n";
 
 interface BracketPreviewProps {
@@ -23,8 +23,8 @@ function coachNames(athlete?: Athlete): string {
 }
 
 function statusKey(status: BracketMatch["match"]["status"]): string {
-  if (status === "started") return "match.started";
-  if (status === "finished") return "match.finished";
+  if (status === MATCH_STATUS.STARTED) return "match.started";
+  if (status === MATCH_STATUS.FINISHED) return "match.finished";
   return "match.notStarted";
 }
 
@@ -175,7 +175,7 @@ function RoundRobinPreview({ bracket, matches }: Pick<BracketPreviewProps, "brac
                 const won = item.match.winner_id === rowAthlete.id;
                 return (
                   <td className={`is-${item.match.status}${won ? " is-winner" : ""}`} key={columnAthlete.id} title={t(statusKey(item.match.status))}>
-                    {item.match.status === "not_started" ? "—" : `${ownScore ?? 0}:${opponentScore ?? 0}`}
+                    {item.match.status === MATCH_STATUS.NOT_STARTED ? "—" : `${ownScore ?? 0}:${opponentScore ?? 0}`}
                   </td>
                 );
               })}
@@ -197,9 +197,9 @@ export function BracketPreview({ bracket, matches, participantCount }: BracketPr
       side,
       matches: repechageMatches.filter((item) => (item.match.repechage_side ?? "—") === side),
     }));
-  const bracketStatus = bracket.status === "finished"
+  const bracketStatus = bracket.status === BRACKET_STATUS.FINISHED
     ? t("brackets.statusFinished")
-    : bracket.status === "started"
+    : bracket.status === BRACKET_STATUS.STARTED
       ? t("brackets.statusStarted")
       : t("brackets.statusPending");
 

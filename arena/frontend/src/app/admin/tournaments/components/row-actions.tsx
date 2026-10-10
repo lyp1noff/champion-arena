@@ -28,7 +28,7 @@ import {
   updateTournamentStatus,
 } from "@/lib/api/tournaments";
 import type { TournamentExportMode } from "@/lib/api/tournaments";
-import { Tournament } from "@/lib/interfaces";
+import { TOURNAMENT_STATUS, Tournament } from "@/lib/interfaces";
 
 interface DataTableRowActionsProps {
   row: Row<Tournament>;
@@ -124,17 +124,14 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
           <DropdownMenuItem onClick={handleManage}>{t("manage")}</DropdownMenuItem>
           <DropdownMenuItem onClick={handleReports}>{t("reports")}</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => handleUpdateStatus("draft")}>Set to Draft</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleUpdateStatus("upcoming")}>Set to Upcoming</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleUpdateStatus("started")}>Set to Started</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleUpdateStatus("finished")}>Set to Finished</DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          {tournament.status === "upcoming" && (
+          {tournament.status === TOURNAMENT_STATUS.DRAFT && (
+            <DropdownMenuItem onClick={() => handleUpdateStatus(TOURNAMENT_STATUS.UPCOMING)}>Publish Tournament</DropdownMenuItem>
+          )}
+          {tournament.status === TOURNAMENT_STATUS.UPCOMING && (
             <DropdownMenuItem onClick={handleStartTournament}>Start Tournament</DropdownMenuItem>
+          )}
+          {tournament.status === TOURNAMENT_STATUS.STARTED && (
+            <DropdownMenuItem onClick={() => handleUpdateStatus(TOURNAMENT_STATUS.FINISHED)}>Finish Tournament</DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuSub>

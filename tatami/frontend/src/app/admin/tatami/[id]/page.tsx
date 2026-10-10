@@ -5,7 +5,16 @@ import { useAppRouter, useRouteParams } from "@/lib/router";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Athlete, Bracket, BracketMatch, Tournament } from "@/lib/interfaces";
+import {
+  BRACKET_STATUS,
+  MATCH_STATUS,
+  Athlete,
+  Bracket,
+  BracketMatch,
+  BracketStatus,
+  MatchStatus,
+  Tournament,
+} from "@/lib/interfaces";
 import { getBrackets, getCurrentTournament, getMatches, getTournament } from "@/lib/api";
 import {
   DEFAULT_MATCH_DURATION_MS,
@@ -44,22 +53,22 @@ export default function TatamiSetupPage() {
   );
   const visibleBrackets = useMemo(
     () => brackets.filter((bracket) => (
-      bracket.day === selectedDay && (includeAllBrackets || bracket.status !== "finished")
+      bracket.day === selectedDay && (includeAllBrackets || bracket.status !== BRACKET_STATUS.FINISHED)
     )),
     [brackets, includeAllBrackets, selectedDay],
   );
 
-  const getMatchStatusLabel = (status: string) => {
-    if (status === "not_started") return t("match.notStarted");
-    if (status === "started") return t("match.started");
-    if (status === "finished") return t("match.finished");
+  const getMatchStatusLabel = (status: MatchStatus) => {
+    if (status === MATCH_STATUS.NOT_STARTED) return t("match.notStarted");
+    if (status === MATCH_STATUS.STARTED) return t("match.started");
+    if (status === MATCH_STATUS.FINISHED) return t("match.finished");
     return status;
   };
 
-  const getBracketStatusLabel = (status: string) => {
-    if (status === "pending") return t("brackets.statusPending");
-    if (status === "started") return t("brackets.statusStarted");
-    if (status === "finished") return t("brackets.statusFinished");
+  const getBracketStatusLabel = (status: BracketStatus) => {
+    if (status === BRACKET_STATUS.PENDING) return t("brackets.statusPending");
+    if (status === BRACKET_STATUS.STARTED) return t("brackets.statusStarted");
+    if (status === BRACKET_STATUS.FINISHED) return t("brackets.statusFinished");
     return status;
   };
 
@@ -138,7 +147,7 @@ export default function TatamiSetupPage() {
             return true;
           }
           return (
-            bracketMatch.match.athlete1 && bracketMatch.match.athlete2 && bracketMatch.match.status === "not_started"
+            bracketMatch.match.athlete1 && bracketMatch.match.athlete2 && bracketMatch.match.status === MATCH_STATUS.NOT_STARTED
           );
         });
 
@@ -246,7 +255,7 @@ export default function TatamiSetupPage() {
   const renderMatchOption = (bracketMatch: BracketMatch) => (
     <>
       {t("tatami.round")} {bracketMatch.round_number} | {t("tatami.matchInline")} {bracketMatch.position}: {renderAthleteName(bracketMatch.match.athlete1)} {t("tatami.versus")} {renderAthleteName(bracketMatch.match.athlete2)}
-      {bracketMatch.match.status !== "not_started" && ` (${getMatchStatusLabel(bracketMatch.match.status)})`}
+      {bracketMatch.match.status !== MATCH_STATUS.NOT_STARTED && ` (${getMatchStatusLabel(bracketMatch.match.status)})`}
     </>
   );
 
@@ -319,7 +328,7 @@ export default function TatamiSetupPage() {
                     {visibleBrackets.map((bracket) => (
                       <SelectItem key={String(bracket.external_id)} value={String(bracket.external_id)}>
                         {t("tatami.day", { day: bracket.day ?? "-" })} - {bracket.start_time?.slice(0, 5) ?? "--:--"} - {bracket.display_name}
-                        {bracket.status && bracket.status !== "pending" ? ` (${getBracketStatusLabel(bracket.status)})` : ""}
+                        {bracket.status && bracket.status !== BRACKET_STATUS.PENDING ? ` (${getBracketStatusLabel(bracket.status)})` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>

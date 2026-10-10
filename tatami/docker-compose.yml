@@ -17,6 +17,21 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    image: ghcr.io/lyp1noff/champion-tatami-backend:${IMAGE_TAG:-latest}
+    pull_policy: always
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-champ_local}
+    depends_on:
+      db:
+        condition: service_healthy
+
   backend:
     image: ghcr.io/lyp1noff/champion-tatami-backend:${IMAGE_TAG:-latest}
     container_name: champion-tatami-backend
@@ -34,8 +49,8 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DEV_MODE=${DEV_MODE}
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   frontend:
     image: ghcr.io/lyp1noff/champion-tatami-frontend:${IMAGE_TAG:-latest}

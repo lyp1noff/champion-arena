@@ -2,10 +2,10 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from champion_domain import (
-    IMMUTABLE_BRACKET_STATES,
+    BracketStatus,
+    MatchStatus,
     SeededParticipant,
     bump_bracket_version,
-    derive_bracket_state_from_status,
     is_bracket_structurally_mutable,
     plan_bracket_matches,
 )
@@ -22,12 +22,10 @@ from src.models import (
     Bracket,
     BracketMatch,
     BracketParticipant,
-    BracketStatus,
     BracketType,
     Category,
     Match,
     MatchStage,
-    MatchStatus,
     Tournament,
 )
 from src.schemas import (
@@ -43,7 +41,7 @@ async def _ensure_bracket_editable(db: AsyncSession, bracket_id: int) -> Bracket
     bracket = await db.get(Bracket, bracket_id)
     if bracket is None:
         raise HTTPException(status_code=404, detail="Bracket not found")
-    if not is_bracket_structurally_mutable(bracket.state):
+    if not is_bracket_structurally_mutable(BracketStatus(bracket.status)):
         raise HTTPException(status_code=409, detail="Running or finished bracket is structurally immutable")
     return bracket
 
@@ -170,12 +168,12 @@ async def regenerate_round_bracket_matches(
 
 async def regenerate_tournament_brackets(db: AsyncSession, tournament_id: int) -> None:
     result = await db.execute(
-        select(Bracket.id, Bracket.type, Bracket.state).where(Bracket.tournament_id == tournament_id)
+        select(Bracket.id, Bracket.type, Bracket.status).where(Bracket.tournament_id == tournament_id)
     )
     brackets = result.all()
 
-    for bracket_id, bracket_type, state in brackets:
-        if state in IMMUTABLE_BRACKET_STATES:
+    for bracket_id, bracket_type, status in brackets:
+        if not is_bracket_structurally_mutable(BracketStatus(status)):
             raise HTTPException(status_code=409, detail=f"Bracket {bracket_id} is immutable")
         if bracket_type == BracketType.ROUND_ROBIN.value:
             await regenerate_round_bracket_matches(db, bracket_id, tournament_id, commit=False)
@@ -293,7 +291,7 @@ async def update_bracket(db: AsyncSession, bracket_id: int, update_data: Bracket
     bracket = result.scalars().first()
     if not bracket:
         raise HTTPException(status_code=404, detail="Bracket not found")
-    if bracket.state in IMMUTABLE_BRACKET_STATES:
+    if not is_bracket_structurally_mutable(BracketStatus(bracket.status)):
         raise HTTPException(status_code=409, detail="Running or finished bracket is structurally immutable")
 
     old_type = bracket.type
@@ -455,40 +453,6 @@ async def delete_bracket(db: AsyncSession, bracket_id: int, data: BracketDeleteR
     await db.commit()
 
 
-async def update_bracket_status(db: AsyncSession, bracket_id: int, status: str) -> Bracket:
-    result = await db.execute(
-        select(Bracket)
-        .where(Bracket.id == bracket_id)
-        .options(
-            selectinload(Bracket.category),
-            selectinload(Bracket.place_1_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
-            selectinload(Bracket.place_2_athlete).selectinload(Athlete.coach_links).joinedload(AthleteCoachLink.coach),
-            selectinload(Bracket.place_3_a_athlete)
-            .selectinload(Athlete.coach_links)
-            .joinedload(AthleteCoachLink.coach),
-            selectinload(Bracket.place_3_b_athlete)
-            .selectinload(Athlete.coach_links)
-            .joinedload(AthleteCoachLink.coach),
-            selectinload(Bracket.participants)
-            .selectinload(BracketParticipant.athlete)
-            .selectinload(Athlete.coach_links)
-            .joinedload(AthleteCoachLink.coach),
-        )
-    )
-    bracket = result.scalar_one_or_none()
-    if not bracket:
-        raise HTTPException(404, "Bracket not found")
-    if status not in [s.value for s in BracketStatus]:
-        raise HTTPException(400, f"Invalid status: {status}")
-
-    if bracket.status != status:
-        bump_bracket_version(bracket)
-    bracket.status = status
-    bracket.state = derive_bracket_state_from_status(status, bracket.state)
-    await db.commit()
-    return bracket
-
-
 async def start_bracket(db: AsyncSession, bracket_id: int) -> None:
     bracket = await db.get(Bracket, bracket_id)
     if not bracket:
@@ -497,6 +461,5 @@ async def start_bracket(db: AsyncSession, bracket_id: int) -> None:
         raise HTTPException(400, "Bracket already started or finished")
 
     bracket.status = BracketStatus.STARTED.value
-    bracket.state = derive_bracket_state_from_status(bracket.status, bracket.state)
     bump_bracket_version(bracket)
     await db.commit()

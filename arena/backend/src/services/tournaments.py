@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 
+from champion_domain import ApplicationStatus, TOURNAMENT_STATUS_TRANSITIONS, TournamentStatus
 from fastapi import HTTPException
 from sqlalchemy import asc, delete, desc, distinct, func, select
 from sqlalchemy.exc import IntegrityError
@@ -11,7 +12,6 @@ from sqlalchemy.orm import selectinload
 
 from src.models import (
     Application,
-    ApplicationStatus,
     Athlete,
     AthleteCoachLink,
     Bracket,
@@ -21,7 +21,6 @@ from src.models import (
     Match,
     TimetableEntry,
     Tournament,
-    TournamentStatus,
 )
 from src.schemas import (
     ApplicationCreate,
@@ -319,6 +318,10 @@ async def update_tournament_status(db: AsyncSession, tournament_id: int, status:
         raise HTTPException(404, "Tournament not found")
     if status not in [s.value for s in TournamentStatus]:
         raise HTTPException(400, f"Invalid status: {status}")
+    current_status = TournamentStatus(tournament.status)
+    requested_status = TournamentStatus(status)
+    if requested_status != current_status and requested_status not in TOURNAMENT_STATUS_TRANSITIONS[current_status]:
+        raise HTTPException(409, f"Invalid tournament status transition: {tournament.status} -> {status}")
 
     try:
         tournament.status = status
@@ -373,7 +376,7 @@ async def submit_application(db: AsyncSession, tournament_id: int, data: Applica
             tournament_id=tournament_id,
             category_id=data.category_id,
             athlete_id=data.athlete_id,
-            status="pending",
+            status=ApplicationStatus.PENDING.value,
         )
         db.add(application)
         await db.commit()

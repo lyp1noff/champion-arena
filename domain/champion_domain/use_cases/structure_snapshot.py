@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from champion_domain.statuses import MatchStatus
 from champion_domain.use_cases.bracket_labels import classify_bracket_match
 from champion_domain.use_cases.structure_rebuild import StructureMatch, StructureParticipant
 
@@ -19,7 +20,7 @@ class StructureMatchInput:
     round_number: int
     position: int
     next_slot: int | None
-    status: str
+    status: MatchStatus
     athlete1_id: int | None
     athlete2_id: int | None
     winner_id: int | None

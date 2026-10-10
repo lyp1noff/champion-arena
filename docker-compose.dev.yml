@@ -105,6 +105,25 @@ services:
       arena-frontend:
         condition: service_healthy
 
+  tatami-migrate:
+    build:
+      context: .
+      dockerfile: ./tatami/backend/Dockerfile.dev
+    image: champion-tatami-backend:dev
+    pull_policy: build
+    command: ["uv", "run", "alembic", "upgrade", "head"]
+    env_file:
+      - ./tatami/.env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: champ_local
+    depends_on:
+      db:
+        condition: service_healthy
+
   tatami-backend:
     build:
       context: .
@@ -127,8 +146,8 @@ services:
       - ./tatami/backend/src:/workspace/tatami/backend/src
       - ./domain/champion_domain:/workspace/domain/champion_domain
     depends_on:
-      db:
-        condition: service_healthy
+      tatami-migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/tournaments')"]
       interval: 3s

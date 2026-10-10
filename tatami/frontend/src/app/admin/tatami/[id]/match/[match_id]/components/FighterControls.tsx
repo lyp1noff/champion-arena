@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ExternalMatch } from "@/lib/interfaces";
 import { useI18n } from "@/lib/i18n";
+import { MATCH_STATUS } from "@/lib/interfaces";
 
 interface FighterControlsProps {
   currentMatch: ExternalMatch | null;
@@ -29,7 +30,7 @@ export function FighterControls({
 }: FighterControlsProps) {
   const { t } = useI18n();
   const fighters = swap_status ? [2, 1] : [1, 2];
-  const disabled = currentMatch?.status !== "started";
+  const disabled = currentMatch?.status !== MATCH_STATUS.STARTED;
 
   return (
     <div className="fighter-grid">

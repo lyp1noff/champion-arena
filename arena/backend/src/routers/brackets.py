@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -29,7 +29,6 @@ from src.services.brackets import (
 from src.services.brackets import reorder_participants as reorder_participants_service
 from src.services.brackets import start_bracket as start_bracket_service
 from src.services.brackets import update_bracket as update_bracket_service
-from src.services.brackets import update_bracket_status as update_bracket_status_service
 
 router = APIRouter(prefix="/brackets", tags=["Brackets"])
 
@@ -143,16 +142,6 @@ async def get_bracket_status(id: int, db: AsyncSession = Depends(get_db)) -> dic
     if not bracket:
         raise HTTPException(404, "Bracket not found")
     return {"status": bracket.status}
-
-
-@router.patch("/{id}/status", dependencies=[Depends(get_current_user)])
-async def update_bracket_status(
-    id: int,
-    status: str = Body(..., embed=True),
-    db: AsyncSession = Depends(get_db),
-) -> BracketResponse:
-    bracket = await update_bracket_status_service(db, id, status)
-    return BracketResponse.model_validate(bracket)
 
 
 @router.post("/{id}/start", dependencies=[Depends(get_current_user)])

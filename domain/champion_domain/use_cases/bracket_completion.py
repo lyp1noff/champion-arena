@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from champion_domain.use_cases.match_progression import is_bracket_finished
+from champion_domain.statuses import BracketStatus
 
 
 @dataclass(frozen=True)
@@ -12,9 +13,9 @@ class BracketCompletionDecision:
 def decide_bracket_completion(
     total_matches: int | None,
     finished_matches: int | None,
-    current_bracket_status: str | None,
+    current_bracket_status: BracketStatus | None,
     *,
-    finished_status_value: str = "finished",
+    finished_status_value: BracketStatus = BracketStatus.FINISHED,
 ) -> BracketCompletionDecision:
     completed = is_bracket_finished(total_matches, finished_matches)
     if not completed:

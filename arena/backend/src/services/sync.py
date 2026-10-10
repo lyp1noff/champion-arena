@@ -1,13 +1,28 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from champion_domain import PlacementMatchInput, compute_bracket_placements, derive_bracket_state_from_status
+from champion_domain import (
+    BracketStatus,
+    MatchStatus,
+    PlacementMatchInput,
+    TournamentStatus,
+    compute_bracket_placements,
+)
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.logger import logger
-from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, SyncEdgeState, SyncInboxEvent
+from src.models import (
+    Athlete,
+    Bracket,
+    BracketMatch,
+    BracketParticipant,
+    Match,
+    SyncEdgeState,
+    SyncInboxEvent,
+    Tournament,
+)
 from src.schemas import (
     MatchUpdate,
     SyncConflict,
@@ -38,9 +53,29 @@ class MatchUpsertPayloadDTO(BaseModel):
     repechage_step: int | None = None
     score_athlete1: int | None = None
     score_athlete2: int | None = None
-    status: str
+    status: MatchStatus
     started_at: datetime | None = None
     ended_at: datetime | None = None
+
+
+async def _advance_tournament_from_bracket(db: AsyncSession, bracket: Bracket) -> None:
+    tournament = await db.get(Tournament, bracket.tournament_id)
+    if tournament is None or tournament.status == TournamentStatus.FINISHED.value:
+        return
+    if bracket.status == BracketStatus.STARTED.value:
+        tournament.status = TournamentStatus.STARTED.value
+    elif bracket.status == BracketStatus.FINISHED.value:
+        unfinished = await db.scalar(
+            select(func.count())
+            .select_from(Bracket)
+            .where(
+                Bracket.tournament_id == bracket.tournament_id,
+                Bracket.status != BracketStatus.FINISHED.value,
+            )
+        )
+        tournament.status = (
+            TournamentStatus.FINISHED.value if int(unfinished or 0) == 0 else TournamentStatus.STARTED.value
+        )
 
 
 async def _get_or_create_edge_state(db: AsyncSession, edge_id: str, tournament_id: int) -> SyncEdgeState:
@@ -116,7 +151,7 @@ async def _recompute_bracket_placements(db: AsyncSession, bracket_id: int) -> No
             for bm, match in rows
         ],
         repechage_stage_value="repechage",
-        finished_status_value="finished",
+        finished_status_value=MatchStatus.FINISHED.value,
     )
 
     bracket.place_1_id = placements.place_1_id
@@ -157,7 +192,7 @@ async def _apply_match_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[i
     match.repechage_step = payload.repechage_step
     match.score_athlete1 = payload.score_athlete1
     match.score_athlete2 = payload.score_athlete2
-    match.status = payload.status
+    match.status = payload.status.value
     match.started_at = payload.started_at
     match.ended_at = payload.ended_at
 
@@ -165,9 +200,11 @@ async def _apply_match_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[i
     if bracket is None:
         raise SyncApplyConflict("aggregate_not_found")
     bracket.version = max(bracket.version, item.aggregate_version)
-    if match.status in {"started", "finished"} and bracket.status != "finished":
-        bracket.status = "started"
-        bracket.state = derive_bracket_state_from_status(bracket.status, bracket.state)
+    if match.status in {MatchStatus.STARTED.value, MatchStatus.FINISHED.value} and (
+        bracket.status != BracketStatus.FINISHED.value
+    ):
+        bracket.status = BracketStatus.STARTED.value
+        await _advance_tournament_from_bracket(db, bracket)
     await _recompute_bracket_placements(db, bracket_id)
     return bracket_id, bracket.tournament_id, match.id
 
@@ -190,19 +227,15 @@ async def _apply_bracket_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple
         )
 
     try:
-        participants, matches, payload_state, payload_status = parse_structure_payload_dto(item.payload)
+        participants, matches, payload_status = parse_structure_payload_dto(item.payload)
     except ValueError as exc:
         raise SyncApplyConflict(str(exc)) from exc
 
     bracket.type = str(item.payload.get("type") or bracket.type)
     bracket.group_id = int(item.payload.get("group_id") or bracket.group_id)
     bracket.version = item.aggregate_version
-    if isinstance(payload_status, str):
-        bracket.status = payload_status
-    if payload_state is not None:
-        bracket.state = payload_state
-    else:
-        bracket.state = derive_bracket_state_from_status(bracket.status, bracket.state)
+    if payload_status is not None:
+        bracket.status = payload_status.value
 
     bracket.place_1_id = None
     bracket.place_2_id = None
@@ -257,6 +290,7 @@ async def _apply_bracket_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple
         )
     await db.flush()
     await _recompute_bracket_placements(db, bracket_id)
+    await _advance_tournament_from_bracket(db, bracket)
     return bracket_id, bracket.tournament_id, broadcast_match_id
 
 
@@ -289,7 +323,8 @@ async def apply_upserts(db: AsyncSession, payload: SyncUpsertsRequest) -> SyncUp
 
     for item in sorted(payload.items, key=lambda entry: entry.seq):
         existing = await db.execute(select(SyncInboxEvent).where(SyncInboxEvent.event_id == item.event_id))
-        if existing.scalar_one_or_none() is not None:
+        existing_event = existing.scalar_one_or_none()
+        if existing_event is not None and existing_event.applied:
             duplicates.append(item.seq)
             continue
 
@@ -298,14 +333,21 @@ async def apply_upserts(db: AsyncSession, payload: SyncUpsertsRequest) -> SyncUp
             # Seq is diagnostic only for upsert flow; keep a warning trail without blocking the payload.
             conflicts.append(SyncConflict(seq=item.seq, reason="seq_gap"))
 
-        inbox_event = SyncInboxEvent(
-            event_id=item.event_id,
-            edge_id=payload.edge_id,
-            tournament_id=payload.tournament_id,
-            seq=item.seq,
-            applied=False,
-        )
-        db.add(inbox_event)
+        if existing_event is None:
+            inbox_event = SyncInboxEvent(
+                event_id=item.event_id,
+                edge_id=payload.edge_id,
+                tournament_id=payload.tournament_id,
+                seq=item.seq,
+                applied=False,
+            )
+            db.add(inbox_event)
+        else:
+            # Failed inbox entries are retryable. Only successfully applied IDs
+            # are deduplicated; otherwise a transient conflict would poison the
+            # event ID forever and make every retry look successful.
+            inbox_event = existing_event
+            inbox_event.error = None
         await db.flush()
 
         try:

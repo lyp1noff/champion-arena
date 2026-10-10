@@ -2,7 +2,7 @@ import { LiveBadge } from "@/components/bracket/live-badge";
 import { ParticipantNameWithMenu } from "@/components/bracket/participant-name-with-menu";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
-import { BracketMatches } from "@/lib/interfaces";
+import { MATCH_STATUS, BracketMatches } from "@/lib/interfaces";
 import { getUniqueAthletes } from "@/lib/utils";
 
 const TR_HEIGHT = undefined;
@@ -33,14 +33,14 @@ function ScoreCell({ bm, rowId }: { bm: BracketMatches[number]; rowId: number })
   const left = rowIsAth1 ? s1 : s2;
   const right = rowIsAth1 ? s2 : s1;
 
-  const notStarted = status === "not_started";
+  const notStarted = status === MATCH_STATUS.NOT_STARTED;
   const scoreText = !notStarted ? `${left ?? 0} : ${right ?? 0}` : "";
 
   return (
     <td className="border px-2 py-1 font-mono whitespace-nowrap">
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-center gap-1">
         <div className="justify-self-center text-center">{scoreText}</div>
-        {status === "started" && <LiveBadge size="sm" className="justify-self-center sm:justify-self-end" />}
+        {status === MATCH_STATUS.STARTED && <LiveBadge size="sm" className="justify-self-center sm:justify-self-end" />}
       </div>
     </td>
   );

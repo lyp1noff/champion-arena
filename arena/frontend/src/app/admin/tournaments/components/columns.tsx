@@ -5,7 +5,7 @@ import DataTableColumnHeader from "@/components/table/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { Tournament } from "@/lib/interfaces";
+import { TOURNAMENT_STATUS, Tournament } from "@/lib/interfaces";
 
 import { DataTableRowActions } from "./row-actions";
 
@@ -51,16 +51,16 @@ export function columns(onDataChanged: () => void, locale: string): ColumnDef<To
       accessorKey: "status",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
       cell: ({ row }) => {
-        const status = row.getValue("status") as string;
-        const getStatusVariant = (status: string) => {
+        const status = row.getValue("status") as Tournament["status"];
+        const getStatusVariant = (status: Tournament["status"]) => {
           switch (status) {
-            case "draft":
+            case TOURNAMENT_STATUS.DRAFT:
               return "secondary";
-            case "upcoming":
+            case TOURNAMENT_STATUS.UPCOMING:
               return "default";
-            case "started":
+            case TOURNAMENT_STATUS.STARTED:
               return "destructive";
-            case "finished":
+            case TOURNAMENT_STATUS.FINISHED:
               return "outline";
             default:
               return "secondary";

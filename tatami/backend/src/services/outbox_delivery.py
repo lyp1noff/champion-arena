@@ -9,6 +9,7 @@ from sqlalchemy import and_, or_, select
 from src.config import EXTERNAL_API_TOKEN, EXTERNAL_API_URL, OUTBOX_HTTP_TIMEOUT_SECONDS, OUTBOX_LEASE_SECONDS
 from src.database import SessionLocal
 from src.models import OutboxItem, OutboxWorkerState
+from src.statuses import OutboxStatus, OutboxWorkerPhase
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,12 @@ def classify_sync_response(response: httpx.Response) -> None:
             return
         conflicts = body.get("conflicts") or []
         if conflicts:
-            first_conflict = conflicts[0]
+            substantive_conflicts = [
+                conflict
+                for conflict in conflicts
+                if not isinstance(conflict, dict) or conflict.get("reason") != "seq_gap"
+            ]
+            first_conflict = (substantive_conflicts or conflicts)[0]
             reason = first_conflict.get("reason", "unknown") if isinstance(first_conflict, dict) else "unknown"
             raise DeliveryFailure(f"sync conflict: {reason}", retryable=False, kind="application")
         raise DeliveryFailure("sync response has no accepted/duplicates", retryable=True, kind="protocol")
@@ -73,13 +79,13 @@ class OutboxRepository:
                 .where(
                     OutboxItem.resolved_at.is_(None),
                     or_(
-                        OutboxItem.status == "pending",
+                        OutboxItem.status == OutboxStatus.PENDING.value,
                         and_(
-                            OutboxItem.status == "retry_wait",
+                            OutboxItem.status == OutboxStatus.RETRY_WAIT.value,
                             or_(OutboxItem.next_attempt_at.is_(None), OutboxItem.next_attempt_at <= now),
                         ),
                         and_(
-                            OutboxItem.status == "processing",
+                            OutboxItem.status == OutboxStatus.PROCESSING.value,
                             or_(OutboxItem.lease_until.is_(None), OutboxItem.lease_until <= now),
                         ),
                     ),
@@ -90,7 +96,7 @@ class OutboxRepository:
             )
             if item is None:
                 return None
-            item.status = "processing"
+            item.status = OutboxStatus.PROCESSING.value
             item.last_attempt_at = now
             item.next_attempt_at = None
             item.lease_until = now + timedelta(seconds=OUTBOX_LEASE_SECONDS)
@@ -102,7 +108,7 @@ class OutboxRepository:
             item = await db.get(OutboxItem, item_id, with_for_update=True)
             if item is None:
                 return
-            item.status = "success"
+            item.status = OutboxStatus.SUCCESS.value
             item.error = None
             item.failure_kind = None
             item.next_attempt_at = None
@@ -113,7 +119,7 @@ class OutboxRepository:
             item = await db.get(OutboxItem, item_id, with_for_update=True)
             if item is None:
                 return
-            item.status = "retry_wait"
+            item.status = OutboxStatus.RETRY_WAIT.value
             item.retry_count += 1
             item.error = str(failure)
             item.failure_kind = failure.kind
@@ -125,7 +131,7 @@ class OutboxRepository:
             item = await db.get(OutboxItem, item_id, with_for_update=True)
             if item is None:
                 return
-            item.status = "dead_letter"
+            item.status = OutboxStatus.DEAD_LETTER.value
             item.error = str(failure)
             item.failure_kind = failure.kind
             item.next_attempt_at = None
@@ -137,7 +143,7 @@ class OutboxRepository:
 
     async def heartbeat(
         self,
-        status: str,
+        phase: OutboxWorkerPhase,
         *,
         last_error: str | None = None,
         circuit_open_until: datetime | None = None,
@@ -150,7 +156,7 @@ class OutboxRepository:
                 state = OutboxWorkerState(id=1)
                 db.add(state)
             state.heartbeat_at = datetime.now(UTC)
-            state.status = status
+            state.phase = phase.value
             state.circuit_open_until = circuit_open_until
             if last_error is not None:
                 state.last_error = last_error

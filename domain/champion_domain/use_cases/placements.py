@@ -1,13 +1,14 @@
 from dataclasses import dataclass
 
 from champion_domain.match_results import final_loser_id, match_loser_id
+from champion_domain.statuses import MatchStatus
 
 
 @dataclass(frozen=True)
 class PlacementMatchInput:
     round_number: int
     stage: str
-    status: str
+    status: MatchStatus
     winner_id: int | None
     athlete1_id: int | None
     athlete2_id: int | None
@@ -27,7 +28,7 @@ def compute_bracket_placements(
     rows: list[PlacementMatchInput],
     *,
     repechage_stage_value: str = "repechage",
-    finished_status_value: str = "finished",
+    finished_status_value: MatchStatus = MatchStatus.FINISHED,
 ) -> BracketPlacements:
     if not rows:
         return BracketPlacements(None, None, None, None)

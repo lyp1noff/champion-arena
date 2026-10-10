@@ -4,7 +4,8 @@ from typing import Annotated, Any, Optional
 
 from pydantic import AliasPath, BaseModel, ConfigDict, Field, StringConstraints, computed_field
 
-from src.models import BracketType, MatchStatus
+from champion_domain import ApplicationStatus, BracketStatus, MatchStatus, TournamentStatus
+from src.models import BracketType
 
 
 class LoginRequest(BaseModel):
@@ -123,7 +124,7 @@ class TournamentCreate(TournamentBase):
 
 class TournamentResponse(TournamentBase):
     id: int
-    status: str
+    status: TournamentStatus
 
 
 class PaginatedTournamentResponse(OrmResponseModel):
@@ -148,7 +149,7 @@ class ApplicationResponse(OrmResponseModel):
     tournament_id: int
     athlete_id: int
     category_id: int
-    status: str
+    status: ApplicationStatus
     comment: Optional[str] = None
     athlete: AthleteResponse
     category: CategoryResponse
@@ -178,8 +179,7 @@ class BracketBase(OrmResponseModel):
     type: str
     group_id: Optional[int] = 1
     display_name: Optional[str] = None
-    status: str
-    state: str
+    status: BracketStatus
     version: int
     place_1: Optional[BracketMatchAthlete] = Field(default=None, validation_alias="place_1_athlete")
     place_2: Optional[BracketMatchAthlete] = Field(default=None, validation_alias="place_2_athlete")
@@ -368,7 +368,7 @@ class MatchUpdate(BaseModel):
     match_id: uuid.UUID
     score_athlete1: int | None
     score_athlete2: int | None
-    status: str | None
+    status: MatchStatus | None
 
 
 class SyncConflict(BaseModel):

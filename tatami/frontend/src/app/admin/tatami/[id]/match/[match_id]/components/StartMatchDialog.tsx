@@ -8,17 +8,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ExternalMatch } from "@/lib/interfaces";
+import { ExternalMatch, MATCH_STATUS } from "@/lib/interfaces";
+import { TIMER_STATUS, TimerStatus } from "@/store/tatami";
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 
 interface StartMatchDialogProps {
   currentMatch: ExternalMatch | null;
-  status: string;
+  timerStatus: TimerStatus;
   onStartMatch: () => void;
 }
 
-export function StartMatchDialog({ currentMatch, status, onStartMatch }: StartMatchDialogProps) {
+export function StartMatchDialog({ currentMatch, timerStatus, onStartMatch }: StartMatchDialogProps) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
 
@@ -39,7 +40,7 @@ export function StartMatchDialog({ currentMatch, status, onStartMatch }: StartMa
     ? `${currentMatch.athlete2.last_name} ${currentMatch.athlete2.first_name} (${currentMatch.athlete2.coaches_last_name})`
     : t("match.fighter", { id: 2 });
 
-  const isDisabled = status === "running" || currentMatch?.status === "started";
+  const isDisabled = timerStatus === TIMER_STATUS.RUNNING || currentMatch?.status === MATCH_STATUS.STARTED;
 
   return (
     <div className="border rounded-lg p-4 border-green-500 bg-green-50">
@@ -80,7 +81,7 @@ export function StartMatchDialog({ currentMatch, status, onStartMatch }: StartMa
                   </div>
                   <div className="text-sm text-gray-600">
                     <strong>{t("common.status")}:</strong>{" "}
-                    {currentMatch?.status === "not_started" ? t("match.ready") : currentMatch?.status}
+                    {currentMatch?.status === MATCH_STATUS.NOT_STARTED ? t("match.ready") : currentMatch?.status}
                   </div>
                 </div>
               </div>

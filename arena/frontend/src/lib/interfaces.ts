@@ -7,6 +7,9 @@ export const TOURNAMENT_STATUS = {
 
 export type TOURNAMENT_STATUS = (typeof TOURNAMENT_STATUS)[keyof typeof TOURNAMENT_STATUS];
 
+export const APPLICATION_STATUS = { PENDING: "pending", APPROVED: "approved", REJECTED: "rejected" } as const;
+export type APPLICATION_STATUS = (typeof APPLICATION_STATUS)[keyof typeof APPLICATION_STATUS];
+
 export const ROUND_TYPE = {
   FINAL: "final",
   SEMIFINAL: "semifinal",
@@ -72,7 +75,7 @@ export interface Application {
 
 export interface ApplicationResponse extends Application {
   id: number;
-  status: string;
+  status: APPLICATION_STATUS;
   athlete: Athlete;
   category: Category;
 }

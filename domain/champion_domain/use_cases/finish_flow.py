@@ -7,6 +7,7 @@ from champion_domain.use_cases.bracket_completion import (
 from champion_domain.use_cases.finish_runtime import decide_finish_runtime
 from champion_domain.use_cases.match_progression import ProgressionAction
 from champion_domain.use_cases.repechage_runtime import should_publish_structure_after_match_finish
+from champion_domain.statuses import BracketStatus
 
 
 @dataclass(frozen=True)
@@ -58,8 +59,8 @@ def decide_finish_flow_post(
     generated_repechage: bool,
     total_matches: int | None,
     finished_matches: int | None,
-    current_bracket_status: str | None,
-    finished_status_value: str = "finished",
+    current_bracket_status: BracketStatus | None,
+    finished_status_value: BracketStatus = BracketStatus.FINISHED,
 ) -> FinishFlowPostDecision:
     return FinishFlowPostDecision(
         publish_structure=should_publish_structure_after_match_finish(

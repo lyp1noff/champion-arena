@@ -1,4 +1,4 @@
-import { ExternalMatch } from "@/lib/interfaces";
+import { ExternalMatch, MATCH_STATUS } from "@/lib/interfaces";
 
 export function createEmptyMatch(): ExternalMatch {
   return {
@@ -20,6 +20,6 @@ export function createEmptyMatch(): ExternalMatch {
     },
     score_athlete1: 0,
     score_athlete2: 0,
-    status: "not_started",
+    status: MATCH_STATUS.NOT_STARTED,
   };
 }

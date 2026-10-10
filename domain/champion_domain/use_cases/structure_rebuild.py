@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from champion_domain.statuses import MatchStatus
+
 
 @dataclass(frozen=True)
 class StructureParticipant:
@@ -17,7 +19,7 @@ class StructureMatch:
     next_slot: int | None
     round_type: str | None
     stage: str
-    status: str
+    status: MatchStatus
     athlete1_id: int | None
     athlete2_id: int | None
     winner_id: int | None

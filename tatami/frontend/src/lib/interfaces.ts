@@ -1,3 +1,36 @@
+export const TOURNAMENT_STATUS = {
+  DRAFT: "draft",
+  UPCOMING: "upcoming",
+  STARTED: "started",
+  FINISHED: "finished",
+} as const;
+export type TournamentStatus = (typeof TOURNAMENT_STATUS)[keyof typeof TOURNAMENT_STATUS];
+
+export const BRACKET_STATUS = { PENDING: "pending", STARTED: "started", FINISHED: "finished" } as const;
+export type BracketStatus = (typeof BRACKET_STATUS)[keyof typeof BRACKET_STATUS];
+
+export const MATCH_STATUS = { NOT_STARTED: "not_started", STARTED: "started", FINISHED: "finished" } as const;
+export type MatchStatus = (typeof MATCH_STATUS)[keyof typeof MATCH_STATUS];
+
+export const OUTBOX_STATUS = {
+  PENDING: "pending",
+  PROCESSING: "processing",
+  RETRY_WAIT: "retry_wait",
+  SUCCESS: "success",
+  DEAD_LETTER: "dead_letter",
+} as const;
+export type OutboxItemStatus = (typeof OUTBOX_STATUS)[keyof typeof OUTBOX_STATUS];
+
+export const OUTBOX_WORKER_PHASE = {
+  STARTING: "starting",
+  IDLE: "idle",
+  WORKING: "working",
+  OFFLINE_WAIT: "offline_wait",
+  STOPPED: "stopped",
+  UNKNOWN: "unknown",
+} as const;
+export type OutboxWorkerPhase = (typeof OUTBOX_WORKER_PHASE)[keyof typeof OUTBOX_WORKER_PHASE];
+
 export interface ExternalMatch {
   external_id: string;
   bracket_display_name?: string;
@@ -30,7 +63,7 @@ export interface ExternalMatch {
   };
   score_athlete1?: number;
   score_athlete2?: number;
-  status: "not_started" | "started" | "finished";
+  status: MatchStatus;
   started_at?: string;
   ended_at?: string;
 }
@@ -58,7 +91,7 @@ export interface Match {
   winner_id?: number;
   score_athlete1?: number;
   score_athlete2?: number;
-  status: "not_started" | "started" | "finished";
+  status: MatchStatus;
   started_at?: string;
   ended_at?: string;
 }
@@ -81,7 +114,7 @@ export interface Bracket {
   tatami?: number;
   group_id?: number;
   display_name?: string;
-  status: string;
+  status: BracketStatus;
   tournament_id: number;
   participants: Athlete[];
   matches?: BracketMatch[];
@@ -110,7 +143,7 @@ export interface Tournament {
   registration_start_date?: string;
   registration_end_date?: string;
   image_url?: string;
-  status?: string;
+  status?: TournamentStatus;
   description?: string;
 }
 
@@ -121,7 +154,7 @@ export interface TournamentMatchesFull {
   tatami?: number;
   group_id?: number;
   display_name?: string;
-  status: string;
+  status: BracketStatus;
   bracket_id: number;
   matches: BracketMatch[];
 }
@@ -132,7 +165,7 @@ export interface CurrentTournamentResponse {
 
 export interface OutboxWorkerStatus {
   alive: boolean;
-  status: string;
+  phase: OutboxWorkerPhase;
   heartbeat_at?: string | null;
   last_success_at?: string | null;
   last_error?: string | null;
@@ -156,7 +189,7 @@ export interface OutboxItem {
   tournament_id?: number | null;
   tournament_name?: string | null;
   match_id?: number | null;
-  status: string;
+  status: OutboxItemStatus;
   retry_count: number;
   failure_kind?: string | null;
   error?: string | null;

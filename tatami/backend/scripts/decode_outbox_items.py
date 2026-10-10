@@ -150,7 +150,6 @@ def bracket_info(external_id: int | None, brackets_by_external_id: dict[int, Bra
         "display_name": bracket.display_name,
         "category": bracket.category,
         "status": bracket.status,
-        "state": bracket.state,
         "tournament_id": bracket.tournament_id,
     }
 

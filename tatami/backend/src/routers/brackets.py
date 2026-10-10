@@ -1,5 +1,6 @@
 from champion_domain import compute_main_rounds
 from fastapi import APIRouter, Depends, HTTPException, Query
+from champion_domain import BracketStatus
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -128,7 +129,7 @@ async def sync_bracket_upsert(bracket_id: int, db: AsyncSession = Depends(get_db
     if bracket is None:
         raise HTTPException(status_code=404, detail=f"Bracket {bracket_id} not found")
 
-    if bracket.state in {"running", "finished"}:
+    if bracket.status in {BracketStatus.STARTED.value, BracketStatus.FINISHED.value}:
         raise HTTPException(status_code=409, detail="Running or finished bracket is structurally immutable")
 
     await create_bracket_upsert_outbox(bracket, db)
@@ -137,21 +138,19 @@ async def sync_bracket_upsert(bracket_id: int, db: AsyncSession = Depends(get_db
     return {"status": "ok"}
 
 
-@router.post("/{bracket_id}/unlock")
-async def unlock_bracket(
+async def _reset_bracket_to_pending(
     bracket_id: int,
-    publish: bool = Query(default=False, description="Enqueue bracket.upsert after unlock"),
-    db: AsyncSession = Depends(get_db),
+    publish: bool,
+    db: AsyncSession,
 ) -> dict[str, str | int]:
     bracket_result = await db.execute(select(Bracket).where(Bracket.external_id == bracket_id))
     bracket = bracket_result.scalar_one_or_none()
     if bracket is None:
         raise HTTPException(status_code=404, detail=f"Bracket {bracket_id} not found")
 
-    previous_state = bracket.state
-    bracket.state = "draft"
-    if bracket.status in {"started", "finished"}:
-        bracket.status = "pending"
+    previous_status = bracket.status or BracketStatus.PENDING.value
+    if bracket.status in {BracketStatus.STARTED.value, BracketStatus.FINISHED.value}:
+        bracket.status = BracketStatus.PENDING.value
     bracket.version = max(1, bracket.version + 1)
 
     if publish:
@@ -162,7 +161,16 @@ async def unlock_bracket(
     return {
         "status": "ok",
         "bracket_id": bracket_id,
-        "previous_state": previous_state,
-        "state": bracket.state,
+        "previous_status": previous_status,
+        "bracket_status": bracket.status or BracketStatus.PENDING.value,
         "version": bracket.version,
     }
+
+
+@router.post("/{bracket_id}/reset")
+async def reset_bracket(
+    bracket_id: int,
+    publish: bool = Query(default=False, description="Enqueue bracket.upsert after reset"),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str | int]:
+    return await _reset_bracket_to_pending(bracket_id, publish, db)

@@ -1,7 +1,7 @@
 import { LiveBadge } from "@/components/bracket/live-badge";
 import { ParticipantNameWithMenu } from "@/components/bracket/participant-name-with-menu";
 
-import { BracketMatch, BracketMatchAthlete } from "@/lib/interfaces";
+import { MATCH_STATUS, BracketMatch, BracketMatchAthlete } from "@/lib/interfaces";
 
 interface MatchCardProps {
   bracketMatch: BracketMatch;
@@ -24,7 +24,7 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80, meda
   return (
     <div className="relative" style={{ width }}>
       {/* Works only with 60px height */}
-      {currentStatus === "started" && (
+      {currentStatus === MATCH_STATUS.STARTED && (
         <LiveBadge variant="rounded-t" size="sm" className="absolute right-3 z-10" style={{ bottom: `${height}px` }} />
       )}
 

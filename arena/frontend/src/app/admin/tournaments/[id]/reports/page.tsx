@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { getTournamentBracketsById, getTournamentMatchesFullById } from "@/lib/api/tournaments";
-import { Bracket, BracketMatchAthlete, BracketMatchesFull } from "@/lib/interfaces";
+import { BRACKET_STATUS, Bracket, BracketMatchAthlete, BracketMatchesFull } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
 type ReportType = "kids_by_coach" | "fights_by_bracket" | "participants_by_bracket" | "prize_statements";
@@ -138,7 +138,7 @@ export default function TournamentReportsPage() {
   const buildPrizeStatements = useCallback(
     (source: Bracket[]) => {
       const finishedSingleElim = source.filter(
-        (bracket) => bracket.type === "single_elimination" && bracket.status === "finished",
+        (bracket) => bracket.type === "single_elimination" && bracket.status === BRACKET_STATUS.FINISHED,
       );
 
       if (!finishedSingleElim.length) return "";

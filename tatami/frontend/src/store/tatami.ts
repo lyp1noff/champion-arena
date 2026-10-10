@@ -1,8 +1,11 @@
 import { useSyncExternalStore } from "react";
 import { ExternalMatch } from "@/lib/interfaces";
 
+export const TIMER_STATUS = { IDLE: "idle", RUNNING: "running", PAUSED: "paused" } as const;
+export type TimerStatus = (typeof TIMER_STATUS)[keyof typeof TIMER_STATUS];
+
 export type TatamiState = {
-  status: "idle" | "running" | "paused";
+  timerStatus: TimerStatus;
   startTimestamp: number | null;
   pausedElapsed: number;
   durationMs: number;
@@ -23,7 +26,7 @@ const STORAGE_KEY = "tatami-storage";
 const listeners = new Set<() => void>();
 
 const defaults = {
-  status: "idle" as const,
+  timerStatus: TIMER_STATUS.IDLE,
   startTimestamp: null,
   pausedElapsed: 0,
   durationMs: 60 * 1000,
@@ -51,7 +54,7 @@ let state: TatamiState;
 
 function persistedSnapshot(value: TatamiState) {
   return {
-    status: value.status,
+    timerStatus: value.timerStatus,
     startTimestamp: value.startTimestamp,
     pausedElapsed: value.pausedElapsed,
     durationMs: value.durationMs,
@@ -67,7 +70,7 @@ function persistedSnapshot(value: TatamiState) {
 
 function update(partial: Partial<TatamiState>) {
   state = { ...state, ...partial };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: persistedSnapshot(state), version: 1 }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: persistedSnapshot(state), version: 2 }));
   listeners.forEach((listener) => listener());
 }
 

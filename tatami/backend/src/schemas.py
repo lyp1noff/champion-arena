@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from champion_domain import BracketStatus, MatchStatus, TournamentStatus
+
 
 class CustomBaseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -10,7 +12,7 @@ class CustomBaseModel(BaseModel):
 
 class ExternalTournamentSchema(CustomBaseModel):
     id: int
-    status: str
+    status: TournamentStatus
     name: str
     location: str
     start_date: date
@@ -44,7 +46,7 @@ class TournamentSchema(CustomBaseModel):
     location: str
     start_date: Optional[date]
     end_date: Optional[date]
-    status: str
+    status: TournamentStatus
     created_at: datetime
     updated_at: datetime
 
@@ -59,8 +61,7 @@ class BracketSchema(CustomBaseModel):
     group_id: int = 1
     start_time: Optional[str] = None
     day: Optional[int] = None
-    status: Optional[str]
-    state: Optional[str] = "draft"
+    status: Optional[BracketStatus]
     version: int = 1
     display_name: Optional[str]
 
@@ -108,7 +109,7 @@ class MatchSchema(CustomBaseModel):
     winner_id: Optional[int]
     score_athlete1: Optional[int]
     score_athlete2: Optional[int]
-    status: str
+    status: MatchStatus
     started_at: Optional[datetime]
     ended_at: Optional[datetime]
 

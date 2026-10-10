@@ -9,9 +9,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
+import { TIMER_STATUS, TimerStatus } from "@/store/tatami";
 
 interface TimeAdjustmentProps {
-  status: string;
+  timerStatus: TimerStatus;
   timeAdjustInput: { minutes: number; seconds: number; milliseconds: number };
   showTimeAdjustDialog: boolean;
   onTimeAdjustInputChange: (field: "minutes" | "seconds" | "milliseconds", value: number) => void;
@@ -20,7 +21,7 @@ interface TimeAdjustmentProps {
 }
 
 export function TimeAdjustment({
-  status,
+  timerStatus,
   timeAdjustInput,
   showTimeAdjustDialog,
   onTimeAdjustInputChange,
@@ -28,7 +29,7 @@ export function TimeAdjustment({
   onSaveTimeAdjustment,
 }: TimeAdjustmentProps) {
   const { t } = useI18n();
-  if (status !== "paused") return null;
+  if (timerStatus !== TIMER_STATUS.PAUSED) return null;
 
   return (
     <div className="border rounded-lg p-4 border-yellow-500 bg-yellow-50">

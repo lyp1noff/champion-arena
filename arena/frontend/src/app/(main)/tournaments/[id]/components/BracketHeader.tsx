@@ -63,7 +63,7 @@ function BracketCount({ count }: { count: number }) {
   );
 }
 
-function BracketStatus({ status }: { status: string }) {
+function BracketStatus({ status }: { status: Bracket["status"] }) {
   const t = useTranslations("TournamentPage");
-  return <Badge variant={status === "started" ? "default" : "destructive"}>{t(status)}</Badge>;
+  return <Badge variant={status === BRACKET_STATUS.STARTED ? "default" : "destructive"}>{t(status)}</Badge>;
 }

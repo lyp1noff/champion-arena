@@ -1,4 +1,5 @@
 from champion_domain.use_cases.bracket_rebuild import PlannedMatch
+from champion_domain.statuses import MatchStatus
 from champion_domain.use_cases.round_robin import SeededParticipant, plan_round_robin_bracket
 from champion_domain.use_cases.single_elimination import plan_single_elimination_bracket
 
@@ -20,7 +21,7 @@ def plan_bracket_matches(bracket_type: str, participants: list[SeededParticipant
                 round_type=item.round_type,
                 athlete1_id=item.athlete1_id,
                 athlete2_id=item.athlete2_id,
-                status="not_started",
+                status=MatchStatus.NOT_STARTED,
                 winner_id=None,
                 next_slot=None,
             )

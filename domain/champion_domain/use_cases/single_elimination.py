@@ -2,6 +2,7 @@ from dataclasses import replace
 
 from champion_domain.use_cases.bracket_rebuild import PlannedMatch, plan_single_elimination
 from champion_domain.use_cases.match_progression import compute_advancement_target
+from champion_domain.statuses import MatchStatus
 
 
 def resolve_bye_advancements(planned_rounds: list[list[PlannedMatch]]) -> list[list[PlannedMatch]]:
@@ -15,7 +16,7 @@ def resolve_bye_advancements(planned_rounds: list[list[PlannedMatch]]) -> list[l
 
     for round_items in planned_rounds[:-1]:
         for current in round_items:
-            if current.status != "finished" or current.winner_id is None:
+            if current.status != MatchStatus.FINISHED or current.winner_id is None:
                 continue
 
             target = compute_advancement_target(

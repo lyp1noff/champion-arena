@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from src.config import EDGE_ID
 from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, OutboxItem
+from src.statuses import OutboxStatus
 from src.services.outbox_upsert_dto import (
     make_bracket_upsert_payload,
     make_match_upsert_payload,
@@ -61,7 +62,7 @@ async def create_outbox_entry(
         tournament_id=local_tournament_id,
         match_id=match_id,
         payload=None,
-        status="pending",
+        status=OutboxStatus.PENDING.value,
         retry_count=0,
     )
 
@@ -264,7 +265,6 @@ async def create_bracket_upsert_outbox(bracket: Bracket, db: AsyncSession) -> Ou
         bracket_type=bracket.type,
         group_id=bracket.group_id,
         status=bracket.status,
-        state=bracket.state,
         participants=payload_participants,
         matches=payload_matches,
     )

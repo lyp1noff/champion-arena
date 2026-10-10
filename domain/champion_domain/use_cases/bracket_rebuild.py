@@ -2,6 +2,7 @@ import math
 from dataclasses import dataclass
 
 from champion_domain.bracket_generation import distribute_byes_safely, get_round_type
+from champion_domain.statuses import MatchStatus
 
 
 @dataclass(frozen=True)
@@ -11,7 +12,7 @@ class PlannedMatch:
     round_type: str
     athlete1_id: int | None
     athlete2_id: int | None
-    status: str
+    status: MatchStatus
     winner_id: int | None
     next_slot: int | None
 
@@ -33,7 +34,7 @@ def plan_single_elimination(athlete_ids: list[int]) -> list[list[PlannedMatch]]:
                 round_type=get_round_type(0, total_rounds),
                 athlete1_id=a1,
                 athlete2_id=a2,
-                status="finished" if bye else "not_started",
+                status=MatchStatus.FINISHED if bye else MatchStatus.NOT_STARTED,
                 winner_id=(a1 or a2) if bye else None,
                 next_slot=None,
             )
@@ -49,7 +50,7 @@ def plan_single_elimination(athlete_ids: list[int]) -> list[list[PlannedMatch]]:
                     round_type=get_round_type(round_num - 1, total_rounds),
                     athlete1_id=None,
                     athlete2_id=None,
-                    status="not_started",
+                    status=MatchStatus.NOT_STARTED,
                     winner_id=None,
                     next_slot=None,
                 )

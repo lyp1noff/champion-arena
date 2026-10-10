@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTatamiStore } from "@/store/tatami";
+import { TIMER_STATUS, useTatamiStore } from "@/store/tatami";
 
 import { Button } from "@/components/ui/button";
 import { useRouteParams } from "@/lib/router";
@@ -16,12 +16,13 @@ import { TimeSetting } from "./components/TimeSetting";
 import { createEmptyMatch } from "@/lib/emptyMatch";
 import { readDefaultMatchDuration } from "@/lib/tatami-settings";
 import { useI18n } from "@/lib/i18n";
+import { MATCH_STATUS } from "@/lib/interfaces";
 
 export default function ManageTatami() {
   const { id: tatamiId, match_id } = useRouteParams();
   const { t } = useI18n();
   const {
-    status,
+    timerStatus,
     startTimestamp,
     pausedElapsed,
     durationMs,
@@ -72,23 +73,6 @@ export default function ManageTatami() {
     }
   }, [match_id, isHydrated, loadMatchData, setMatch]);
 
-  // const startMatch = async () => {
-  //   if (!currentMatch) {
-  //     alert("Please select a match first");
-  //     return;
-  //   }
-  //
-  //   try {
-  //     if (match_id !== "empty") {
-  //       await startMatchApi(match_id as string);
-  //     }
-  //     setState({ currentMatch: { ...currentMatch, status: "started" } });
-  //   } catch (error) {
-  //     console.error("Error starting match:", error);
-  //     alert("Error starting match");
-  //   }
-  // };
-
   const finishMatch = async (winnerId: number) => {
     if (!currentMatch) {
       alert(t("tatami.selectMatchFirst"));
@@ -109,13 +93,13 @@ export default function ManageTatami() {
   const pause = useCallback(() => {
     if (startTimestamp) {
       const total = pausedElapsed + (Date.now() - startTimestamp);
-      setState({ status: "paused", startTimestamp: null, pausedElapsed: total });
+      setState({ timerStatus: TIMER_STATUS.PAUSED, startTimestamp: null, pausedElapsed: total });
     }
   }, [startTimestamp, pausedElapsed, setState]);
 
   const beginRun = useCallback(() => {
     const now = Date.now();
-    setState({ status: "running", startTimestamp: now });
+    setState({ timerStatus: TIMER_STATUS.RUNNING, startTimestamp: now });
   }, [setState]);
 
   const resume = useCallback(() => {
@@ -128,7 +112,7 @@ export default function ManageTatami() {
       return;
     }
 
-    if (currentMatch.status === "started") {
+    if (currentMatch.status === MATCH_STATUS.STARTED) {
       beginRun();
       return;
     }
@@ -138,7 +122,7 @@ export default function ManageTatami() {
         await startMatchApi(match_id as string);
       }
 
-      setState({ currentMatch: { ...currentMatch, status: "started" } });
+      setState({ currentMatch: { ...currentMatch, status: MATCH_STATUS.STARTED } });
     } catch (error) {
       console.error("Error starting match:", error);
       alert(t("match.startError"));
@@ -152,9 +136,9 @@ export default function ManageTatami() {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
-        if (status === "idle") {
+        if (timerStatus === TIMER_STATUS.IDLE) {
           await start();
-        } else if (status === "paused") {
+        } else if (timerStatus === TIMER_STATUS.PAUSED) {
           resume();
         } else {
           pause();
@@ -164,7 +148,7 @@ export default function ManageTatami() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [status, resume, pause, start]);
+  }, [timerStatus, resume, pause, start]);
 
   const adjustScore = async (fighter: 1 | 2, delta: number) => {
     if (!currentMatch) {
@@ -243,7 +227,7 @@ export default function ManageTatami() {
   const currentRemaining = formatRemainingForInput(remaining);
 
   useEffect(() => {
-    if (status === "running" && startTimestamp) {
+    if (timerStatus === TIMER_STATUS.RUNNING && startTimestamp) {
       intervalRef.current = setInterval(() => {
         const now = Date.now();
         const elapsed = pausedElapsed + (now - startTimestamp);
@@ -258,7 +242,7 @@ export default function ManageTatami() {
       setLocalElapsed(pausedElapsed);
     }
 
-    if (status === "paused") {
+    if (timerStatus === TIMER_STATUS.PAUSED) {
       setTimeAdjustInput({
         minutes: currentRemaining.minutes,
         seconds: currentRemaining.seconds,
@@ -272,7 +256,7 @@ export default function ManageTatami() {
       }
     };
   }, [
-    status,
+    timerStatus,
     startTimestamp,
     pausedElapsed,
     currentRemaining.minutes,
@@ -328,25 +312,25 @@ export default function ManageTatami() {
       <div className="match-status">
         <span
           className={`match-status__badge ${
-            currentMatch?.status === "not_started"
+            currentMatch?.status === MATCH_STATUS.NOT_STARTED
               ? "is-pending"
-              : currentMatch?.status === "started"
+              : currentMatch?.status === MATCH_STATUS.STARTED
                 ? "is-running"
                 : "is-finished"
           }`}
         >
-          {currentMatch?.status === "not_started"
+          {currentMatch?.status === MATCH_STATUS.NOT_STARTED
             ? t("match.notStarted")
-            : currentMatch?.status === "started"
+            : currentMatch?.status === MATCH_STATUS.STARTED
               ? t("match.started")
               : t("match.finished")}
         </span>
       </div>
-      {currentMatch && currentMatch.status !== "finished" ? (
+      {currentMatch && currentMatch.status !== MATCH_STATUS.FINISHED ? (
         <>
           <TimerDisplay remaining={remaining} durationMs={durationMs} />
 
-          <MatchControls status={status} onStart={start} onPause={pause} onResume={resume} />
+          <MatchControls timerStatus={timerStatus} onStart={start} onPause={pause} onResume={resume} />
 
           <FighterControls
             currentMatch={currentMatch}
@@ -371,7 +355,7 @@ export default function ManageTatami() {
             />
 
             <TimeAdjustment
-              status={status}
+              timerStatus={timerStatus}
               timeAdjustInput={timeAdjustInput}
               showTimeAdjustDialog={showTimeAdjustDialog}
               onTimeAdjustInputChange={handleTimeAdjustInputChange}
@@ -379,7 +363,7 @@ export default function ManageTatami() {
               onSaveTimeAdjustment={saveTimeAdjustment}
             />
 
-            {currentMatch.status === "started" && (
+            {currentMatch.status === MATCH_STATUS.STARTED && (
               match_id === "empty" ? (
                 <div className="border rounded-lg p-4 border-red-500 bg-red-50">
                   <div className="flex items-center justify-between">

@@ -45,7 +45,7 @@ import {
 } from "@/lib/api/brackets";
 import { finishMatch, startMatch, updateMatchScores } from "@/lib/api/matches";
 import { deleteParticipant } from "@/lib/api/tournaments";
-import { Bracket, BracketMatches, BracketType, Category, Participant } from "@/lib/interfaces";
+import { MATCH_STATUS, Bracket, BracketMatches, BracketType, Category, Participant } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
 import BracketCard from "./components/BracketCard";
@@ -609,7 +609,7 @@ export default function ManageTournamentPage({
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    disabled={disabled || bm.match.status !== "not_started"}
+                                    disabled={disabled || bm.match.status !== MATCH_STATUS.NOT_STARTED}
                                     onClick={() => handleStartMatch(bm.match.id)}
                                   >
                                     Start
@@ -617,21 +617,21 @@ export default function ManageTournamentPage({
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    disabled={disabled || bm.match.status !== "started"}
+                                    disabled={disabled || bm.match.status !== MATCH_STATUS.STARTED}
                                     onClick={() => handleSaveScores(bm.match.id)}
                                   >
                                     Save
                                   </Button>
                                   <Button
                                     size="sm"
-                                    disabled={disabled || bm.match.status !== "started" || !athlete1}
+                                    disabled={disabled || bm.match.status !== MATCH_STATUS.STARTED || !athlete1}
                                     onClick={() => handleFinishMatch(bm.match.id, athlete1?.id)}
                                   >
                                     Finish A
                                   </Button>
                                   <Button
                                     size="sm"
-                                    disabled={disabled || bm.match.status !== "started" || !athlete2}
+                                    disabled={disabled || bm.match.status !== MATCH_STATUS.STARTED || !athlete2}
                                     onClick={() => handleFinishMatch(bm.match.id, athlete2?.id)}
                                   >
                                     Finish B
