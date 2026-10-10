@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.config import EDGE_ID, EXTERNAL_API_URL
+from src.config import EDGE_ID
 from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, OutboxItem
 from src.services.outbox_upsert_dto import (
     make_bracket_upsert_payload,
@@ -60,12 +60,9 @@ async def create_outbox_entry(
     outbox_item = OutboxItem(
         tournament_id=local_tournament_id,
         match_id=match_id,
-        endpoint=f"{EXTERNAL_API_URL}/sync/upserts",
-        method="POST",
         payload=None,
         status="pending",
         retry_count=0,
-        max_retries=30,
     )
 
     db.add(outbox_item)

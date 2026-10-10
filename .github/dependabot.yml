@@ -53,32 +53,12 @@ updates:
         patterns:
           - "*"
 
-  - package-ecosystem: gomod
-    directory: /tatami/outbox
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 1
-    groups:
-      go-security:
-        applies-to: security-updates
-        patterns:
-          - "*"
-      go-patch-minor:
-        applies-to: version-updates
-        update-types:
-          - patch
-          - minor
-        patterns:
-          - "*"
-
   - package-ecosystem: docker
     directories:
       - /arena/backend
       - /arena/frontend
       - /tatami/backend
       - /tatami/frontend
-      - /tatami/outbox
     schedule:
       interval: weekly
       day: monday

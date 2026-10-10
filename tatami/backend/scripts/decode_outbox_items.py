@@ -30,7 +30,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--statuses",
         default="",
-        help="Optional comma-separated statuses to include (e.g. failed,pending,processing)",
+        help="Optional comma-separated statuses to include (e.g. retry_wait,pending,dead_letter)",
     )
     parser.add_argument(
         "--format",
@@ -64,9 +64,13 @@ def parse_payload(raw_payload: str | None) -> dict[str, Any] | None:
 def extract_event(payload: dict[str, Any] | None) -> dict[str, Any] | None:
     if not payload:
         return None
-    events = payload.get("events")
-    if isinstance(events, list) and events and isinstance(events[0], dict):
-        return events[0]
+    items = payload.get("items")
+    if isinstance(items, list) and items and isinstance(items[0], dict):
+        item = dict(items[0])
+        item_type = item.get("type")
+        item["event_type"] = item_type
+        item["aggregate_type"] = item_type.split(".", 1)[0] if isinstance(item_type, str) else None
+        return item
     return None
 
 
@@ -294,12 +298,12 @@ async def run() -> None:
                 "outbox_item_id": row.id,
                 "status": row.status,
                 "retry_count": row.retry_count,
-                "max_retries": row.max_retries,
                 "error": row.error,
+                "failure_kind": row.failure_kind,
                 "created_at": row.created_at.isoformat() if row.created_at else None,
                 "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-                "endpoint": row.endpoint,
-                "method": row.method,
+                "last_attempt_at": row.last_attempt_at.isoformat() if row.last_attempt_at else None,
+                "next_attempt_at": row.next_attempt_at.isoformat() if row.next_attempt_at else None,
                 "event_type": event_type,
                 "aggregate_type": aggregate_type,
                 "aggregate_id": aggregate_id,
@@ -336,7 +340,7 @@ async def run() -> None:
         print("=" * 120)
         print(
             f"OutboxItem #{item['outbox_item_id']} | status={item['status']}",
-            "| retries={item['retry_count']}/{item['max_retries']}",
+            f"| retries={item['retry_count']}",
         )
         print(f"Event: {item['event_type']} | aggregate={item['aggregate_type']}:{item['aggregate_id']}")
         print(f"Created: {item['created_at']}")

@@ -24,7 +24,7 @@ The transport sends state, not actions. There are no `match.started` or `match.f
 - **Arena**: central application and source of truth before bootstrap.
 - **Tatami**: local, offline-capable application; historically called `control` or `edge` in older documents.
 - **Aggregate**: the unit whose state and version are synchronized. Currently this is effectively the bracket, even when the payload type is `match.upsert`.
-- **Outbox item**: a local Tatami DB row containing an immutable HTTP request and its serialized sync envelope.
+- **Outbox item**: a local Tatami DB row containing an immutable serialized sync envelope and delivery state.
 - **Inbox event**: Arena's record that an `event_id` was seen and whether it was applied.
 
 Shared business rules live in `domain/champion_domain`. HTTP envelopes, persistence, retry rules, `edge_id`, and `seq` are application-layer concerns and must not be moved into the domain package.
@@ -327,10 +327,13 @@ Arena records rejected `event_id` values in the inbox. Re-sending the same envel
 | `id` | Local serial ID and current `seq` source. |
 | `tournament_id` | Tatami local tournament FK. |
 | `match_id` | Optional Tatami local match FK. |
-| `endpoint`, `method`, `payload` | Immutable HTTP request to send. |
-| `status` | `pending`, `processing`, `failed`, `success`, or `skipped`. |
-| `retry_count`, `max_retries` | Retry accounting. New entries currently use `max_retries=30`. |
-| `error` | Last delivery/rejection message. |
+| `payload` | Immutable `/sync/upserts` envelope to send. The destination comes from current runtime configuration. |
+| `status` | `pending`, `processing`, `retry_wait`, `success`, or `dead_letter`. |
+| `retry_count` | Diagnostic attempt count. Retryable delivery has no attempt limit. |
+| `error`, `failure_kind` | Last delivery/rejection message and its classification. |
+| `next_attempt_at`, `last_attempt_at` | Retry scheduling and delivery diagnostics. |
+| `lease_until` | Recovery boundary for a claimed `processing` row. |
+| `resolved_at` | Marks a dead letter reconciled by a newer event. |
 | `created_at`, `updated_at` | Queue ordering and diagnostics. |
 
 The payload stores the Arena tournament ID; the FK stores Tatami's local tournament ID. Mixing these IDs is a contract bug.
@@ -360,25 +363,26 @@ The response contains `edge_id`, `tournament_id`, `last_applied_seq`, and `serve
 
 ## Current worker behavior
 
-The current delivery process is the separate Go service in `tatami/outbox`:
+Delivery runs as `python -m src.outbox_worker` in a dedicated process using the Tatami backend image and shared SQLAlchemy models:
 
-- polls at `PROCESSING_INTERVAL`;
-- claims the oldest `pending` or retryable `failed` row;
-- sends one row at a time (`BATCH_SIZE` is configured but currently unused);
+- claims due work with `FOR UPDATE SKIP LOCKED` and a time-limited lease;
+- automatically reclaims `processing` rows after an expired lease;
+- retries network errors, HTTP 408/429/5xx, and configuration failures indefinitely;
+- uses bounded exponential backoff and a shared circuit-breaker timestamp during Arena outages;
 - marks acknowledged items `success`;
-- marks retryable failures `failed`, increments `retry_count`, then waits 10 seconds;
-- marks non-retryable sync conflicts `skipped` and continues;
-- stops selecting a failed row after `retry_count == max_retries`.
+- moves terminal HTTP/application rejections to `dead_letter`;
+- publishes heartbeat, last-success, last-error, and circuit state for the operator UI;
+- allows retryable rows to be scheduled immediately by an operator;
+- reconciles a dead letter by creating a new event from current local aggregate state rather than replaying a rejected `event_id`.
+
+The `/admin/outbox` page exposes active, delivered, and unresolved dead-letter rows together with payload diagnostics and recovery actions.
 
 Current operational limitations:
 
-- only one worker instance is safe; claiming has no `FOR UPDATE SKIP LOCKED` lease;
-- a crash after claim can leave a row in `processing` indefinitely;
-- retrying the oldest failed item causes head-of-line blocking until it succeeds or exhausts retries;
-- `skipped` is not exposed by the current `/outbox/status` endpoint;
-- there is no automatic reconciliation for version conflicts;
-- `last_applied_seq` cannot prove that all earlier items were applied;
-- worker metrics and manual resend/dead-letter tooling are incomplete.
+- the circuit breaker is intentionally global because loss of Arena connectivity affects every aggregate;
+- reconciliation currently supports the implemented `match.upsert` and `bracket.upsert` types;
+- successful history is retained without automatic pruning;
+- `last_applied_seq` cannot prove that all earlier items were applied.
 
 Current correctness gaps to resolve before treating sync as hardened:
 
@@ -386,13 +390,11 @@ Current correctness gaps to resolve before treating sync as hardened:
 - A rejected item is stored in the inbox by `event_id`; retrying the same event is returned as `duplicate` even though it was never applied.
 - Equal-version payloads are accepted without comparing content, so two independently writing Tatami nodes can overwrite each other at the same version.
 - An unexpected `apply_failed` is terminal from the current protocol's point of view, even when its root cause could be transient.
-- Tatami's status endpoint omits `processing` and `skipped`, so its counters may not add up to `total`.
+- The worker and operator recovery flow do not repair an invalid event already recorded by Arena; reconciliation creates a new event instead.
 
-## Planned simplification
+## Worker boundaries
 
-The Go worker is a replaceable transport implementation, not part of the wire contract. The preferred next design is a Python worker using the Tatami backend's SQLAlchemy model and DTOs, run as a separate process from the web server.
-
-Moving it into Python must preserve these boundaries:
+The Python worker preserves these boundaries:
 
 - create business state and the outbox row atomically;
 - do not run the polling loop once per Gunicorn web worker;
@@ -408,7 +410,8 @@ Moving it into Python must preserve these boundaries:
 - Tatami envelope/payload DTOs: `tatami/backend/src/services/outbox_upsert_dto.py`
 - Tatami outbox construction: `tatami/backend/src/services/outbox.py`
 - Tatami aggregate version changes: `tatami/backend/src/services/matches.py`, `tatami/backend/src/services/brackets.py`
-- Current worker: `tatami/outbox/internal`
+- Current worker entry point: `tatami/backend/src/outbox_worker.py`
+- Delivery transport and persistence: `tatami/backend/src/services/outbox_delivery.py`
 - Arena HTTP DTOs: `arena/backend/src/schemas.py`
 - Arena routes: `arena/backend/src/routers/sync.py`
 - Arena application/version/inbox logic: `arena/backend/src/services/sync.py`

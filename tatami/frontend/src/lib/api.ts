@@ -8,6 +8,8 @@ import {
   BracketParticipant,
   Athlete,
   SyncTournamentResponse,
+  OutboxItem,
+  OutboxStatus,
 } from "./interfaces";
 
 export const BACKEND_URL = "/api";
@@ -190,17 +192,47 @@ export async function rebootstrapTournament(tournamentId: number): Promise<SyncT
   return response.json();
 }
 
-export async function getOutboxStatus(): Promise<{
-  total: number;
-  pending: number;
-  failed: number;
-  succeeded: number;
-}> {
+export async function getOutboxStatus(): Promise<OutboxStatus> {
   const res = await fetch(`${BACKEND_URL}/outbox/status`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Failed to fetch outbox status");
   }
   return res.json();
+}
+
+export async function getOutboxItems(
+  status: string,
+  limit = 50,
+  offset = 0,
+): Promise<{ total: number; items: OutboxItem[] }> {
+  const params = new URLSearchParams({ status, limit: String(limit), offset: String(offset) });
+  const response = await fetch(`${BACKEND_URL}/outbox/items?${params}`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Failed to fetch outbox items");
+  return response.json();
+}
+
+export async function getOutboxItem(itemId: number): Promise<OutboxItem> {
+  const response = await fetch(`${BACKEND_URL}/outbox/${itemId}`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Failed to fetch outbox item");
+  return response.json();
+}
+
+export async function retryOutboxItem(itemId: number): Promise<void> {
+  const response = await fetch(`${BACKEND_URL}/outbox/${itemId}/retry`, { method: "POST" });
+  if (!response.ok) throw new Error("Failed to retry outbox item");
+}
+
+export async function retryAllOutboxItems(): Promise<void> {
+  const response = await fetch(`${BACKEND_URL}/outbox/retry-all`, { method: "POST" });
+  if (!response.ok) throw new Error("Failed to retry outbox items");
+}
+
+export async function reconcileOutboxItem(itemId: number): Promise<void> {
+  const response = await fetch(`${BACKEND_URL}/outbox/${itemId}/reconcile`, { method: "POST" });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(data?.detail ?? "Failed to reconcile outbox item");
+  }
 }
 
 // Tatami API functions

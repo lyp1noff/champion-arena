@@ -5,17 +5,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import DEV_MODE
-from src.database import engine
-from src.models import Base
+from src.database import prepare_database
 from src.routers import routers
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    async with engine.begin() as conn:
-        # Drop all tables and recreate them with the new schema
-        # await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    await prepare_database()
     yield
 
 

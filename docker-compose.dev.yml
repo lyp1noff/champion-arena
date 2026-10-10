@@ -154,11 +154,8 @@ services:
       retries: 30
 
   tatami-outbox:
-    build:
-      context: ./tatami/outbox
-      dockerfile: ./Dockerfile.dev
-    image: champion-tatami-outbox:dev
-    pull_policy: build
+    image: champion-tatami-backend:dev
+    command: ["uv", "run", "python", "-m", "src.outbox_worker"]
     env_file:
       - ./tatami/.env
     environment:
@@ -168,11 +165,10 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: champ_local
     volumes:
-      - ./tatami/outbox:/app
-      - tatami_go_build_cache:/root/.cache/go-build
-      - tatami_go_mod_cache:/go/pkg/mod
+      - ./tatami/backend/src:/workspace/tatami/backend/src
+      - ./domain/champion_domain:/workspace/domain/champion_domain
     depends_on:
-      db:
+      tatami-backend:
         condition: service_healthy
 
   tatami-nginx:
@@ -194,5 +190,3 @@ volumes:
   arena_frontend_node_modules:
   arena_frontend_next:
   tatami_frontend_node_modules:
-  tatami_go_build_cache:
-  tatami_go_mod_cache:

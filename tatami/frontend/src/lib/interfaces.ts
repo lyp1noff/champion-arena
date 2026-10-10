@@ -130,6 +130,52 @@ export interface CurrentTournamentResponse {
   current_tournament_id: number | null;
 }
 
+export interface OutboxWorkerStatus {
+  alive: boolean;
+  status: string;
+  heartbeat_at?: string | null;
+  last_success_at?: string | null;
+  last_error?: string | null;
+  circuit_open_until?: string | null;
+}
+
+export interface OutboxStatus {
+  total: number;
+  pending: number;
+  succeeded: number;
+  processing: number;
+  retry_wait: number;
+  dead_letter: number;
+  outstanding: number;
+  oldest_pending_at?: string | null;
+  worker: OutboxWorkerStatus;
+}
+
+export interface OutboxItem {
+  id: number;
+  tournament_id?: number | null;
+  tournament_name?: string | null;
+  match_id?: number | null;
+  status: string;
+  retry_count: number;
+  failure_kind?: string | null;
+  error?: string | null;
+  created_at: string;
+  updated_at: string;
+  last_attempt_at?: string | null;
+  next_attempt_at?: string | null;
+  lease_until?: string | null;
+  resolved_at?: string | null;
+  edge_id?: string | null;
+  external_tournament_id?: number | null;
+  event_id?: string | null;
+  seq?: number | null;
+  item_type?: string | null;
+  aggregate_id?: string | null;
+  aggregate_version?: number | null;
+  payload?: unknown;
+}
+
 export interface TatamisResponse {
   tatamis: number[];
 }

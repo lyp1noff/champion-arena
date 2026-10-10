@@ -85,9 +85,9 @@ Required:
 Recommended:
 
 - `LOG_LEVEL`
-- `PROCESSING_INTERVAL`
-- `HTTP_TIMEOUT`
-- `BATCH_SIZE`
+- `OUTBOX_POLL_INTERVAL_SECONDS`
+- `OUTBOX_HTTP_TIMEOUT_SECONDS`
+- `OUTBOX_LEASE_SECONDS`
 
 Optional:
 
@@ -151,4 +151,4 @@ Notes:
 - `arena/docker-compose.dev.yml` is only the local override layer
 - `tatami` compose now hardcodes internal DB host as `db` for `backend` and `outbox`
 - `EDGE_ID` must be different for each tatami node
-- `outbox` pushes to `EXTERNAL_API_URL/sync/upserts` through the `tatami` backend queue records
+- `outbox` runs `python -m src.outbox_worker` from the Tatami backend image and pushes queued records to `EXTERNAL_API_URL/sync/upserts`

@@ -188,16 +188,29 @@ class OutboxItem(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     tournament_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("tournaments.id"), nullable=True)
     match_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("matches.id"), nullable=True)
-    endpoint: Mapped[str] = mapped_column(String, nullable=False)
-    method: Mapped[str] = mapped_column(String, nullable=False)
     payload: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String, default="pending")
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
-    max_retries: Mapped[int] = mapped_column(Integer, default=10)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    failure_kind: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    next_attempt_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_attempt_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     tournament: Mapped[Optional["Tournament"]] = relationship("Tournament", back_populates="outbox_items")
     match: Mapped[Optional["Match"]] = relationship("Match", back_populates="outbox_items")
+
+
+class OutboxWorkerState(Base):
+    __tablename__ = "outbox_worker_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    heartbeat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    status: Mapped[str] = mapped_column(String(30), default="starting")
+    last_success_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    circuit_open_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class MatchState(Base, TimestampMixin):

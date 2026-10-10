@@ -14,40 +14,24 @@ The original event-driven rewrite is substantially complete:
 | `seq` downgraded to diagnostics | Implemented |
 | Inbox deduplication by `event_id` | Implemented |
 | Bracket-version conflict check | Implemented |
-| Legacy `/sync/commands` runtime route | Removed; stale tests still reference it |
-| Full outbox observability and recovery | Not implemented |
-| Safe concurrent/leased worker | Not implemented |
-| Automatic reconciliation | Not implemented |
-| Python replacement for the Go worker | Proposed |
+| Legacy `/sync/commands` runtime route | Removed |
+| Full outbox observability and recovery | Implemented for current upsert types |
+| Safe concurrent/leased worker | Implemented |
+| Operator-triggered reconciliation | Implemented for current upsert types |
+| Python replacement for the Go worker | Implemented |
 
-## Next milestone: make delivery semantics explicit
+## Delivery semantics
 
-Before replacing the worker, settle and test these rules against the contract:
+The worker now implements these rules:
 
 1. Classify failures as retryable transport failures or terminal application rejections.
-2. Expose terminal failures (`skipped`/future `dead_letter`) to operators.
-3. Define recovery for `version_conflict`, `aggregate_not_found`, and `apply_failed`.
-4. Decide whether a rejected `event_id` remains permanently deduplicated or can be explicitly replayed.
+2. Expose terminal failures as `dead_letter` records to operators.
+3. Recover terminal failures by creating a new event from current local aggregate state.
+4. Keep a rejected `event_id` permanently deduplicated and never use raw resend as reconciliation.
 5. Stop treating `last_applied_seq` as a successful-delivery barrier; it currently advances for rejected items.
-6. Define a reconciliation command that creates a new event from current local aggregate state.
+6. Provide a reconciliation command that creates a new event from current local aggregate state.
 7. Validate that each aggregate belongs to the envelope's `tournament_id` before applying it.
 8. Decide whether equal-version, different-content payloads are conflicts rather than valid overwrites.
-
-## Next milestone: replace the Go worker with Python
-
-The delivery worker should move into the Tatami backend codebase to remove duplicated models, configuration, and acknowledgement logic. It should still run as a dedicated process, not inside the FastAPI/Gunicorn web lifecycle.
-
-Recommended shape:
-
-- reuse `OutboxItem` and sync DTOs from the Python backend;
-- use a dedicated CLI/module entry point in the Tatami backend image;
-- claim work with `FOR UPDATE SKIP LOCKED` or an explicit lease;
-- recover expired `processing` leases after worker crashes;
-- add `next_attempt_at` and bounded exponential backoff;
-- use explicit terminal status such as `dead_letter` instead of an invisible `skipped` state;
-- process independent later items without head-of-line blocking;
-- preserve `event_id` across transport retries;
-- remove the Go image/service only after parallel contract verification.
 
 ## Contract hardening
 
@@ -68,8 +52,6 @@ Not implemented today:
 
 - `tournament.upsert` for full outward recovery;
 - `timetable.upsert`;
-- operator-triggered resend/reconciliation UI;
-- pending age, last successful delivery, and dead-letter metrics;
 - versioned sync contract negotiation;
 - safe multi-node conflict resolution.
 

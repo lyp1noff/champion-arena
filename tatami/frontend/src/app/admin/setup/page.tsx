@@ -22,7 +22,7 @@ import {
   setCurrentTournament,
   syncTournament,
 } from "@/lib/api";
-import { Tournament } from "@/lib/interfaces";
+import { OutboxStatus, Tournament } from "@/lib/interfaces";
 import { useI18n } from "@/lib/i18n";
 
 function mergeTournaments(local: Tournament[], external: Tournament[]): Tournament[] {
@@ -43,12 +43,7 @@ export default function SetupPage() {
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
   const [rebootstrapDialogOpen, setRebootstrapDialogOpen] = useState(false);
   const [rebootstrapStep, setRebootstrapStep] = useState<1 | 2>(1);
-  const [outboxStatus, setOutboxStatus] = useState<{
-    total: number;
-    pending: number;
-    failed: number;
-    succeeded: number;
-  } | null>(null);
+  const [outboxStatus, setOutboxStatus] = useState<OutboxStatus | null>(null);
 
   const getOperationStatus = (status: string) =>
     ["success", "error", "ok"].includes(status) ? t(`setup.status.${status}`) : status;
@@ -188,11 +183,11 @@ export default function SetupPage() {
                     <p className="text-sm text-green-700">{t("setup.succeeded")}</p>
                   </div>
                   <div className="p-4 bg-yellow-50 rounded-lg">
-                    <p className="text-2xl font-bold text-yellow-800">{outboxStatus.pending}</p>
+                    <p className="text-2xl font-bold text-yellow-800">{outboxStatus.outstanding}</p>
                     <p className="text-sm text-yellow-700">{t("setup.pending")}</p>
                   </div>
                   <div className="p-4 bg-red-50 rounded-lg">
-                    <p className="text-2xl font-bold text-red-800">{outboxStatus.failed}</p>
+                    <p className="text-2xl font-bold text-red-800">{outboxStatus.dead_letter}</p>
                     <p className="text-sm text-red-700">{t("setup.failed")}</p>
                   </div>
                 </div>
@@ -236,6 +231,9 @@ export default function SetupPage() {
               )}
               <Button asChild variant="outline" className="px-4">
                 <a href="/admin/brackets">{t("setup.openBrackets")}</a>
+              </Button>
+              <Button asChild variant="outline" className="px-4">
+                <a href="/admin/outbox">{t("setup.openSync")}</a>
               </Button>
             </div>
 

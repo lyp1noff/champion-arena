@@ -29,7 +29,7 @@ front-dev:
 
 # Outbox
 outbox-dev:
-	cd outbox && go run cmd/outbox-worker/main.go
+	cd backend && uv run python -m src.outbox_worker
 
 docker-dev:
 	$(MAKE) -C .. tatami
