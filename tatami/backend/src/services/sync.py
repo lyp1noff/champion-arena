@@ -419,8 +419,9 @@ async def sync_tournament(tournament_id: int, db: AsyncSession, force: bool = Fa
 async def rebootstrap_tournament(tournament_id: int, db: AsyncSession) -> dict[str, str]:
     try:
         removed = await reset_local_tournament_copy(tournament_id, db)
-        await db.commit()
-
+        # Keep deletion and import in one transaction. sync_tournament rolls
+        # the transaction back when Arena is unavailable or the snapshot is
+        # invalid, preserving the existing local tournament copy.
         result = await sync_tournament(tournament_id, db)
         if removed and result.get("status") == "success":
             result["message"] = f"Local tournament copy reset and re-bootstrapped. {result['message']}"
