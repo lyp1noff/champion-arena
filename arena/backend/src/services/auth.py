@@ -27,7 +27,7 @@ def verify_password(plain: str, hashed: str) -> Any:
 def create_token(username: str, role: str, expires_in: int) -> Any:
     expire = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
     return jwt.encode(
-        {"sub": username, "role": role, "exp": expire},
+        {"sub": username, "role": role, "type": "access", "exp": expire},
         JWT_SECRET,
         algorithm="HS256",
     )
@@ -36,7 +36,7 @@ def create_token(username: str, role: str, expires_in: int) -> Any:
 def create_refresh_token(username: str, expires_in: int) -> Any:
     expire = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
     return jwt.encode(
-        {"sub": username, "exp": expire},
+        {"sub": username, "type": "refresh", "exp": expire},
         JWT_SECRET,
         algorithm="HS256",
     )
@@ -48,6 +48,11 @@ async def authenticate_user(db: AsyncSession, username: str, password: str) -> U
     if not user or not verify_password(password, user.password_hash):
         return None
     return user
+
+
+async def get_user_by_username(db: AsyncSession, username: str) -> User | None:
+    result = await db.execute(select(User).where(User.username == username))
+    return result.scalar_one_or_none()
 
 
 async def create_default_user(db: AsyncSession) -> None:

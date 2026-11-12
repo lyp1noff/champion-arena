@@ -25,3 +25,18 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
+
+_INSECURE_SECRET_VALUES = {"", "secret", "service_token", "change-me", "change-me-to-a-long-random-value"}
+
+
+def validate_runtime_secrets() -> None:
+    """Refuse to start outside dev mode with default/example auth secrets."""
+    if DEV_MODE:
+        return
+    insecure = [
+        name
+        for name, value in (("JWT_SECRET", JWT_SECRET), ("SERVICE_TOKEN", SERVICE_TOKEN))
+        if value.strip() in _INSECURE_SECRET_VALUES
+    ]
+    if insecure:
+        raise RuntimeError(f"Insecure default value for {', '.join(insecure)}; set a long random value in the env")

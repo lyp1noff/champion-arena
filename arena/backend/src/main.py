@@ -6,13 +6,15 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from starlette.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
-from src.dependencies.auth import get_current_user
+from src.config import validate_runtime_secrets
+from src.dependencies.auth import get_current_user, require_admin
 from src.routers import routers
 from src.services.broadcast import broadcast
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    validate_runtime_secrets()
     await broadcast.connect()
     try:
         yield
@@ -39,9 +41,9 @@ async def protect_docs(
 
     if any(path.startswith(p) for p in protected_prefixes):
         try:
-            get_current_user(request)
-        except HTTPException:
-            return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+            require_admin(get_current_user(request))
+        except HTTPException as exc:
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
     return await call_next(request)
 

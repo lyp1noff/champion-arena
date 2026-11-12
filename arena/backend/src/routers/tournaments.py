@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, Upload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
-from src.dependencies.auth import get_current_user
+from src.dependencies.auth import require_admin
 from src.routers.brackets import regenerate_matches_endpoint
 from src.schemas import (
     ApplicationCreate,
@@ -74,7 +74,7 @@ async def get_tournament(id: int, db: AsyncSession = Depends(get_db)) -> Tournam
 @router.get(
     "/{tournament_id}/bootstrap-snapshot",
     response_model=TournamentBootstrapSnapshot,
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_admin)],
 )
 async def get_tournament_bootstrap_snapshot(
     tournament_id: int,
@@ -83,13 +83,13 @@ async def get_tournament_bootstrap_snapshot(
     return await get_tournament_bootstrap_snapshot_service(db, tournament_id)
 
 
-@router.post("", response_model=TournamentResponse, dependencies=[Depends(get_current_user)])
+@router.post("", response_model=TournamentResponse, dependencies=[Depends(require_admin)])
 async def create_tournament(tournament: TournamentCreate, db: AsyncSession = Depends(get_db)) -> TournamentResponse:
     new_tournament = await create_tournament_service(db, tournament)
     return TournamentResponse.model_validate(new_tournament)
 
 
-@router.put("/{id}", response_model=TournamentResponse, dependencies=[Depends(get_current_user)])
+@router.put("/{id}", response_model=TournamentResponse, dependencies=[Depends(require_admin)])
 async def update_tournament(
     id: int, tournament_update: TournamentUpdate, db: AsyncSession = Depends(get_db)
 ) -> TournamentResponse:
@@ -97,7 +97,7 @@ async def update_tournament(
     return TournamentResponse.model_validate(tournament)
 
 
-@router.delete("/{id}", dependencies=[Depends(get_current_user)], status_code=204)
+@router.delete("/{id}", dependencies=[Depends(require_admin)], status_code=204)
 async def delete_tournament(id: int, db: AsyncSession = Depends(get_db)) -> None:
     await delete_tournament_service(db, id)
 
@@ -123,7 +123,7 @@ async def get_participant_count_per_coach(
 @router.get(
     "/{tournament_id}/matches_full",
     response_model=list[BracketMatchesFull],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_admin)],
 )
 async def get_matches_for_tournament_full(
     tournament_id: int, db: AsyncSession = Depends(get_db)
@@ -132,13 +132,13 @@ async def get_matches_for_tournament_full(
     return [BracketMatchesFull.model_validate(bracket) for bracket in brackets]
 
 
-@router.post("/{tournament_id}/regenerate", dependencies=[Depends(get_current_user)])
+@router.post("/{tournament_id}/regenerate", dependencies=[Depends(require_admin)])
 async def regenerate_tournament(tournament_id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     await regenerate_tournament_service(db, tournament_id)
     return {"status": "ok"}
 
 
-@router.get("/{tournament_id}/export_file", dependencies=[Depends(get_current_user)])
+@router.get("/{tournament_id}/export_file", dependencies=[Depends(require_admin)])
 async def generate_brackets_export_file(
     tournament_id: int,
     mode: Literal["filled", "manual"] = Query("filled"),
@@ -147,7 +147,7 @@ async def generate_brackets_export_file(
     return await generate_brackets_export_file_service(db, tournament_id, mode)
 
 
-@router.post("/{tournament_id}/import", dependencies=[Depends(get_current_user)])
+@router.post("/{tournament_id}/import", dependencies=[Depends(require_admin)])
 async def import_competitors(
     tournament_id: int,
     file: UploadFile = File(...),
@@ -171,7 +171,7 @@ async def get_timetable(
 
 @router.put(
     "/{tournament_id}/timetable/replace",
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_admin)],
     response_model=list[TimetableEntryResponse],
 )
 async def replace_timetable(
@@ -189,7 +189,7 @@ async def get_tournament_status(id: int, db: AsyncSession = Depends(get_db)) -> 
     return {"status": tournament.status}
 
 
-@router.patch("/{id}/status", dependencies=[Depends(get_current_user)])
+@router.patch("/{id}/status", dependencies=[Depends(require_admin)])
 async def update_tournament_status(
     id: int,
     status: str = Body(..., embed=True),
@@ -199,13 +199,17 @@ async def update_tournament_status(
     return TournamentResponse.model_validate(tournament)
 
 
-@router.post("/{id}/start", dependencies=[Depends(get_current_user)])
+@router.post("/{id}/start", dependencies=[Depends(require_admin)])
 async def start_tournament(id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     await start_tournament_service(db, id)
     return {"status": "ok"}
 
 
-@router.get("/{tournament_id}/applications", response_model=list[ApplicationResponse])
+@router.get(
+    "/{tournament_id}/applications",
+    response_model=list[ApplicationResponse],
+    dependencies=[Depends(require_admin)],
+)
 async def get_applications(
     tournament_id: int,
     db: AsyncSession = Depends(get_db),
@@ -214,7 +218,7 @@ async def get_applications(
     return [ApplicationResponse.model_validate(app) for app in applications]
 
 
-@router.post("/{tournament_id}/applications")
+@router.post("/{tournament_id}/applications", dependencies=[Depends(require_admin)])
 async def submit_application(
     tournament_id: int,
     data: ApplicationCreate,
@@ -226,7 +230,7 @@ async def submit_application(
 
 @router.post(
     "/{tournament_id}/applications/{application_id}/approve",
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_admin)],
 )
 async def add_participant_from_application(
     tournament_id: int,
@@ -240,7 +244,7 @@ async def add_participant_from_application(
 
 @router.post(
     "/{tournament_id}/applications/approve-all",
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_admin)],
 )
 async def approve_all_applications(
     tournament_id: int,
@@ -254,7 +258,7 @@ async def approve_all_applications(
     return {"status": "ok", "approved": approved_count}
 
 
-@router.delete("/participants/{participant_id}", dependencies=[Depends(get_current_user)])
+@router.delete("/participants/{participant_id}", dependencies=[Depends(require_admin)])
 async def remove_competitor(
     participant_id: int,
     db: AsyncSession = Depends(get_db),

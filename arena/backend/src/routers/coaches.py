@@ -3,11 +3,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
-from src.dependencies.auth import get_current_user
+from src.dependencies.auth import require_admin
 from src.models import AthleteCoachLink, Coach
 from src.schemas import CoachCreate, CoachResponse, CoachUpdate
 
-router = APIRouter(prefix="/coaches", tags=["Coaches"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/coaches", tags=["Coaches"], dependencies=[Depends(require_admin)])
 
 
 def _coach_response(coach: Coach, athlete_count: int = 0) -> CoachResponse:

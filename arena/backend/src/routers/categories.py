@@ -3,11 +3,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
-from src.dependencies.auth import get_current_user
+from src.dependencies.auth import require_admin
 from src.models import Category
 from src.schemas import CategoryCreate, CategoryResponse
 
-router = APIRouter(prefix="/categories", tags=["Categories"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/categories", tags=["Categories"], dependencies=[Depends(require_admin)])
 
 
 @router.get("", response_model=list[CategoryResponse])

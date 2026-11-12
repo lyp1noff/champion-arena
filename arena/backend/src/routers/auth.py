@@ -5,8 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import DEV_MODE, JWT_SECRET
 from src.database import get_db
+from src.dependencies.auth import REFRESH_TOKEN_TYPE
 from src.schemas import LoginRequest, TokenResponse
-from src.services.auth import authenticate_user, create_refresh_token, create_token
+from src.services.auth import authenticate_user, create_refresh_token, create_token, get_user_by_username
 
 ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 30  # 30 minutes
 REFRESH_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 7  # 7 days
@@ -67,19 +68,21 @@ async def login(
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(request: Request) -> Response:
+async def refresh_token(request: Request, db: AsyncSession = Depends(get_db)) -> Response:
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token provided")
     try:
         payload = jwt.decode(refresh_token, JWT_SECRET, algorithms=["HS256"])
         username = payload.get("sub")
-        if not username:
+        if not username or payload.get("type") != REFRESH_TOKEN_TYPE:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
-        # Optionally: fetch user and role from DB
-        access_token = create_token(
-            username, "admin", ACCESS_TOKEN_EXPIRE_SECONDS
-        )  # Replace with actual role lookup if needed
+        # The role must come from the database, never from the token or a default:
+        # otherwise any account would become admin on refresh.
+        user = await get_user_by_username(db, username)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        access_token = create_token(user.username, user.role, ACCESS_TOKEN_EXPIRE_SECONDS)
 
         response = JSONResponse(
             # content={"access_token": access_token, "refresh_token": refresh_token}

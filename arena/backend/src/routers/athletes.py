@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.database import get_db
-from src.dependencies.auth import get_current_user
+from src.dependencies.auth import require_admin
 from src.models import Athlete, AthleteCoachLink, Coach
 from src.schemas import (
     AthleteCreate,
@@ -13,7 +13,7 @@ from src.schemas import (
     PaginatedAthletesResponse,
 )
 
-router = APIRouter(prefix="/athletes", tags=["Athletes"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/athletes", tags=["Athletes"], dependencies=[Depends(require_admin)])
 
 
 @router.get("", response_model=PaginatedAthletesResponse)

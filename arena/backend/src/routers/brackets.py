@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from src.database import get_db
-from src.dependencies.auth import get_current_user
+from src.dependencies.auth import require_admin
 from src.logger import logger
 from src.models import Bracket, BracketType
 from src.schemas import (
@@ -45,7 +45,7 @@ async def get_bracket(bracket_id: int, db: AsyncSession = Depends(get_db)) -> Br
     return BracketResponse.model_validate(bracket)
 
 
-@router.put("/{bracket_id}", dependencies=[Depends(get_current_user)])
+@router.put("/{bracket_id}", dependencies=[Depends(require_admin)])
 async def update_bracket(
     bracket_id: int,
     update_data: BracketUpdateSchema,
@@ -65,7 +65,7 @@ async def get_bracket_matches(bracket_id: int, db: AsyncSession = Depends(get_db
     return [BracketMatchResponse.model_validate(match) for match in matches]
 
 
-@router.post("/{bracket_id}/regenerate", dependencies=[Depends(get_current_user)])
+@router.post("/{bracket_id}/regenerate", dependencies=[Depends(require_admin)])
 async def regenerate_matches_endpoint(
     bracket_id: int,
     db: AsyncSession = Depends(get_db),
@@ -90,7 +90,7 @@ async def regenerate_matches_endpoint(
         raise HTTPException(status_code=500, detail=f"Failed to regenerate: {str(e)}")
 
 
-@router.post("/participants/move", dependencies=[Depends(get_current_user)])
+@router.post("/participants/move", dependencies=[Depends(require_admin)])
 async def move_participant(
     move_data: ParticipantMoveSchema,
     db: AsyncSession = Depends(get_db),
@@ -104,7 +104,7 @@ async def move_participant(
     return {"status": "ok"}
 
 
-@router.post("/participants/reorder", dependencies=[Depends(get_current_user)])
+@router.post("/participants/reorder", dependencies=[Depends(require_admin)])
 async def reorder_participants(
     reorder_data: ParticipantReorderSchema,
     db: AsyncSession = Depends(get_db),
@@ -113,7 +113,7 @@ async def reorder_participants(
     return {"status": "ok"}
 
 
-@router.post("/create", dependencies=[Depends(get_current_user)])
+@router.post("/create", dependencies=[Depends(require_admin)])
 async def create_bracket(
     bracket_data: BracketCreateSchema,
     db: AsyncSession = Depends(get_db),
@@ -122,7 +122,7 @@ async def create_bracket(
     return BracketResponse.model_validate(bracket_full)
 
 
-@router.post("/{bracket_id}/delete", dependencies=[Depends(get_current_user)])
+@router.post("/{bracket_id}/delete", dependencies=[Depends(require_admin)])
 async def delete_bracket(
     bracket_id: int,
     data: BracketDeleteRequest,
@@ -144,7 +144,7 @@ async def get_bracket_status(id: int, db: AsyncSession = Depends(get_db)) -> dic
     return {"status": bracket.status}
 
 
-@router.post("/{id}/start", dependencies=[Depends(get_current_user)])
+@router.post("/{id}/start", dependencies=[Depends(require_admin)])
 async def start_bracket(id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     await start_bracket_service(db, id)
     return {"status": "ok"}

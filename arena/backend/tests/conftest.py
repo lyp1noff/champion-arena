@@ -67,3 +67,17 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield async_client
 
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def anon_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """Client with real authentication (no get_current_user override)."""
+
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as async_client:
+        yield async_client
+    app.dependency_overrides.clear()

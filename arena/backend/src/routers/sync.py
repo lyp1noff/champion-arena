@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
-from src.dependencies.auth import get_current_user
+from src.dependencies.auth import require_admin
 from src.schemas import SyncStatusResponse, SyncUpsertsRequest, SyncUpsertsResponse
 from src.services.sync import apply_upserts as apply_upserts_service
 from src.services.sync import get_status as get_status_service
 
-router = APIRouter(prefix="/sync", tags=["Sync"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/sync", tags=["Sync"], dependencies=[Depends(require_admin)])
 
 
 @router.post("/upserts", response_model=SyncUpsertsResponse)
