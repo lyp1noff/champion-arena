@@ -351,11 +351,21 @@ class TimetableReplace(BaseModel):
     entries: list[TimetableEntryCreate]
 
 
+class BootstrapAthlete(BaseModel):
+    """Minimal athlete roster entry Tatami needs to pick athletes while offline."""
+
+    id: int
+    first_name: str
+    last_name: str
+    coaches_last_name: list[str] = Field(default_factory=list)
+
+
 class TournamentBootstrapSnapshot(OrmResponseModel):
     tournament: TournamentResponse
     brackets: list[BracketResponse]
     bracket_matches: list[BracketMatchesFull]
     timetable_entries: list[TimetableEntryResponse]
+    athletes: list[BootstrapAthlete] = Field(default_factory=list)
 
 
 class CategoryCreateSchema(BaseModel):

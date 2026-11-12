@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import httpx
 from fastapi import HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, select
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,9 @@ from src.config import EXTERNAL_API_TOKEN, EXTERNAL_API_URL
 from src.logger import logger
 from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, OutboxItem, TimetableEntry, Tournament
 from src.utils import parse_datetime_utc
+
+# Snapshots now carry the full athlete roster; allow more than httpx's 5s default.
+ARENA_HTTP_TIMEOUT_SECONDS = 30.0
 
 
 def _parse_time_value(raw: str | None) -> Optional[time]:
@@ -225,27 +228,122 @@ async def reset_local_tournament_copy(tournament_id: int, db: AsyncSession) -> b
 
     await db.execute(delete(OutboxItem).where(OutboxItem.tournament_id == tournament.id))
     await db.execute(delete(Match).where(~Match.bracket_matches.any()))
-    await db.execute(
-        delete(Athlete).where(
-            ~Athlete.bracket_participations.any(),
-            ~Athlete.matches_as_athlete1.any(),
-            ~Athlete.matches_as_athlete2.any(),
-        )
-    )
 
     await db.delete(tournament)
     await db.flush()
 
+    # Athletes are a global roster shared by all local tournaments; they are
+    # pruned by sync_athlete_roster, not here.
     await db.execute(delete(Match).where(~Match.bracket_matches.any()))
-    await db.execute(
-        delete(Athlete).where(
-            ~Athlete.bracket_participations.any(),
-            ~Athlete.matches_as_athlete1.any(),
-            ~Athlete.matches_as_athlete2.any(),
-        )
-    )
     await db.flush()
     return True
+
+
+def _unreferenced_athlete_filter() -> Any:
+    return and_(
+        ~Athlete.bracket_participations.any(),
+        ~Athlete.matches_as_athlete1.any(),
+        ~Athlete.matches_as_athlete2.any(),
+        ~select(Match.id).where(Match.winner_id == Athlete.id).exists(),
+    )
+
+
+async def sync_athlete_roster(db: AsyncSession, roster: list[dict[str, Any]]) -> dict[str, int]:
+    """Mirror Arena's athlete roster locally.
+
+    Local athlete PKs are referenced by participants and matches, so this is an
+    upsert by external_id rather than a truncate. Athletes absent from Arena are
+    removed only when nothing local references them.
+    """
+    incoming: dict[int, dict[str, Any]] = {}
+    for item in roster:
+        if isinstance(item, dict) and isinstance(item.get("id"), int):
+            incoming[item["id"]] = item
+
+    existing_result = await db.execute(select(Athlete))
+    existing_by_external_id = {athlete.external_id: athlete for athlete in existing_result.scalars().all()}
+
+    created = 0
+    updated = 0
+    for external_id, item in incoming.items():
+        coaches = item.get("coaches_last_name")
+        if isinstance(coaches, list):
+            coaches_last_name = ", ".join(str(coach) for coach in coaches)
+        else:
+            coaches_last_name = str(coaches or "")
+
+        athlete = existing_by_external_id.get(external_id)
+        if athlete is None:
+            db.add(
+                Athlete(
+                    external_id=external_id,
+                    first_name=item.get("first_name") or "",
+                    last_name=item.get("last_name") or "",
+                    coaches_last_name=coaches_last_name,
+                )
+            )
+            created += 1
+        else:
+            athlete.first_name = item.get("first_name") or athlete.first_name
+            athlete.last_name = item.get("last_name") or athlete.last_name
+            athlete.coaches_last_name = coaches_last_name
+            updated += 1
+    await db.flush()
+
+    removed = 0
+    # An empty roster is treated as suspicious rather than "delete everyone".
+    if incoming:
+        delete_result = await db.execute(
+            delete(Athlete)
+            .where(Athlete.external_id.not_in(list(incoming.keys())))
+            .where(_unreferenced_athlete_filter())
+            .execution_options(synchronize_session=False)
+        )
+        removed = int(getattr(delete_result, "rowcount", 0) or 0)
+        await db.flush()
+    return {"created": created, "updated": updated, "removed": removed}
+
+
+def _arena_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {EXTERNAL_API_TOKEN}"} if EXTERNAL_API_TOKEN else {}
+
+
+async def _fetch_arena_json(path: str) -> Any:
+    async with httpx.AsyncClient(timeout=ARENA_HTTP_TIMEOUT_SECONDS) as client:
+        response = await client.get(f"{EXTERNAL_API_URL.rstrip('/')}{path}", headers=_arena_headers())
+        response.raise_for_status()
+        return response.json()
+
+
+async def fetch_bootstrap_snapshot(tournament_id: int) -> dict[str, Any]:
+    snapshot = await _fetch_arena_json(f"/tournaments/{tournament_id}/bootstrap-snapshot")
+    if not isinstance(snapshot, dict) or not isinstance(snapshot.get("tournament"), dict):
+        raise ValueError("Arena returned an invalid bootstrap snapshot")
+    return snapshot
+
+
+async def refresh_athlete_roster(db: AsyncSession) -> dict[str, str]:
+    """Refresh only the athlete roster from Arena; never touches tournament state."""
+    try:
+        roster = await _fetch_arena_json("/athletes/all")
+        if not isinstance(roster, list):
+            raise ValueError("Arena returned an invalid athlete list")
+    except Exception as e:
+        logger.warning("Athlete roster refresh skipped, Arena unavailable: %s", e)
+        return {"status": "error", "message": f"Arena unavailable: {e}"}
+
+    try:
+        counts = await sync_athlete_roster(db, roster)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.error("Athlete roster refresh failed: %s", e)
+        return {"status": "error", "message": f"Athlete roster refresh failed: {e}"}
+
+    return {
+        "status": "success",
+        "message": f"created={counts['created']}, updated={counts['updated']}, removed={counts['removed']}",
+    }
 
 
 async def sync_tournament(tournament_id: int, db: AsyncSession, force: bool = False) -> dict[str, str]:
@@ -268,165 +366,181 @@ async def sync_tournament(tournament_id: int, db: AsyncSession, force: bool = Fa
         logger.warning("Ignoring deprecated force sync flag for tournament external_id=%s", tournament_id)
 
     try:
-        headers = {"Authorization": f"Bearer {EXTERNAL_API_TOKEN}"} if EXTERNAL_API_TOKEN else {}
-        async with httpx.AsyncClient() as client:
-            snapshot_resp = await client.get(
-                f"{EXTERNAL_API_URL}/tournaments/{tournament_id}/bootstrap-snapshot",
-                headers=headers,
-            )
-            snapshot_resp.raise_for_status()
-            snapshot = snapshot_resp.json()
+        snapshot = await fetch_bootstrap_snapshot(tournament_id)
+    except Exception as e:
+        logger.error("Bootstrap snapshot fetch failed: %s", e)
+        return {"status": "error", "message": f"Sync failed: {str(e)}"}
 
-        tournament = snapshot["tournament"]
-        brackets_with_matches = snapshot.get("bracket_matches", [])
-        brackets_full = snapshot.get("brackets", [])
-        timetable_entries = snapshot.get("timetable_entries", [])
-
-        participants_by_bracket_external_id: dict[int, list[dict[str, Any]]] = {
-            int(item["id"]): item.get("participants", [])
-            for item in brackets_full
-            if isinstance(item, dict) and item.get("id") is not None
-        }
-
-        tournament_query = select(Tournament).where(Tournament.external_id == tournament["id"])
-        result: Result[tuple[Tournament]] = await db.execute(tournament_query)
-        obj: Optional[Tournament] = result.scalar_one_or_none()
-
-        start_dt = parse_datetime_utc(tournament["start_date"])
-        end_dt = parse_datetime_utc(tournament["end_date"])
-
-        if obj:
-            obj.name = tournament["name"]
-            obj.location = tournament["location"]
-            obj.start_date = start_dt.date() if start_dt else None
-            obj.end_date = end_dt.date() if end_dt else None
-            obj.status = tournament["status"]
-        else:
-            obj = Tournament(
-                external_id=tournament["id"],
-                name=tournament["name"],
-                location=tournament["location"],
-                start_date=start_dt.date() if start_dt else None,
-                end_date=end_dt.date() if end_dt else None,
-                status=tournament["status"],
-            )
-            db.add(obj)
-        await db.flush()
-
-        updated_brackets = 0
-        created_brackets = 0
-        for b in brackets_with_matches:
-            bracket_query = select(Bracket).where(Bracket.external_id == b["bracket_id"])
-            bracket_result = await db.execute(bracket_query)
-            bracket_obj = bracket_result.scalar_one_or_none()
-
-            remote_status = b["status"]
-            remote_version = int(b.get("version") or 1)
-
-            if bracket_obj is None:
-                bracket_obj = Bracket(
-                    external_id=b["bracket_id"],
-                    tournament_id=obj.id,
-                    category=b["category"],
-                    type=b["type"],
-                    group_id=b.get("group_id") or 1,
-                    status=remote_status,
-                    version=remote_version,
-                    display_name=b.get("display_name") or b["category"],
-                )
-                db.add(bracket_obj)
-                await db.flush()
-                created_brackets += 1
-            else:
-                bracket_obj.tournament_id = obj.id
-                bracket_obj.category = b["category"]
-                bracket_obj.type = b["type"]
-                bracket_obj.group_id = b.get("group_id") or 1
-                bracket_obj.status = remote_status
-                bracket_obj.version = remote_version
-                bracket_obj.display_name = b.get("display_name") or b["category"]
-                updated_brackets += 1
-
-            incoming_bm_external_ids: set[str] = set()
-            for bm in b["matches"]:
-                incoming_bm_external_ids.add(bm["id"])
-                match_data = dict(bm["match"])
-                if "round_type" not in match_data:
-                    match_data["round_type"] = bm.get("round_type")
-                if "stage" not in match_data:
-                    match_data["stage"] = bm.get("stage")
-                if "repechage_side" not in match_data:
-                    match_data["repechage_side"] = bm.get("repechage_side")
-                if "repechage_step" not in match_data:
-                    match_data["repechage_step"] = bm.get("repechage_step")
-
-                athlete1 = await _upsert_athlete_from_payload(db, match_data.get("athlete1"))
-                athlete2 = await _upsert_athlete_from_payload(db, match_data.get("athlete2"))
-
-                match = await _upsert_match(db, match_data, athlete1, athlete2)
-
-                bm_query = select(BracketMatch).where(BracketMatch.external_id == bm["id"])
-                bm_result = await db.execute(bm_query)
-                bm_obj = bm_result.scalar_one_or_none()
-
-                if bm_obj:
-                    bm_obj.bracket_id = bracket_obj.id
-                    bm_obj.match_id = match.id
-                    bm_obj.round_number = bm["round_number"]
-                    bm_obj.position = bm["position"]
-                    bm_obj.next_slot = bm.get("next_slot")
-                else:
-                    db.add(
-                        BracketMatch(
-                            external_id=bm["id"],
-                            bracket_id=bracket_obj.id,
-                            match_id=match.id,
-                            round_number=bm["round_number"],
-                            position=bm["position"],
-                            next_slot=bm.get("next_slot"),
-                        )
-                    )
-
-            remote_participants = participants_by_bracket_external_id.get(int(b["bracket_id"]), [])
-            await _sync_bracket_participants(db, bracket_obj, remote_participants)
-
-            existing_bm_result = await db.execute(select(BracketMatch).where(BracketMatch.bracket_id == bracket_obj.id))
-            for existing_bm in existing_bm_result.scalars().all():
-                if existing_bm.external_id not in incoming_bm_external_ids:
-                    await db.delete(existing_bm)
-
-        synced_timetable_entries = await _sync_timetable_entries(db, obj, timetable_entries)
-
-        orphan_matches = await db.execute(select(Match).where(~Match.bracket_matches.any()))
-        for orphan in orphan_matches.scalars().all():
-            await db.delete(orphan)
-
+    try:
+        message = await _import_bootstrap_snapshot(tournament_id, snapshot, db)
         await db.commit()
-        return {
-            "status": "success",
-            "message": (
-                f"Tournament {tournament_id} synced: created_brackets={created_brackets}, "
-                f"updated_brackets={updated_brackets}, synced_timetable_entries={synced_timetable_entries}"
-            ),
-        }
-
+        return {"status": "success", "message": message}
     except Exception as e:
         await db.rollback()
         logger.error(f"Sync failed: {e}")
         return {"status": "error", "message": f"Sync failed: {str(e)}"}
 
 
+async def _import_bootstrap_snapshot(tournament_id: int, snapshot: dict[str, Any], db: AsyncSession) -> str:
+    """Apply a fetched snapshot inside the caller's transaction; does not commit."""
+    tournament = snapshot["tournament"]
+    brackets_with_matches = snapshot.get("bracket_matches", [])
+    brackets_full = snapshot.get("brackets", [])
+    timetable_entries = snapshot.get("timetable_entries", [])
+
+    participants_by_bracket_external_id: dict[int, list[dict[str, Any]]] = {
+        int(item["id"]): item.get("participants", [])
+        for item in brackets_full
+        if isinstance(item, dict) and item.get("id") is not None
+    }
+
+    tournament_query = select(Tournament).where(Tournament.external_id == tournament["id"])
+    result: Result[tuple[Tournament]] = await db.execute(tournament_query)
+    obj: Optional[Tournament] = result.scalar_one_or_none()
+
+    start_dt = parse_datetime_utc(tournament["start_date"])
+    end_dt = parse_datetime_utc(tournament["end_date"])
+
+    if obj:
+        obj.name = tournament["name"]
+        obj.location = tournament["location"]
+        obj.start_date = start_dt.date() if start_dt else None
+        obj.end_date = end_dt.date() if end_dt else None
+        obj.status = tournament["status"]
+    else:
+        obj = Tournament(
+            external_id=tournament["id"],
+            name=tournament["name"],
+            location=tournament["location"],
+            start_date=start_dt.date() if start_dt else None,
+            end_date=end_dt.date() if end_dt else None,
+            status=tournament["status"],
+        )
+        db.add(obj)
+    await db.flush()
+
+    updated_brackets = 0
+    created_brackets = 0
+    for b in brackets_with_matches:
+        bracket_query = select(Bracket).where(Bracket.external_id == b["bracket_id"])
+        bracket_result = await db.execute(bracket_query)
+        bracket_obj = bracket_result.scalar_one_or_none()
+
+        remote_status = b["status"]
+        remote_version = int(b.get("version") or 1)
+
+        if bracket_obj is None:
+            bracket_obj = Bracket(
+                external_id=b["bracket_id"],
+                tournament_id=obj.id,
+                category=b["category"],
+                type=b["type"],
+                group_id=b.get("group_id") or 1,
+                status=remote_status,
+                version=remote_version,
+                display_name=b.get("display_name") or b["category"],
+            )
+            db.add(bracket_obj)
+            await db.flush()
+            created_brackets += 1
+        else:
+            bracket_obj.tournament_id = obj.id
+            bracket_obj.category = b["category"]
+            bracket_obj.type = b["type"]
+            bracket_obj.group_id = b.get("group_id") or 1
+            bracket_obj.status = remote_status
+            bracket_obj.version = remote_version
+            bracket_obj.display_name = b.get("display_name") or b["category"]
+            updated_brackets += 1
+
+        incoming_bm_external_ids: set[str] = set()
+        for bm in b["matches"]:
+            incoming_bm_external_ids.add(bm["id"])
+            match_data = dict(bm["match"])
+            if "round_type" not in match_data:
+                match_data["round_type"] = bm.get("round_type")
+            if "stage" not in match_data:
+                match_data["stage"] = bm.get("stage")
+            if "repechage_side" not in match_data:
+                match_data["repechage_side"] = bm.get("repechage_side")
+            if "repechage_step" not in match_data:
+                match_data["repechage_step"] = bm.get("repechage_step")
+
+            athlete1 = await _upsert_athlete_from_payload(db, match_data.get("athlete1"))
+            athlete2 = await _upsert_athlete_from_payload(db, match_data.get("athlete2"))
+
+            match = await _upsert_match(db, match_data, athlete1, athlete2)
+
+            bm_query = select(BracketMatch).where(BracketMatch.external_id == bm["id"])
+            bm_result = await db.execute(bm_query)
+            bm_obj = bm_result.scalar_one_or_none()
+
+            if bm_obj:
+                bm_obj.bracket_id = bracket_obj.id
+                bm_obj.match_id = match.id
+                bm_obj.round_number = bm["round_number"]
+                bm_obj.position = bm["position"]
+                bm_obj.next_slot = bm.get("next_slot")
+            else:
+                db.add(
+                    BracketMatch(
+                        external_id=bm["id"],
+                        bracket_id=bracket_obj.id,
+                        match_id=match.id,
+                        round_number=bm["round_number"],
+                        position=bm["position"],
+                        next_slot=bm.get("next_slot"),
+                    )
+                )
+
+        remote_participants = participants_by_bracket_external_id.get(int(b["bracket_id"]), [])
+        await _sync_bracket_participants(db, bracket_obj, remote_participants)
+
+        existing_bm_result = await db.execute(select(BracketMatch).where(BracketMatch.bracket_id == bracket_obj.id))
+        for existing_bm in existing_bm_result.scalars().all():
+            if existing_bm.external_id not in incoming_bm_external_ids:
+                await db.delete(existing_bm)
+
+    synced_timetable_entries = await _sync_timetable_entries(db, obj, timetable_entries)
+
+    orphan_matches = await db.execute(select(Match).where(~Match.bracket_matches.any()))
+    for orphan in orphan_matches.scalars().all():
+        await db.delete(orphan)
+    await db.flush()
+
+    roster_message = "athlete roster not included"
+    roster = snapshot.get("athletes")
+    if isinstance(roster, list):
+        counts = await sync_athlete_roster(db, roster)
+        roster_message = (
+            f"athletes created={counts['created']}, updated={counts['updated']}, removed={counts['removed']}"
+        )
+
+    return (
+        f"Tournament {tournament_id} synced: created_brackets={created_brackets}, "
+        f"updated_brackets={updated_brackets}, synced_timetable_entries={synced_timetable_entries}, "
+        f"{roster_message}"
+    )
+
+
 async def rebootstrap_tournament(tournament_id: int, db: AsyncSession) -> dict[str, str]:
+    # Fetch first: if Arena is unreachable the local copy (and its unsent outbox)
+    # must stay untouched.
+    try:
+        snapshot = await fetch_bootstrap_snapshot(tournament_id)
+    except Exception as e:
+        logger.error("Rebootstrap aborted, snapshot fetch failed: %s", e)
+        return {"status": "error", "message": f"Rebootstrap failed, local data unchanged: {str(e)}"}
+
     try:
         removed = await reset_local_tournament_copy(tournament_id, db)
-        # Keep deletion and import in one transaction. sync_tournament rolls
-        # the transaction back when Arena is unavailable or the snapshot is
-        # invalid, preserving the existing local tournament copy.
-        result = await sync_tournament(tournament_id, db)
-        if removed and result.get("status") == "success":
-            result["message"] = f"Local tournament copy reset and re-bootstrapped. {result['message']}"
-        return result
+        message = await _import_bootstrap_snapshot(tournament_id, snapshot, db)
+        await db.commit()
     except Exception as e:
         await db.rollback()
         logger.error("Rebootstrap failed: %s", e)
-        return {"status": "error", "message": f"Rebootstrap failed: {str(e)}"}
+        return {"status": "error", "message": f"Rebootstrap failed, local data unchanged: {str(e)}"}
+
+    if removed:
+        message = f"Local tournament copy reset and re-bootstrapped. {message}"
+    return {"status": "success", "message": message}

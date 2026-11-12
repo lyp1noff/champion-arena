@@ -14,22 +14,13 @@ import {
   getBracketParticipants,
   getBrackets,
   getCurrentTournament,
-  getExternalAthletes,
-  getLocalAthletes,
+  getAthletes,
   getMatches,
   moveBracketParticipant,
   updateBracketParticipantSeed,
 } from "@/lib/api";
 import { Athlete, Bracket, BracketMatch, BracketParticipant } from "@/lib/interfaces";
 import { useI18n } from "@/lib/i18n";
-
-function mergeAthletes(local: Athlete[], external: Athlete[]): Athlete[] {
-  const byExternalId = new Map(local.map((athlete) => [athlete.external_id ?? athlete.id, athlete]));
-  for (const athlete of external) {
-    byExternalId.set(athlete.external_id ?? athlete.id, athlete);
-  }
-  return Array.from(byExternalId.values());
-}
 
 export function BracketAdmin() {
   const { t } = useI18n();
@@ -83,26 +74,25 @@ export function BracketAdmin() {
     const bootstrapPage = async () => {
       try {
         setLoading(true);
-        const currentTournament = await getCurrentTournament();
+        const [currentTournament, athleteData] = await Promise.all([
+          getCurrentTournament(),
+          getAthletes().catch((error) => {
+            // The athlete picker is optional; bracket management must still load.
+            console.error("Error fetching athletes:", error);
+            return [];
+          }),
+        ]);
+        setExternalAthletes(athleteData);
         setSelectedTournament(currentTournament.current_tournament_id);
 
         if (currentTournament.current_tournament_id) {
-          const localAthletes = getLocalAthletes()
-            .then((athletes) => setExternalAthletes(athletes))
-            .catch((error) => console.error("Error fetching local athletes:", error));
-          await Promise.all([fetchBrackets(currentTournament.current_tournament_id), localAthletes]);
+          await fetchBrackets(currentTournament.current_tournament_id);
         }
       } catch (error) {
         console.error("Error bootstrapping bracket admin:", error);
       } finally {
         setLoading(false);
       }
-
-      // Arena enriches the picker when online, but local bracket management
-      // must remain available when the upstream API cannot be reached.
-      getExternalAthletes()
-        .then((athletes) => setExternalAthletes((local) => mergeAthletes(local, athletes)))
-        .catch((error) => console.info("Arena is unavailable; using local athletes only", error));
     };
 
     bootstrapPage();

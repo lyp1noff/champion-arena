@@ -116,27 +116,21 @@ export async function getLocalTournaments(): Promise<Tournament[]> {
   }));
 }
 
-export async function getExternalAthletes(): Promise<Athlete[]> {
-  const response = await fetch(`${BACKEND_URL}/external/athletes`);
+// Local roster mirrored from Arena on bootstrap; works without internet.
+export async function getAthletes(): Promise<Athlete[]> {
+  const response = await fetch(`${BACKEND_URL}/athletes`);
   if (!response.ok) {
     throw new Error("Failed to fetch athletes");
   }
   return response.json();
 }
 
-export async function getLocalAthletes(): Promise<Athlete[]> {
-  const response = await fetch(`${BACKEND_URL}/athletes`);
+export async function refreshAthletes(): Promise<SyncTournamentResponse> {
+  const response = await fetch(`${BACKEND_URL}/athletes/refresh`, { method: "POST" });
   if (!response.ok) {
-    throw new Error("Failed to fetch local athletes");
+    throw new Error("Failed to refresh athletes");
   }
-
-  const data: Array<Athlete & { external_id: number }> = await response.json();
-  return data.map(({ external_id, ...athlete }) => ({
-    ...athlete,
-    id: external_id,
-    external_id,
-    gender: athlete.gender ?? "",
-  }));
+  return response.json();
 }
 
 export async function getCurrentTournament(): Promise<CurrentTournamentResponse> {

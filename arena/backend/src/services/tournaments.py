@@ -24,6 +24,7 @@ from src.models import (
 )
 from src.schemas import (
     ApplicationCreate,
+    BootstrapAthlete,
     BracketMatchesFull,
     BracketResponse,
     TimetableEntryCreate,
@@ -281,13 +282,33 @@ async def get_tournament_bootstrap_snapshot(db: AsyncSession, tournament_id: int
     brackets = await get_tournament_brackets(db, tournament_id, sorted_brackets=True)
     bracket_matches = await get_matches_for_tournament_full(db, tournament_id)
     timetable_entries = await list_timetable_entries(db, tournament_id)
+    athletes = await list_bootstrap_athletes(db)
 
     return TournamentBootstrapSnapshot(
         tournament=TournamentResponse.model_validate(tournament),
         brackets=[BracketResponse.model_validate(bracket) for bracket in brackets],
         bracket_matches=[BracketMatchesFull.model_validate(bracket) for bracket in bracket_matches],
         timetable_entries=[TimetableEntryResponse.model_validate(entry) for entry in timetable_entries],
+        athletes=athletes,
     )
+
+
+async def list_bootstrap_athletes(db: AsyncSession) -> list[BootstrapAthlete]:
+    """Full athlete roster for Tatami; the athlete list is global, not tournament-scoped."""
+    result = await db.execute(
+        select(Athlete)
+        .options(selectinload(Athlete.coach_links).selectinload(AthleteCoachLink.coach))
+        .order_by(Athlete.id.asc())
+    )
+    return [
+        BootstrapAthlete(
+            id=athlete.id,
+            first_name=athlete.first_name,
+            last_name=athlete.last_name,
+            coaches_last_name=[link.coach.last_name for link in athlete.coach_links if link.coach is not None],
+        )
+        for athlete in result.scalars().all()
+    ]
 
 
 async def regenerate_tournament(db: AsyncSession, tournament_id: int) -> None:

@@ -19,6 +19,7 @@ import {
   getOutboxStatus,
   getTatamis,
   rebootstrapTournament,
+  refreshAthletes,
   setCurrentTournament,
   syncTournament,
 } from "@/lib/api";
@@ -40,6 +41,7 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [rebootstrapping, setRebootstrapping] = useState(false);
+  const [refreshingAthletes, setRefreshingAthletes] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
   const [rebootstrapDialogOpen, setRebootstrapDialogOpen] = useState(false);
   const [rebootstrapStep, setRebootstrapStep] = useState<1 | 2>(1);
@@ -132,6 +134,19 @@ export default function SetupPage() {
       alert(t("setup.syncError"));
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const runAthletesRefresh = async () => {
+    try {
+      setRefreshingAthletes(true);
+      const result = await refreshAthletes();
+      alert(t("setup.refreshAthletesResult", { status: getOperationStatus(result.status) }));
+    } catch (error) {
+      console.error("Error refreshing athletes:", error);
+      alert(t("setup.refreshAthletesError"));
+    } finally {
+      setRefreshingAthletes(false);
     }
   };
 
@@ -229,6 +244,9 @@ export default function SetupPage() {
                   {t("setup.rebootstrap")}
                 </Button>
               )}
+              <Button onClick={runAthletesRefresh} disabled={refreshingAthletes} variant="outline" className="px-4">
+                {refreshingAthletes ? t("setup.refreshingAthletes") : t("setup.refreshAthletes")}
+              </Button>
               <Button asChild variant="outline" className="px-4">
                 <a href="/admin/brackets">{t("setup.openBrackets")}</a>
               </Button>

@@ -19,7 +19,7 @@ services:
 
   migrate:
     image: ghcr.io/lyp1noff/champion-tatami-backend:${IMAGE_TAG:-latest}
-    pull_policy: always
+    pull_policy: missing
     command: ["alembic", "upgrade", "head"]
     restart: "no"
     environment:
@@ -35,7 +35,7 @@ services:
   backend:
     image: ghcr.io/lyp1noff/champion-tatami-backend:${IMAGE_TAG:-latest}
     container_name: champion-tatami-backend
-    pull_policy: always
+    pull_policy: missing
     restart: always
     environment:
       - POSTGRES_HOST=db
@@ -55,7 +55,7 @@ services:
   frontend:
     image: ghcr.io/lyp1noff/champion-tatami-frontend:${IMAGE_TAG:-latest}
     container_name: champion-tatami-frontend
-    pull_policy: always
+    pull_policy: missing
     restart: always
     depends_on:
       - backend
@@ -63,7 +63,7 @@ services:
   outbox:
     image: ghcr.io/lyp1noff/champion-tatami-backend:${IMAGE_TAG:-latest}
     container_name: champion-tatami-outbox
-    pull_policy: always
+    pull_policy: missing
     command: ["python", "-m", "src.outbox_worker"]
     environment:
       - POSTGRES_HOST=db

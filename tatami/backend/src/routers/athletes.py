@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
 from src.models import Athlete
 from src.schemas import AthleteSchema
+from src.services.sync import refresh_athlete_roster
 
 router = APIRouter(
     prefix="/athletes",
@@ -14,5 +15,14 @@ router = APIRouter(
 
 @router.get("", response_model=list[AthleteSchema])
 async def get_local_athletes(db: AsyncSession = Depends(get_db)) -> list[AthleteSchema]:
-    result = await db.execute(select(Athlete).order_by(Athlete.last_name, Athlete.first_name, Athlete.id))
+    """Local athlete roster; available without Arena."""
+    result = await db.execute(
+        select(Athlete).order_by(Athlete.last_name.asc(), Athlete.first_name.asc(), Athlete.id.asc())
+    )
     return [AthleteSchema.model_validate(athlete) for athlete in result.scalars().all()]
+
+
+@router.post("/refresh", response_model=dict[str, str])
+async def refresh_athletes(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    """Pull the athlete roster from Arena without touching tournament state."""
+    return await refresh_athlete_roster(db)
