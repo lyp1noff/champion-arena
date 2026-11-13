@@ -2,8 +2,9 @@
 
 A bracket is "dirty" while version > synced_version; the sync worker sends the
 current snapshot of dirty brackets. Brackets of tournaments that still had
-undelivered or rejected outbox items are marked dirty so their latest state is
-re-sent once after the upgrade.
+undelivered outbox items are marked dirty so their latest state is re-sent once
+after the upgrade. Dead letters are not: Arena already rejected them and the old
+worker never retried them, so re-sending could overwrite a past tournament.
 """
 
 from collections.abc import Sequence
@@ -30,7 +31,7 @@ def upgrade() -> None:
         UPDATE brackets SET synced_version = NULL
         WHERE tournament_id IN (
             SELECT DISTINCT tournament_id FROM outbox_items
-            WHERE status <> 'success' AND tournament_id IS NOT NULL
+            WHERE status IN ('pending', 'processing', 'retry_wait') AND tournament_id IS NOT NULL
         )
         """)
 
