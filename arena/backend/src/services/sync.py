@@ -1,4 +1,12 @@
-from datetime import UTC, datetime
+"""Tatami -> Arena state sync.
+
+Tatami sends the full current state of every bracket it changed. Arena applies a
+snapshot when its version is not older than the stored one, updating matches in
+place. Re-sending the same snapshot is harmless, so there is no event log, no
+sequence numbers and no ordering to preserve: the latest snapshot always wins.
+"""
+
+from typing import Any
 from uuid import UUID
 
 from champion_domain import (
@@ -8,126 +16,86 @@ from champion_domain import (
     TournamentStatus,
     compute_bracket_placements,
 )
-from pydantic import BaseModel, ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.logger import logger
-from src.models import (
-    Athlete,
-    Bracket,
-    BracketMatch,
-    BracketParticipant,
-    Match,
-    SyncEdgeState,
-    SyncInboxEvent,
-    Tournament,
-)
+from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, Tournament
 from src.schemas import (
-    MatchUpdate,
-    SyncConflict,
-    SyncStatusResponse,
-    SyncUpsertItem,
-    SyncUpsertsRequest,
-    SyncUpsertsResponse,
+    BracketsUpdated,
+    SyncBracket,
+    SyncBracketResult,
+    SyncBracketsRequest,
+    SyncBracketsResponse,
+    SyncMatch,
 )
-from src.services.bracket_upsert_dto import parse_structure_payload_dto
 from src.services.broadcast import broadcast
 
+MATCH_FIELDS = (
+    "athlete1_id",
+    "athlete2_id",
+    "winner_id",
+    "score_athlete1",
+    "score_athlete2",
+    "round_type",
+    "stage",
+    "repechage_side",
+    "repechage_step",
+    "status",
+    "started_at",
+    "ended_at",
+)
+SLOT_FIELDS = ("round_number", "position", "next_slot")
 
-class SyncApplyConflict(Exception):
-    def __init__(self, reason: str, expected_version: int | None = None, received_version: int | None = None) -> None:
+
+class SyncRejected(Exception):
+    def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
-        self.expected_version = expected_version
-        self.received_version = received_version
 
 
-class MatchUpsertPayloadDTO(BaseModel):
-    athlete1_id: int | None = None
-    athlete2_id: int | None = None
-    winner_id: int | None = None
-    round_type: str | None = None
-    stage: str = "main"
-    repechage_side: str | None = None
-    repechage_step: int | None = None
-    score_athlete1: int | None = None
-    score_athlete2: int | None = None
-    status: MatchStatus
-    started_at: datetime | None = None
-    ended_at: datetime | None = None
+def _match_values(item: SyncMatch) -> dict[str, Any]:
+    values = {field: getattr(item, field) for field in MATCH_FIELDS}
+    values["status"] = item.status.value
+    values["stage"] = item.stage or "main"
+    return values
 
 
-async def _advance_tournament_from_bracket(db: AsyncSession, bracket: Bracket) -> None:
-    tournament = await db.get(Tournament, bracket.tournament_id)
-    if tournament is None or tournament.status == TournamentStatus.FINISHED.value:
+def _assign(target: object, values: dict[str, Any]) -> bool:
+    changed = False
+    for field, value in values.items():
+        if getattr(target, field) != value:
+            setattr(target, field, value)
+            changed = True
+    return changed
+
+
+async def _check_athletes(db: AsyncSession, snapshot: SyncBracket) -> None:
+    ids = {p.athlete_id for p in snapshot.participants}
+    for item in snapshot.matches:
+        ids.update((item.athlete1_id, item.athlete2_id, item.winner_id))
+    ids.discard(None)
+    if not ids:
         return
-    if bracket.status == BracketStatus.STARTED.value:
-        tournament.status = TournamentStatus.STARTED.value
-    elif bracket.status == BracketStatus.FINISHED.value:
-        unfinished = await db.scalar(
-            select(func.count())
-            .select_from(Bracket)
-            .where(
-                Bracket.tournament_id == bracket.tournament_id,
-                Bracket.status != BracketStatus.FINISHED.value,
-            )
-        )
-        tournament.status = (
-            TournamentStatus.FINISHED.value if int(unfinished or 0) == 0 else TournamentStatus.STARTED.value
-        )
+    found = set((await db.scalars(select(Athlete.id).where(Athlete.id.in_(ids)))).all())
+    missing = sorted(i for i in ids if i is not None and i not in found)
+    if missing:
+        raise SyncRejected(f"unknown_athletes:{','.join(map(str, missing[:5]))}")
 
 
-async def _get_or_create_edge_state(db: AsyncSession, edge_id: str, tournament_id: int) -> SyncEdgeState:
-    edge_state = await db.get(SyncEdgeState, (edge_id, tournament_id))
-    if edge_state is None:
-        edge_state = SyncEdgeState(edge_id=edge_id, tournament_id=tournament_id, last_applied_seq=0)
-        db.add(edge_state)
-        await db.flush()
-    return edge_state
-
-
-async def _match_bracket_state(db: AsyncSession, match_id: UUID) -> tuple[int, int]:
-    result = await db.execute(
-        select(Bracket.id, Bracket.version)
-        .join(BracketMatch, BracketMatch.bracket_id == Bracket.id)
-        .where(BracketMatch.match_id == match_id)
+async def _sync_participants(db: AsyncSession, bracket_id: int, snapshot: SyncBracket) -> bool:
+    current = (await db.scalars(select(BracketParticipant).where(BracketParticipant.bracket_id == bracket_id))).all()
+    incoming = sorted((p.seed, p.athlete_id or 0) for p in snapshot.participants)
+    if sorted((p.seed, p.athlete_id or 0) for p in current) == incoming:
+        return False
+    await db.execute(delete(BracketParticipant).where(BracketParticipant.bracket_id == bracket_id))
+    db.add_all(
+        BracketParticipant(bracket_id=bracket_id, athlete_id=p.athlete_id, seed=p.seed) for p in snapshot.participants
     )
-    row = result.first()
-    if row is None:
-        raise SyncApplyConflict("aggregate_not_found")
-    return int(row[0]), int(row[1])
+    return True
 
 
-async def _resolve_athlete_id(db: AsyncSession, athlete_id: int | None) -> int | None:
-    if athlete_id is None:
-        return None
-    athlete = await db.get(Athlete, athlete_id)
-    if athlete is None:
-        raise SyncApplyConflict("aggregate_not_found")
-    return athlete.id
-
-
-async def _broadcast_sync_refresh(tournament_id: int, match_id: UUID) -> None:
-    try:
-        await broadcast.publish(
-            channel=f"tournament:{tournament_id}",
-            message=MatchUpdate(
-                match_id=match_id,
-                score_athlete1=None,
-                score_athlete2=None,
-                status=None,
-            ).model_dump_json(),
-        )
-    except Exception as exc:
-        logger.error(f"Error broadcasting sync update: {exc}")
-
-
-async def _recompute_bracket_placements(db: AsyncSession, bracket_id: int) -> None:
-    bracket = await db.get(Bracket, bracket_id)
-    if bracket is None:
-        return
-
+async def _sync_matches(db: AsyncSession, bracket_id: int, snapshot: SyncBracket) -> bool:
     rows = (
         await db.execute(
             select(BracketMatch, Match)
@@ -135,7 +103,42 @@ async def _recompute_bracket_placements(db: AsyncSession, bracket_id: int) -> No
             .where(BracketMatch.bracket_id == bracket_id)
         )
     ).all()
+    existing: dict[UUID, tuple[BracketMatch, Match]] = {match.id: (bm, match) for bm, match in rows}
 
+    incoming_ids = [item.id for item in snapshot.matches]
+    if len(set(incoming_ids)) != len(incoming_ids):
+        raise SyncRejected("duplicate_match_ids")
+
+    changed = False
+    for item in snapshot.matches:
+        slot = {field: getattr(item, field) for field in SLOT_FIELDS}
+        if item.id in existing:
+            bm, match = existing[item.id]
+            changed |= _assign(bm, slot)
+            changed |= _assign(match, _match_values(item))
+            continue
+        if await db.get(Match, item.id) is not None:
+            raise SyncRejected("match_belongs_to_other_bracket")
+        db.add(Match(id=item.id, **_match_values(item)))
+        db.add(BracketMatch(bracket_id=bracket_id, match_id=item.id, **slot))
+        changed = True
+
+    removed = [match_id for match_id in existing if match_id not in set(incoming_ids)]
+    if removed:
+        await db.execute(delete(BracketMatch).where(BracketMatch.match_id.in_(removed)))
+        await db.execute(delete(Match).where(Match.id.in_(removed)))
+        changed = True
+    return changed
+
+
+async def _recompute_placements(db: AsyncSession, bracket: Bracket) -> None:
+    rows = (
+        await db.execute(
+            select(BracketMatch, Match)
+            .join(Match, Match.id == BracketMatch.match_id)
+            .where(BracketMatch.bracket_id == bracket.id)
+        )
+    ).all()
     placements = compute_bracket_placements(
         [
             PlacementMatchInput(
@@ -153,236 +156,95 @@ async def _recompute_bracket_placements(db: AsyncSession, bracket_id: int) -> No
         repechage_stage_value="repechage",
         finished_status_value=MatchStatus.FINISHED.value,
     )
-
     bracket.place_1_id = placements.place_1_id
     bracket.place_2_id = placements.place_2_id
     bracket.place_3_a_id = placements.place_3_a_id
     bracket.place_3_b_id = placements.place_3_b_id
 
 
-async def _apply_match_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[int, int, UUID | None]:
-    try:
-        match_id = UUID(item.aggregate_id)
-    except ValueError as exc:
-        raise SyncApplyConflict("invalid_aggregate_id") from exc
+async def _apply_bracket(db: AsyncSession, tournament_id: int, snapshot: SyncBracket) -> tuple[SyncBracketResult, bool]:
+    bracket = await db.get(Bracket, snapshot.bracket_id, with_for_update=True)
+    if bracket is None or bracket.tournament_id != tournament_id:
+        raise SyncRejected("bracket_not_found")
+    if snapshot.version < bracket.version:
+        return SyncBracketResult(bracket_id=bracket.id, status="stale", version=bracket.version), False
 
-    match = await db.get(Match, match_id)
-    if match is None:
-        raise SyncApplyConflict("aggregate_not_found")
+    await _check_athletes(db, snapshot)
 
-    try:
-        payload = MatchUpsertPayloadDTO.model_validate(item.payload)
-    except ValidationError as exc:
-        raise SyncApplyConflict("invalid_payload") from exc
-
-    bracket_id, current_version = await _match_bracket_state(db, match_id)
-    if item.aggregate_version < current_version:
-        raise SyncApplyConflict(
-            "version_conflict",
-            expected_version=current_version,
-            received_version=item.aggregate_version,
-        )
-
-    match.athlete1_id = await _resolve_athlete_id(db, payload.athlete1_id)
-    match.athlete2_id = await _resolve_athlete_id(db, payload.athlete2_id)
-    match.winner_id = await _resolve_athlete_id(db, payload.winner_id)
-    match.round_type = payload.round_type
-    match.stage = payload.stage
-    match.repechage_side = payload.repechage_side
-    match.repechage_step = payload.repechage_step
-    match.score_athlete1 = payload.score_athlete1
-    match.score_athlete2 = payload.score_athlete2
-    match.status = payload.status.value
-    match.started_at = payload.started_at
-    match.ended_at = payload.ended_at
-
-    bracket = await db.get(Bracket, bracket_id)
-    if bracket is None:
-        raise SyncApplyConflict("aggregate_not_found")
-    bracket.version = max(bracket.version, item.aggregate_version)
-    if match.status in {MatchStatus.STARTED.value, MatchStatus.FINISHED.value} and (
-        bracket.status != BracketStatus.FINISHED.value
-    ):
-        bracket.status = BracketStatus.STARTED.value
-        await _advance_tournament_from_bracket(db, bracket)
-    await _recompute_bracket_placements(db, bracket_id)
-    return bracket_id, bracket.tournament_id, match.id
-
-
-async def _apply_bracket_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[int, int, UUID | None]:
-    try:
-        bracket_id = int(item.aggregate_id)
-    except ValueError as exc:
-        raise SyncApplyConflict("invalid_aggregate_id") from exc
-
-    bracket = await db.get(Bracket, bracket_id)
-    if bracket is None:
-        raise SyncApplyConflict("aggregate_not_found")
-
-    if item.aggregate_version < bracket.version:
-        raise SyncApplyConflict(
-            "version_conflict",
-            expected_version=bracket.version,
-            received_version=item.aggregate_version,
-        )
-
-    try:
-        participants, matches, payload_status = parse_structure_payload_dto(item.payload)
-    except ValueError as exc:
-        raise SyncApplyConflict(str(exc)) from exc
-
-    bracket.type = str(item.payload.get("type") or bracket.type)
-    bracket.group_id = int(item.payload.get("group_id") or bracket.group_id)
-    bracket.version = item.aggregate_version
-    if payload_status is not None:
-        bracket.status = payload_status.value
-
-    bracket.place_1_id = None
-    bracket.place_2_id = None
-    bracket.place_3_a_id = None
-    bracket.place_3_b_id = None
-
-    await db.execute(
-        delete(Match).where(Match.id.in_(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id)))
-    )
-    await db.execute(delete(BracketMatch).where(BracketMatch.bracket_id == bracket_id))
-    await db.execute(delete(BracketParticipant).where(BracketParticipant.bracket_id == bracket_id))
-
-    for participant in sorted(participants, key=lambda entry: entry.seed):
-        await _resolve_athlete_id(db, participant.athlete_id)
-        db.add(
-            BracketParticipant(
-                bracket_id=bracket_id,
-                athlete_id=participant.athlete_id,
-                seed=participant.seed,
-            )
-        )
-
-    broadcast_match_id: UUID | None = None
-    for planned_match in matches:
-        if broadcast_match_id is None:
-            broadcast_match_id = planned_match.id
-        db.add(
-            Match(
-                id=planned_match.id,
-                athlete1_id=planned_match.athlete1_id,
-                athlete2_id=planned_match.athlete2_id,
-                winner_id=planned_match.winner_id,
-                score_athlete1=planned_match.score_athlete1,
-                score_athlete2=planned_match.score_athlete2,
-                round_type=planned_match.round_type,
-                stage=planned_match.stage,
-                repechage_side=planned_match.repechage_side,
-                repechage_step=planned_match.repechage_step,
-                status=planned_match.status,
-                started_at=planned_match.started_at,
-                ended_at=planned_match.ended_at,
-            )
-        )
-        db.add(
-            BracketMatch(
-                round_number=planned_match.round_number,
-                position=planned_match.position,
-                next_slot=planned_match.next_slot,
-                bracket_id=bracket_id,
-                match_id=planned_match.id,
-            )
-        )
+    changed = _assign(bracket, {"type": snapshot.type, "group_id": snapshot.group_id, "status": snapshot.status.value})
+    changed |= await _sync_participants(db, bracket.id, snapshot)
+    changed |= await _sync_matches(db, bracket.id, snapshot)
+    bracket.version = snapshot.version
     await db.flush()
-    await _recompute_bracket_placements(db, bracket_id)
-    await _advance_tournament_from_bracket(db, bracket)
-    return bracket_id, bracket.tournament_id, broadcast_match_id
+    if changed:
+        await _recompute_placements(db, bracket)
+    return SyncBracketResult(bracket_id=bracket.id, status="applied", version=bracket.version), changed
 
 
-async def _apply_upsert(db: AsyncSession, item: SyncUpsertItem) -> tuple[int, int, UUID | None]:
-    if item.type == "match.upsert":
-        return await _apply_match_upsert(db, item)
-    if item.type == "bracket.upsert":
-        return await _apply_bracket_upsert(db, item)
-    raise SyncApplyConflict("unsupported_upsert_type")
-
-
-async def get_status(db: AsyncSession, edge_id: str, tournament_id: int) -> SyncStatusResponse:
-    edge_state = await _get_or_create_edge_state(db, edge_id, tournament_id)
-    await db.commit()
-    return SyncStatusResponse(
-        edge_id=edge_state.edge_id,
-        tournament_id=edge_state.tournament_id,
-        last_applied_seq=edge_state.last_applied_seq,
-        server_time=datetime.now(UTC),
+async def _refresh_tournament_status(db: AsyncSession, tournament_id: int) -> None:
+    tournament = await db.get(Tournament, tournament_id)
+    if tournament is None or tournament.status == TournamentStatus.FINISHED.value:
+        return
+    rows = await db.execute(
+        select(Bracket.status, func.count()).where(Bracket.tournament_id == tournament_id).group_by(Bracket.status)
     )
+    counts: dict[str, int] = {str(status): int(count) for status, count in rows.all()}
+    total = sum(counts.values())
+    finished = counts.get(BracketStatus.FINISHED.value, 0)
+    if total and finished == total:
+        tournament.status = TournamentStatus.FINISHED.value
+    elif finished or counts.get(BracketStatus.STARTED.value, 0):
+        tournament.status = TournamentStatus.STARTED.value
 
 
-async def apply_upserts(db: AsyncSession, payload: SyncUpsertsRequest) -> SyncUpsertsResponse:
-    accepted: list[int] = []
-    duplicates: list[int] = []
-    conflicts: list[SyncConflict] = []
+async def _broadcast_brackets(tournament_id: int, bracket_ids: list[int]) -> None:
+    try:
+        await broadcast.publish(
+            channel=f"tournament:{tournament_id}",
+            message=BracketsUpdated(bracket_ids=bracket_ids).model_dump_json(),
+        )
+    except Exception as exc:
+        logger.error(f"Error broadcasting bracket updates: {exc}")
 
-    edge_state = await _get_or_create_edge_state(db, payload.edge_id, payload.tournament_id)
-    await db.commit()
 
-    for item in sorted(payload.items, key=lambda entry: entry.seq):
-        existing = await db.execute(select(SyncInboxEvent).where(SyncInboxEvent.event_id == item.event_id))
-        existing_event = existing.scalar_one_or_none()
-        if existing_event is not None and existing_event.applied:
-            duplicates.append(item.seq)
-            continue
+async def apply_brackets(db: AsyncSession, payload: SyncBracketsRequest) -> SyncBracketsResponse:
+    if await db.get(Tournament, payload.tournament_id) is None:
+        return SyncBracketsResponse(
+            results=[
+                SyncBracketResult(bracket_id=item.bracket_id, status="rejected", reason="tournament_not_found")
+                for item in payload.brackets
+            ]
+        )
 
-        expected_seq = edge_state.last_applied_seq + 1
-        if item.seq != expected_seq:
-            # Seq is diagnostic only for upsert flow; keep a warning trail without blocking the payload.
-            conflicts.append(SyncConflict(seq=item.seq, reason="seq_gap"))
-
-        if existing_event is None:
-            inbox_event = SyncInboxEvent(
-                event_id=item.event_id,
-                edge_id=payload.edge_id,
-                tournament_id=payload.tournament_id,
-                seq=item.seq,
-                applied=False,
-            )
-            db.add(inbox_event)
-        else:
-            # Failed inbox entries are retryable. Only successfully applied IDs
-            # are deduplicated; otherwise a transient conflict would poison the
-            # event ID forever and make every retry look successful.
-            inbox_event = existing_event
-            inbox_event.error = None
-        await db.flush()
-
+    results: list[SyncBracketResult] = []
+    changed_ids: list[int] = []
+    for snapshot in payload.brackets:
         try:
-            bracket_id, tournament_id, broadcast_match_id = await _apply_upsert(db, item)
-        except SyncApplyConflict as exc:
-            inbox_event.error = exc.reason
-            conflicts.append(
-                SyncConflict(
-                    seq=item.seq,
-                    reason=exc.reason,
-                    expected_version=exc.expected_version,
-                    received_version=exc.received_version,
-                )
+            # One savepoint per bracket: a bad snapshot must not block the rest of the batch.
+            async with db.begin_nested():
+                result, changed = await _apply_bracket(db, payload.tournament_id, snapshot)
+        except SyncRejected as exc:
+            result, changed = (
+                SyncBracketResult(bracket_id=snapshot.bracket_id, status="rejected", reason=exc.reason),
+                False,
             )
-            edge_state.last_applied_seq = max(edge_state.last_applied_seq, item.seq)
-            await db.commit()
-            continue
         except Exception:
-            inbox_event.error = "apply_failed"
-            conflicts.append(SyncConflict(seq=item.seq, reason="apply_failed"))
-            edge_state.last_applied_seq = max(edge_state.last_applied_seq, item.seq)
-            await db.commit()
-            continue
+            logger.exception("Sync apply failed: edge=%s bracket=%s", payload.edge_id, snapshot.bracket_id)
+            result, changed = (
+                SyncBracketResult(bracket_id=snapshot.bracket_id, status="rejected", reason="apply_failed"),
+                False,
+            )
+        results.append(result)
+        if changed:
+            changed_ids.append(snapshot.bracket_id)
 
-        inbox_event.applied = True
-        inbox_event.error = None
-        edge_state.last_applied_seq = max(edge_state.last_applied_seq, item.seq)
-        accepted.append(item.seq)
-        await db.commit()
-        if broadcast_match_id is not None:
-            await _broadcast_sync_refresh(tournament_id, broadcast_match_id)
+    if changed_ids:
+        await _refresh_tournament_status(db, payload.tournament_id)
+    await db.commit()
 
-    return SyncUpsertsResponse(
-        accepted=accepted,
-        duplicates=duplicates,
-        conflicts=conflicts,
-        last_applied_seq=edge_state.last_applied_seq,
-    )
+    rejected = [r for r in results if r.status != "applied"]
+    if rejected:
+        logger.warning("Sync from %s: %d/%d not applied: %s", payload.edge_id, len(rejected), len(results), rejected)
+    if changed_ids:
+        await _broadcast_brackets(payload.tournament_id, changed_ids)
+    return SyncBracketsResponse(results=results)

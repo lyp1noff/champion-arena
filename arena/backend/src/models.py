@@ -4,14 +4,11 @@ from datetime import date, datetime, time
 from typing import Optional
 
 from sqlalchemy import (
-    BigInteger,
-    Boolean,
     CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
     String,
-    Text,
     Time,
     UniqueConstraint,
     func,
@@ -296,24 +293,3 @@ class TimetableEntry(Base, TimestampMixin):
 
     tournament: Mapped["Tournament"] = relationship(back_populates="timetable_entries")
     bracket: Mapped[Optional["Bracket"]] = relationship(back_populates="timetable_entry")
-
-
-class SyncInboxEvent(Base):
-    __tablename__ = "sync_inbox_events"
-
-    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    edge_id: Mapped[str] = mapped_column(String(100), index=True)
-    tournament_id: Mapped[int] = mapped_column(ForeignKey("tournaments.id", ondelete="CASCADE"), index=True)
-    seq: Mapped[int] = mapped_column(BigInteger, index=True)
-    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
-    applied: Mapped[bool] = mapped_column(Boolean, default=False)
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-
-class SyncEdgeState(Base):
-    __tablename__ = "sync_edge_state"
-
-    edge_id: Mapped[str] = mapped_column(String(100), primary_key=True)
-    tournament_id: Mapped[int] = mapped_column(ForeignKey("tournaments.id", ondelete="CASCADE"), primary_key=True)
-    last_applied_seq: Mapped[int] = mapped_column(BigInteger, default=0)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())

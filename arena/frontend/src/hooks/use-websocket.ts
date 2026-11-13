@@ -2,16 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BACKEND_URL } from "@/lib/config";
 
-interface MatchUpdate {
-  match_id: string;
-  score_athlete1: number | null;
-  score_athlete2: number | null;
-  status: string | null;
-}
-
 interface UseWebSocketOptions {
   tournamentId: string;
-  onMatchUpdate?: (update: MatchUpdate) => void;
+  /** Called with the ids of brackets that changed on the server. */
+  onBracketsUpdated?: (bracketIds: number[]) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Event) => void;
@@ -40,7 +34,13 @@ function buildWebSocketUrl(baseUrl: string, tournamentId: string): string {
   return `${trimmed}${suffix}`;
 }
 
-export function useWebSocket({ tournamentId, onMatchUpdate, onConnect, onDisconnect, onError }: UseWebSocketOptions) {
+export function useWebSocket({
+  tournamentId,
+  onBracketsUpdated,
+  onConnect,
+  onDisconnect,
+  onError,
+}: UseWebSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -71,9 +71,8 @@ export function useWebSocket({ tournamentId, onMatchUpdate, onConnect, onDisconn
         try {
           const data = JSON.parse(event.data);
 
-          // Check if it's a match update
-          if (data.match_id && (data.score_athlete1 !== undefined || data.score_athlete2 !== undefined)) {
-            onMatchUpdate?.(data as MatchUpdate);
+          if (data?.type === "brackets_updated" && Array.isArray(data.bracket_ids)) {
+            onBracketsUpdated?.(data.bracket_ids.map(Number));
           }
         } catch (err) {
           console.error("Error parsing WebSocket message:", err);
@@ -104,7 +103,7 @@ export function useWebSocket({ tournamentId, onMatchUpdate, onConnect, onDisconn
       setError("Failed to create WebSocket connection");
       console.error("WebSocket connection error:", err);
     }
-  }, [tournamentId, onMatchUpdate, onConnect, onDisconnect, onError]);
+  }, [tournamentId, onBracketsUpdated, onConnect, onDisconnect, onError]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

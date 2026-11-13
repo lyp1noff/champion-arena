@@ -1,9 +1,10 @@
 import uuid
 from datetime import UTC, date, datetime
+from typing import Any
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import func, select
+from sqlalchemy import select
 from champion_domain import MatchStatus
 
 from src.models import Athlete, Bracket, BracketMatch, BracketStatus, Category, Match, Tournament
@@ -51,47 +52,141 @@ async def _seed_match(db_session):
     return bracket.id, match.id
 
 
-@pytest.mark.asyncio
-async def test_sync_status_initializes_edge_state(client: AsyncClient, db_session) -> None:
-    bracket_id, _ = await _seed_match(db_session)
+async def _ids(db_session, bracket_id: int, match_id: uuid.UUID) -> tuple[int, int, int]:
     bracket = await db_session.get(Bracket, bracket_id)
-    assert bracket is not None
-    response = await client.get(f"/sync/status/edge-node-1?tournament_id={bracket.tournament_id}")
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["edge_id"] == "edge-node-1"
-    assert payload["last_applied_seq"] == 0
+    match = await db_session.get(Match, match_id)
+    assert bracket is not None and match is not None
+    assert match.athlete1_id is not None and match.athlete2_id is not None
+    return bracket.tournament_id, match.athlete1_id, match.athlete2_id
 
 
-@pytest.mark.asyncio
-async def test_sync_upserts_advance_seq_on_apply_error(client: AsyncClient, db_session) -> None:
-    bracket_id, _ = await _seed_match(db_session)
-    bracket = await db_session.get(Bracket, bracket_id)
-    assert bracket is not None
-    response = await client.post(
-        "/sync/upserts",
-        json={
-            "edge_id": "edge-node-2-error",
-            "tournament_id": bracket.tournament_id,
-            "items": [
-                {
-                    "event_id": str(uuid.uuid4()),
-                    "seq": 1,
-                    "type": "unknown.upsert",
-                    "aggregate_id": str(uuid.uuid4()),
-                    "aggregate_version": 1,
-                    "occurred_at": datetime.now(UTC).isoformat(),
-                    "payload": {},
-                }
-            ],
-        },
+def _snapshot(bracket_id: int, version: int, matches: list[dict[str, Any]], **extra: Any) -> dict[str, Any]:
+    return {
+        "bracket_id": bracket_id,
+        "version": version,
+        "type": "single_elimination",
+        "group_id": 1,
+        "status": extra.get("status", "started"),
+        "participants": extra.get("participants", []),
+        "matches": matches,
+    }
+
+
+def _match(match_id: uuid.UUID, a1: int, a2: int, **fields: Any) -> dict[str, Any]:
+    return {
+        "id": str(match_id),
+        "round_number": 1,
+        "position": 1,
+        "next_slot": None,
+        "round_type": "final",
+        "stage": "main",
+        "status": MatchStatus.STARTED.value,
+        "athlete1_id": a1,
+        "athlete2_id": a2,
+        **fields,
+    }
+
+
+async def _put(client: AsyncClient, tournament_id: int, *brackets: dict[str, Any]) -> list[dict[str, Any]]:
+    response = await client.put(
+        "/sync/brackets", json={"edge_id": "edge-1", "tournament_id": tournament_id, "brackets": list(brackets)}
     )
     assert response.status_code == 200
-    payload = response.json()
-    assert payload["accepted"] == []
-    assert payload["duplicates"] == []
-    assert payload["last_applied_seq"] == 1
-    assert payload["conflicts"][0]["reason"] == "unsupported_upsert_type"
+    return response.json()["results"]
+
+
+@pytest.mark.asyncio
+async def test_snapshot_updates_match_in_place_and_sets_placements(client: AsyncClient, db_session) -> None:
+    bracket_id, match_id = await _seed_match(db_session)
+    tournament_id, a1, a2 = await _ids(db_session, bracket_id, match_id)
+    finished = _match(
+        match_id,
+        a1,
+        a2,
+        status=MatchStatus.FINISHED.value,
+        winner_id=a2,
+        score_athlete1=1,
+        score_athlete2=3,
+        ended_at=datetime.now(UTC).isoformat(),
+    )
+    participants = [{"athlete_id": a1, "seed": 1}, {"athlete_id": a2, "seed": 2}]
+
+    results = await _put(client, tournament_id, _snapshot(bracket_id, 2, [finished], participants=participants))
+
+    assert results == [{"bracket_id": bracket_id, "status": "applied", "version": 2, "reason": None}]
+    db_session.expire_all()
+    match = await db_session.get(Match, match_id)
+    bracket = await db_session.get(Bracket, bracket_id)
+    assert match is not None and bracket is not None
+    assert (match.status, match.winner_id, match.score_athlete2, match.round_type) == ("finished", a2, 3, "final")
+    assert (bracket.version, bracket.status, bracket.place_1_id, bracket.place_2_id) == (2, "started", a2, a1)
+
+
+@pytest.mark.asyncio
+async def test_resending_same_snapshot_is_idempotent(client: AsyncClient, db_session) -> None:
+    bracket_id, match_id = await _seed_match(db_session)
+    tournament_id, a1, a2 = await _ids(db_session, bracket_id, match_id)
+    snapshot = _snapshot(bracket_id, 3, [_match(match_id, a1, a2, score_athlete1=2)])
+
+    first = await _put(client, tournament_id, snapshot)
+    second = await _put(client, tournament_id, snapshot)
+
+    assert first[0]["status"] == second[0]["status"] == "applied"
+    rows = (await db_session.execute(select(BracketMatch).where(BracketMatch.bracket_id == bracket_id))).all()
+    assert len(rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_older_snapshot_is_stale_and_changes_nothing(client: AsyncClient, db_session) -> None:
+    bracket_id, match_id = await _seed_match(db_session)
+    tournament_id, a1, a2 = await _ids(db_session, bracket_id, match_id)
+    await _put(client, tournament_id, _snapshot(bracket_id, 5, [_match(match_id, a1, a2, score_athlete1=4)]))
+
+    results = await _put(client, tournament_id, _snapshot(bracket_id, 4, [_match(match_id, a1, a2, score_athlete1=1)]))
+
+    assert results[0]["status"] == "stale"
+    assert results[0]["version"] == 5
+    db_session.expire_all()
+    match = await db_session.get(Match, match_id)
+    assert match is not None and match.score_athlete1 == 4
+
+
+@pytest.mark.asyncio
+async def test_bad_snapshot_is_rejected_without_blocking_the_batch(client: AsyncClient, db_session) -> None:
+    bracket_id, match_id = await _seed_match(db_session)
+    tournament_id, a1, a2 = await _ids(db_session, bracket_id, match_id)
+    unknown_bracket = _snapshot(999_999, 1, [])
+    unknown_athlete = _snapshot(bracket_id, 2, [_match(match_id, a1, 987_654)])
+    good = _snapshot(bracket_id, 2, [_match(match_id, a1, a2, score_athlete1=7)])
+
+    results = await _put(client, tournament_id, unknown_bracket, unknown_athlete, good)
+
+    assert [(r["status"], r["reason"]) for r in results] == [
+        ("rejected", "bracket_not_found"),
+        ("rejected", "unknown_athletes:987654"),
+        ("applied", None),
+    ]
+    db_session.expire_all()
+    match = await db_session.get(Match, match_id)
+    assert match is not None and match.score_athlete1 == 7
+
+
+@pytest.mark.asyncio
+async def test_structure_change_adds_and_removes_matches(client: AsyncClient, db_session) -> None:
+    bracket_id, match_id = await _seed_match(db_session)
+    tournament_id, a1, a2 = await _ids(db_session, bracket_id, match_id)
+    new_ids = [uuid.uuid4(), uuid.uuid4()]
+    matches = [
+        _match(new_ids[0], a1, a2, round_type="group", status=MatchStatus.NOT_STARTED.value),
+        _match(new_ids[1], a2, a1, round_type="group", position=2, status=MatchStatus.NOT_STARTED.value),
+    ]
+
+    results = await _put(client, tournament_id, _snapshot(bracket_id, 2, matches, status="pending"))
+
+    assert results[0]["status"] == "applied"
+    rows = (await db_session.scalars(select(BracketMatch.match_id).where(BracketMatch.bracket_id == bracket_id))).all()
+    assert sorted(rows) == sorted(new_ids)
+    assert await db_session.get(Match, match_id) is None
 
 
 @pytest.mark.asyncio
@@ -104,54 +199,3 @@ async def test_running_bracket_is_immutable_for_structural_update(client: AsyncC
 
     response = await client.put(f"/brackets/{bracket_id}", json={"group_id": 2})
     assert response.status_code == 409
-
-
-@pytest.mark.asyncio
-async def test_sync_upserts_retry_unapplied_event_then_deduplicate(client: AsyncClient, db_session) -> None:
-    bracket_id, existing_match_id = await _seed_match(db_session)
-    bracket = await db_session.get(Bracket, bracket_id)
-    assert bracket is not None
-    existing_match = await db_session.get(Match, existing_match_id)
-    assert existing_match is not None
-    missing_match_id = uuid.uuid4()
-    item = {
-        "event_id": str(uuid.uuid4()),
-        "seq": 1,
-        "type": "match.upsert",
-        "aggregate_id": str(missing_match_id),
-        "aggregate_version": 2,
-        "occurred_at": datetime.now(UTC).isoformat(),
-        "payload": {"status": MatchStatus.NOT_STARTED.value},
-    }
-    request_payload = {"edge_id": "edge-node-dup", "tournament_id": bracket.tournament_id, "items": [item]}
-    first = await client.post("/sync/upserts", json=request_payload)
-    assert first.status_code == 200
-    assert first.json()["conflicts"][0]["reason"] == "aggregate_not_found"
-
-    db_session.add(
-        Match(
-            id=missing_match_id,
-            athlete1_id=existing_match.athlete1_id,
-            athlete2_id=existing_match.athlete2_id,
-            status=MatchStatus.NOT_STARTED.value,
-        )
-    )
-    db_session.add(
-        BracketMatch(
-            bracket_id=bracket_id,
-            round_number=1,
-            position=2,
-            match_id=missing_match_id,
-            next_slot=None,
-        )
-    )
-    await db_session.commit()
-
-    second = await client.post("/sync/upserts", json=request_payload)
-    assert second.status_code == 200
-    assert second.json()["accepted"] == [1]
-    assert second.json()["conflicts"][0]["reason"] == "seq_gap"
-
-    third = await client.post("/sync/upserts", json=request_payload)
-    assert third.status_code == 200
-    assert third.json()["duplicates"] == [1]

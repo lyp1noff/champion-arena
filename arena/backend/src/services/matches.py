@@ -35,7 +35,7 @@ from src.models import (
     MatchStage,
     Tournament,
 )
-from src.schemas import MatchFinishRequest, MatchScoreUpdate, MatchUpdate
+from src.schemas import BracketsUpdated, MatchFinishRequest, MatchScoreUpdate
 from src.services.broadcast import broadcast
 
 MatchId = UUID
@@ -269,14 +269,9 @@ async def broadcast_match_update(match: Match, db: AsyncSession) -> None:
         bracket_match = bracket_match_result.scalar_one_or_none()
 
         if bracket_match and bracket_match.bracket:
-            match_update = MatchUpdate(
-                match_id=match.id,
-                score_athlete1=match.score_athlete1,
-                score_athlete2=match.score_athlete2,
-                status=MatchStatus(match.status),
-            )
             await broadcast.publish(
-                channel=f"tournament:{bracket_match.bracket.tournament_id}", message=match_update.model_dump_json()
+                channel=f"tournament:{bracket_match.bracket.tournament_id}",
+                message=BracketsUpdated(bracket_ids=[bracket_match.bracket.id]).model_dump_json(),
             )
     except Exception as exc:
         logger.error(f"Error broadcasting match update: {exc}")

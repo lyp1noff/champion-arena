@@ -53,7 +53,7 @@ async def test_non_admin_token_is_forbidden_on_admin_routes(anon_client: AsyncCl
         await anon_client.post(f"/tournaments/{tournament_id}/applications/approve-all", headers=bearer(token)),
         await anon_client.delete(f"/tournaments/{tournament_id}", headers=bearer(token)),
         await anon_client.get("/athletes", headers=bearer(token)),
-        await anon_client.post("/sync/upserts", headers=bearer(token), json={}),
+        await anon_client.put("/sync/brackets", headers=bearer(token), json={}),
     ]
 
     assert [response.status_code for response in responses] == [403] * len(responses)

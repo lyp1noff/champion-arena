@@ -1,6 +1,6 @@
 import uuid
 from datetime import UTC, date, datetime, time
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Literal, Optional
 
 from pydantic import AliasPath, BaseModel, ConfigDict, Field, StringConstraints, computed_field
 
@@ -374,45 +374,64 @@ class CategoryCreateSchema(BaseModel):
     gender: str
 
 
-class MatchUpdate(BaseModel):
-    match_id: uuid.UUID
-    score_athlete1: int | None
-    score_athlete2: int | None
-    status: MatchStatus | None
+class SyncParticipant(BaseModel):
+    athlete_id: int | None = None
+    seed: int = Field(ge=1)
 
 
-class SyncConflict(BaseModel):
-    seq: int
-    reason: str
-    expected_version: int | None = None
-    received_version: int | None = None
+class SyncMatch(BaseModel):
+    id: uuid.UUID
+    round_number: int = Field(ge=1)
+    position: int = Field(ge=1)
+    next_slot: int | None = None
+    round_type: str | None = None
+    stage: str = "main"
+    repechage_side: str | None = None
+    repechage_step: int | None = None
+    status: MatchStatus
+    athlete1_id: int | None = None
+    athlete2_id: int | None = None
+    winner_id: int | None = None
+    score_athlete1: int | None = None
+    score_athlete2: int | None = None
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
 
 
-class SyncStatusResponse(BaseModel):
-    edge_id: str
-    tournament_id: int
-    last_applied_seq: int
-    server_time: datetime
+class SyncBracket(BaseModel):
+    """Full current state of one bracket as Tatami sees it (Arena ids on the wire)."""
 
-
-class SyncUpsertItem(BaseModel):
-    event_id: uuid.UUID
-    seq: int = Field(ge=1)
+    bracket_id: int
+    version: int = Field(ge=1)
     type: str
-    aggregate_id: str
-    aggregate_version: int = Field(ge=1)
-    occurred_at: datetime
-    payload: dict[str, Any] = Field(default_factory=dict)
+    group_id: int = 1
+    status: BracketStatus
+    participants: list[SyncParticipant]
+    matches: list[SyncMatch]
 
 
-class SyncUpsertsRequest(BaseModel):
+class SyncBracketsRequest(BaseModel):
     edge_id: str = Field(min_length=1, max_length=100)
     tournament_id: int = Field(ge=1)
-    items: list[SyncUpsertItem] = Field(default_factory=list)
+    brackets: list[SyncBracket] = Field(max_length=100)
 
 
-class SyncUpsertsResponse(BaseModel):
-    accepted: list[int]
-    duplicates: list[int]
-    conflicts: list[SyncConflict]
-    last_applied_seq: int
+SyncResultStatus = Literal["applied", "stale", "rejected"]
+
+
+class SyncBracketResult(BaseModel):
+    bracket_id: int
+    status: SyncResultStatus
+    version: int | None = None
+    reason: str | None = None
+
+
+class SyncBracketsResponse(BaseModel):
+    results: list[SyncBracketResult]
+
+
+class BracketsUpdated(BaseModel):
+    """WebSocket message: these brackets changed, refetch them if shown."""
+
+    type: Literal["brackets_updated"] = "brackets_updated"
+    bracket_ids: list[int]

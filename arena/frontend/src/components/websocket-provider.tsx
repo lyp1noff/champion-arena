@@ -4,31 +4,14 @@ import React from "react";
 
 import { useWebSocket } from "@/hooks/use-websocket";
 
-interface MatchUpdate {
-  match_id: string;
-  score_athlete1: number | null;
-  score_athlete2: number | null;
-  status: string | null;
-}
-
 interface WebSocketProviderProps {
   children: React.ReactNode;
   tournamentId: string;
-  onAnyUpdate?: (update: MatchUpdate) => void;
+  /** Called with the ids of brackets that changed on the server. Pass a stable callback. */
+  onBracketsUpdated?: (bracketIds: number[]) => void;
 }
 
-export function WebSocketProvider({ children, tournamentId, onAnyUpdate }: WebSocketProviderProps) {
-  const handleMatchUpdate = React.useCallback(
-    (update: MatchUpdate) => {
-      onAnyUpdate?.(update);
-    },
-    [onAnyUpdate],
-  );
-
-  useWebSocket({
-    tournamentId,
-    onMatchUpdate: handleMatchUpdate,
-  });
-
+export function WebSocketProvider({ children, tournamentId, onBracketsUpdated }: WebSocketProviderProps) {
+  useWebSocket({ tournamentId, onBracketsUpdated });
   return <>{children}</>;
 }

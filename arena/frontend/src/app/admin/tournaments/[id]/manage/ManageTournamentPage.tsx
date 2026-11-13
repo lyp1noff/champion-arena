@@ -45,7 +45,7 @@ import {
 } from "@/lib/api/brackets";
 import { finishMatch, startMatch, updateMatchScores } from "@/lib/api/matches";
 import { deleteParticipant } from "@/lib/api/tournaments";
-import { MATCH_STATUS, Bracket, BracketMatches, BracketType, Category, Participant } from "@/lib/interfaces";
+import { Bracket, BracketMatches, BracketType, Category, MATCH_STATUS, Participant } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
 import BracketCard from "./components/BracketCard";
@@ -185,7 +185,7 @@ export default function ManageTournamentPage({
     return JSON.stringify(participants) !== JSON.stringify(selectedBracket.participants);
   }, [participants, selectedBracket]);
 
-  const refreshSelectedFromWebSocket = useCallback(() => {
+  const refreshSelectedNow = useCallback(() => {
     const run = async () => {
       const current = selectedBracketRef.current;
       if (!current || hasPendingChanges()) return;
@@ -209,6 +209,14 @@ export default function ManageTournamentPage({
 
     void run();
   }, [hasPendingChanges, onSelectBracket]);
+
+  const refreshSelectedFromWebSocket = useCallback(
+    (bracketIds: number[]) => {
+      if (!selectedBracketRef.current || !bracketIds.includes(selectedBracketRef.current.id)) return;
+      void refreshSelectedNow();
+    },
+    [refreshSelectedNow],
+  );
 
   const refreshSelected = async () => {
     if (!selectedBracket) return;
@@ -503,7 +511,7 @@ export default function ManageTournamentPage({
 
         {/* Middle Column - Bracket Preview */}
 
-        <WebSocketProvider tournamentId={tournamentId.toString()} onAnyUpdate={refreshSelectedFromWebSocket}>
+        <WebSocketProvider tournamentId={tournamentId.toString()} onBracketsUpdated={refreshSelectedFromWebSocket}>
           <div className="flex-1 flex flex-col gap-4 h-full overflow-auto">
             {selectedBracket ? (
               <>

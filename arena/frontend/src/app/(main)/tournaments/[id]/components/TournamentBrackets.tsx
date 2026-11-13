@@ -42,6 +42,7 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
   const [bracketsState, setBracketsState] = useState<Bracket[]>(brackets);
   const [loadedBracketMatches, setLoadedBracketMatches] = useState<Record<number, { matches: BracketMatches }>>({});
   const loadedBracketIdsRef = useRef<number[]>([]);
+  const pendingBracketIdsRef = useRef<Set<number>>(new Set());
   const [wsVersion, setWsVersion] = useState(0);
   const [filteredEntries, setFilteredEntries] = useState<TimetableEntry[]>([]);
   const [selectedDay, setSelectedDay] = useState<string>("1");
@@ -122,8 +123,7 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
     loadedBracketIdsRef.current = Object.keys(loadedBracketMatches).map((id) => Number(id));
   }, [loadedBracketMatches]);
 
-  const refreshLoadedBrackets = useCallback(async () => {
-    const ids = loadedBracketIdsRef.current;
+  const refreshBrackets = useCallback(async (ids: number[]) => {
     if (!ids.length) return;
 
     const [matchesResponses, bracketResponses] = await Promise.all([
@@ -152,17 +152,24 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
     });
   }, []);
 
-  const handleAnyWsUpdate = useCallback(() => {
+  // Only brackets the viewer has open are refetched, and only when the server says they changed.
+  const handleBracketsUpdated = useCallback((bracketIds: number[]) => {
+    const loaded = new Set(loadedBracketIdsRef.current);
+    const relevant = bracketIds.filter((id) => loaded.has(id));
+    if (!relevant.length) return;
+    relevant.forEach((id) => pendingBracketIdsRef.current.add(id));
     setWsVersion((prev) => prev + 1);
   }, []);
 
   useEffect(() => {
     if (wsVersion === 0) return;
     const timer = setTimeout(() => {
-      void refreshLoadedBrackets();
-    }, 150);
+      const ids = Array.from(pendingBracketIdsRef.current);
+      pendingBracketIdsRef.current.clear();
+      void refreshBrackets(ids);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [wsVersion, refreshLoadedBrackets]);
+  }, [wsVersion, refreshBrackets]);
 
   const bracketPlacements = (bracket: Bracket) => {
     const placements: Placement[] = [];
@@ -232,7 +239,7 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
         </Tabs>
       </div>
 
-      <WebSocketProvider tournamentId={String(tournament?.id)} onAnyUpdate={handleAnyWsUpdate}>
+      <WebSocketProvider tournamentId={String(tournament?.id)} onBracketsUpdated={handleBracketsUpdated}>
         <Tabs value={selectedDay} onValueChange={handleDayChange}>
           {Object.keys(entriesByDayTatami).length > 1 && (
             <TabsList>
