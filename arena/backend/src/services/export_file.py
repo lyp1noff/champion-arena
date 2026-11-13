@@ -9,13 +9,17 @@ from xml.sax.saxutils import escape
 import cairosvg
 from pypdf import PdfReader, PdfWriter
 
-from src.models import Bracket, BracketMatch, BracketType
+from src.models import Athlete, Bracket, BracketMatch, BracketType
 from src.utils import sanitize_filename
 
 SVG_TEMPLATE_PATH = "assets/template.svg"
 SVG_ROUND_TEMPLATE_PATH = "assets/round_template.svg"
 
 ExportMode = Literal["filled", "manual"]
+ROUND_ROBIN_MAX_ATHLETES = 6
+ROUND_ROBIN_NAME_MAX_CHARS = 22
+ROUND_ROBIN_LINE_HEIGHT = 13
+FIGHTS_LINE_HEIGHT = 17
 PLACEHOLDER_PATTERN = re.compile(r"\[\[\s*(\w+)\s*\]\]")
 
 
@@ -77,6 +81,13 @@ def build_round_robin_entry(
             return f"{last_name} {first_name}"
         return f"{last_name} {first_name}\n({coach_str})"
 
+    def _format_athlete_for_fights(athlete: Athlete | None) -> str:
+        if athlete is None:
+            return "?"
+        coach_names = [link.coach.last_name for link in athlete.coach_links if link.coach is not None]
+        name = f"{athlete.last_name} {athlete.first_name}"
+        return f"{name} ({', '.join(coach_names)})" if coach_names else name
+
     athletes_map = {}
     for match in matches:
         a1 = match.match.athlete1
@@ -102,6 +113,13 @@ def build_round_robin_entry(
     for idx, athlete in enumerate(athletes, start=1):
         entry[f"athlete{idx}"] = athlete
 
+    # Same wording as the "fights by bracket" report in the admin UI.
+    ordered = sorted(matches, key=lambda m: (m.round_number, m.position))
+    entry["fights"] = "\n".join(
+        f"{index}) {_format_athlete_for_fights(m.match.athlete1)} vs {_format_athlete_for_fights(m.match.athlete2)}"
+        for index, m in enumerate(ordered, start=1)
+    )
+
     if mode == "filled":
         athlete_positions = {athlete_id: idx for idx, athlete_id in enumerate(athlete_ids, start=1)}
         for match in matches:
@@ -121,27 +139,52 @@ def build_round_robin_entry(
 
 
 def _inject_round_template_multiline_athletes(svg_template: str, entry: dict[str, str]) -> str:
-    for idx in range(1, 6):
+    for idx in range(1, ROUND_ROBIN_MAX_ATHLETES + 1):
         key = f"athlete{idx}"
         raw_value = entry.get(key, "")
         name_line, _, coach_line = raw_value.partition("\n")
-        name_line = escape(name_line)
-        coach_line = escape(coach_line)
+        # Long names do not fit the 6-column table: put last and first name on separate lines.
+        if len(name_line) > ROUND_ROBIN_NAME_MAX_CHARS and " " in name_line:
+            lines = name_line.split(" ", 1)
+        else:
+            lines = [name_line]
+        if coach_line:
+            lines.append(coach_line)
+        lines = [escape(line) for line in lines]
 
         pattern = rf"<text(?P<attrs>[^>]*)>\[\[\s*{key}\s*\]\]</text>"
 
         def replace_text(match: re.Match[str]) -> str:
             attrs = match.group("attrs")
-            if not coach_line:
-                return f"<text{attrs}>{name_line}</text>"
+            if len(lines) == 1:
+                return f"<text{attrs}>{lines[0]}</text>"
 
             x_match = re.search(r'\bx="([^"]+)"', attrs)
             x_attr = f' x="{x_match.group(1)}"' if x_match else ""
-            return f'<text{attrs}>{name_line}<tspan{x_attr} dy="13">{coach_line}</tspan></text>'
+            # Lift the first line so the whole block stays centred in the cell.
+            lift = (len(lines) - 1) * ROUND_ROBIN_LINE_HEIGHT / 2
+            attrs = re.sub(r'\by="([^"]+)"', lambda m: f'y="{float(m.group(1)) - lift:g}"', attrs, count=1)
+            tail = "".join(f'<tspan{x_attr} dy="{ROUND_ROBIN_LINE_HEIGHT}">{line}</tspan>' for line in lines[1:])
+            return f"<text{attrs}>{lines[0]}{tail}</text>"
 
         svg_template = re.sub(pattern, replace_text, svg_template)
 
-    return svg_template
+    return _inject_multiline_text(svg_template, "fights", entry.get("fights", ""), FIGHTS_LINE_HEIGHT)
+
+
+def _inject_multiline_text(svg_template: str, key: str, value: str, line_height: int) -> str:
+    """Render a newline-separated value into the template's [[key]] <text> as stacked tspans."""
+    pattern = rf"<text(?P<attrs>[^>]*)>\[\[\s*{key}\s*\]\]</text>"
+
+    def replace_text(match: re.Match[str]) -> str:
+        attrs = match.group("attrs")
+        x_match = re.search(r'\bx="([^"]+)"', attrs)
+        x_attr = f' x="{x_match.group(1)}"' if x_match else ""
+        lines = [escape(line) for line in value.split("\n")] if value else [""]
+        tail = "".join(f'<tspan{x_attr} dy="{line_height}">{line}</tspan>' for line in lines[1:])
+        return f"<text{attrs}>{lines[0]}{tail}</text>"
+
+    return re.sub(pattern, replace_text, svg_template)
 
 
 def _replace_placeholders(svg_template: str, entry: dict[str, str]) -> str:
