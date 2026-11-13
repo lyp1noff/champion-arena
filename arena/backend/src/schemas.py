@@ -376,13 +376,13 @@ class CategoryCreateSchema(BaseModel):
 
 class SyncParticipant(BaseModel):
     athlete_id: int | None = None
-    seed: int = Field(ge=1)
+    seed: int
 
 
 class SyncMatch(BaseModel):
     id: uuid.UUID
-    round_number: int = Field(ge=1)
-    position: int = Field(ge=1)
+    round_number: int
+    position: int
     next_slot: int | None = None
     round_type: str | None = None
     stage: str = "main"

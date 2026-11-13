@@ -101,6 +101,8 @@ async def _get_bracket_for_match(match_id: int, db: AsyncSession) -> Bracket | N
         select(Bracket)
         .join(BracketMatch, BracketMatch.bracket_id == Bracket.id)
         .where(BracketMatch.match_id == match_id)
+        # Serialize concurrent changes to one bracket so each gets its own version bump.
+        .with_for_update(of=Bracket)
     )
     return result.scalar_one_or_none()
 
