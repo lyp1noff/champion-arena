@@ -1,8 +1,7 @@
-import os
 import re
 from datetime import date, timedelta
+from io import BytesIO
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import Literal
 from xml.sax.saxutils import escape
 
@@ -261,42 +260,33 @@ def generate_pdf(
     tournament_title: str,
     start_date: date | None = None,
     mode: ExportMode = "filled",
-) -> str | dict[str, str]:
+) -> bytes | None:
+    """Render all brackets into one PDF in memory. Returns None when there is nothing to export."""
     entries = build_entries(data, tournament_title, start_date=start_date, mode=mode)
     if not entries:
-        return {"detail": "Нет данных для генерации."}
+        return None
 
     writer = PdfWriter()
-    temp_paths = []
-
     elimination_template = Path(SVG_TEMPLATE_PATH).read_text(encoding="utf-8")
     round_template = Path(SVG_ROUND_TEMPLATE_PATH).read_text(encoding="utf-8")
 
     for entry in entries:
         template_type = entry.get("_template", "elimination")
         if template_type == BracketType.ROUND_ROBIN.value:
-            svg_template = round_template
-            svg_template = _inject_round_template_multiline_athletes(svg_template, entry)
+            svg_template = _inject_round_template_multiline_athletes(round_template, entry)
         else:
             svg_template = elimination_template
 
         svg_template = _replace_placeholders(svg_template, entry)
+        page = BytesIO()
+        cairosvg.svg2pdf(bytestring=svg_template.encode("utf-8"), write_to=page)
+        page.seek(0)
+        writer.append_pages_from_reader(PdfReader(page))
 
-        with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            cairosvg.svg2pdf(bytestring=svg_template.encode("utf-8"), write_to=tmp.name)
-            temp_paths.append(tmp.name)
-            reader = PdfReader(tmp.name)
-            writer.append_pages_from_reader(reader)
+    output = BytesIO()
+    writer.write(output)
+    return output.getvalue()
 
-    sanitized_title = sanitize_filename(tournament_title or "tournament")
 
-    pdf_storage_path = os.path.join(os.getcwd(), "pdf_storage")
-    final_path = os.path.join(pdf_storage_path, f"{sanitized_title}_{mode}.pdf")
-
-    with open(final_path, "wb") as f_out:
-        writer.write(f_out)
-
-    for path in temp_paths:
-        os.remove(path)
-
-    return final_path
+def export_filename(tournament_title: str, mode: ExportMode) -> str:
+    return f"{sanitize_filename(tournament_title or 'tournament')}_{mode}.pdf"

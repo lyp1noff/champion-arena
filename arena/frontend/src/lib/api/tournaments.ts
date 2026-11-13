@@ -135,17 +135,35 @@ export async function replaceTournamentTimetable(
 
 export type TournamentExportMode = "filled" | "manual";
 
-export async function downloadTournamentPdf(tournamentId: number, mode: TournamentExportMode): Promise<string> {
+export async function downloadTournamentPdf(tournamentId: number, mode: TournamentExportMode): Promise<File> {
   const res = await fetchWithRefresh(`${BACKEND_URL}/tournaments/${tournamentId}/export_file?mode=${mode}`, {
     cache: "no-store",
   });
 
   if (!res.ok) {
-    throw new Error("Failed to export tournament file");
+    const detail = await res
+      .json()
+      .then((body) => body?.detail)
+      .catch(() => null);
+    throw new Error(detail || "Failed to export tournament file");
   }
 
-  const data = await res.json();
-  return `${BACKEND_URL}/${data.filename}`;
+  const blob = await res.blob();
+  return new File([blob], filenameFromDisposition(res.headers.get("Content-Disposition"), mode), {
+    type: "application/pdf",
+  });
+}
+
+function filenameFromDisposition(header: string | null, mode: TournamentExportMode): string {
+  const encoded = header?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded);
+    } catch {
+      // fall through to the plain filename
+    }
+  }
+  return header?.match(/filename="([^"]+)"/i)?.[1] ?? `tournament_${mode}.pdf`;
 }
 
 export async function importCbrFile(tournamentId: number, file: File): Promise<void> {

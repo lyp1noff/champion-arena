@@ -108,9 +108,6 @@ async def regenerate_bracket_matches(
     if num_players < 2:
         logger.warning(f"Category: {bracket_id} Player number: {num_players}")
         if commit:
-            tournament = await db.get(Tournament, tournament_id)
-            if tournament is not None:
-                tournament.export_last_updated_at = datetime.now(UTC)
             await db.commit()
         return None
 
@@ -123,9 +120,6 @@ async def regenerate_bracket_matches(
     await generate_all_rounds(db, bracket_id, planned_matches)
 
     if commit:
-        tournament = await db.get(Tournament, tournament_id)
-        if tournament is not None:
-            tournament.export_last_updated_at = datetime.now(UTC)
         await db.commit()
     return None
 
@@ -142,9 +136,6 @@ async def regenerate_round_bracket_matches(
     matches: list[BracketMatch] = []
     if len(participants) < 2:
         if commit:
-            tournament = await db.get(Tournament, tournament_id)
-            if tournament is not None:
-                tournament.export_last_updated_at = datetime.now(UTC)
             await db.commit()
         return None if commit else matches
 
@@ -157,9 +148,6 @@ async def regenerate_round_bracket_matches(
     matches.extend(await generate_all_rounds(db, bracket_id, planned_matches))
 
     if commit:
-        tournament = await db.get(Tournament, tournament_id)
-        if tournament is not None:
-            tournament.export_last_updated_at = datetime.now(UTC)
         await db.commit()
         return None
     else:
@@ -182,9 +170,6 @@ async def regenerate_tournament_brackets(db: AsyncSession, tournament_id: int) -
         else:
             logger.warning(f"Bracket type: {bracket_type} not supported")
 
-    tournament = await db.get(Tournament, tournament_id)
-    if tournament is not None:
-        tournament.export_last_updated_at = datetime.now(UTC)
     await db.flush()
     await db.commit()
 

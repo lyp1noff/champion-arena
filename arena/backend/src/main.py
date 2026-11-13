@@ -1,10 +1,8 @@
-import os
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from starlette.responses import JSONResponse
-from starlette.staticfiles import StaticFiles
 
 from src.config import validate_runtime_secrets
 from src.dependencies.auth import get_current_user, require_admin
@@ -48,11 +46,6 @@ async def protect_docs(
     return await call_next(request)
 
 
-BASE_DIR = os.getcwd()
-pdf_storage_path = os.path.join(BASE_DIR, "pdf_storage")
-os.makedirs(pdf_storage_path, exist_ok=True)
-
-app.mount("/pdf_storage", StaticFiles(directory=pdf_storage_path), name="static")
 for router in routers:
     app.include_router(router)
 

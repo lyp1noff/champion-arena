@@ -1,6 +1,7 @@
 from typing import Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
@@ -138,13 +139,33 @@ async def regenerate_tournament(tournament_id: int, db: AsyncSession = Depends(g
     return {"status": "ok"}
 
 
-@router.get("/{tournament_id}/export_file", dependencies=[Depends(require_admin)])
+@router.get(
+    "/{tournament_id}/export_file",
+    dependencies=[Depends(require_admin)],
+    response_class=Response,
+    responses={200: {"content": {"application/pdf": {}}}},
+)
 async def generate_brackets_export_file(
     tournament_id: int,
     mode: Literal["filled", "manual"] = Query("filled"),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, str]:
-    return await generate_brackets_export_file_service(db, tournament_id, mode)
+) -> Response:
+    pdf, filename = await generate_brackets_export_file_service(db, tournament_id, mode)
+    # The PDF is streamed straight to the admin: nothing is stored or publicly reachable.
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{_ascii_filename(filename)}"; '
+            f"filename*=UTF-8''{quote(filename)}",
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+def _ascii_filename(filename: str) -> str:
+    ascii_name = filename.encode("ascii", "ignore").decode().strip("_ ") or "tournament.pdf"
+    return ascii_name if ascii_name.endswith(".pdf") else f"{ascii_name}.pdf"
 
 
 @router.post("/{tournament_id}/import", dependencies=[Depends(require_admin)])

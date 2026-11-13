@@ -137,7 +137,6 @@ class Tournament(Base, TimestampMixin):
     registration_start_date: Mapped[Optional[date]] = mapped_column(nullable=True)
     registration_end_date: Mapped[Optional[date]] = mapped_column(nullable=True)
     image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    export_last_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     brackets: Mapped[list["Bracket"]] = relationship(back_populates="tournament", cascade="all, delete-orphan")
     timetable_entries: Mapped[list["TimetableEntry"]] = relationship(

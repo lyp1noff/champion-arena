@@ -5,19 +5,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+
 import { toast } from "sonner";
 
+import { ExportedFileActions } from "@/components/exported-file-actions";
 import TournamentCard from "@/components/tournament-card";
 import { TournamentForm } from "@/components/tournament-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
-import {
-  downloadTournamentPdf,
-  getTournamentBracketsById,
-  getTournamentById,
-} from "@/lib/api/tournaments";
+import { downloadTournamentPdf, getTournamentBracketsById, getTournamentById } from "@/lib/api/tournaments";
 import type { TournamentExportMode } from "@/lib/api/tournaments";
 import { Bracket, Tournament } from "@/lib/interfaces";
 
@@ -32,6 +30,7 @@ export default function TournamentAdminPage() {
   const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [exportingMode, setExportingMode] = useState<TournamentExportMode | null>(null);
+  const [exportedFile, setExportedFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!tournamentId) return;
@@ -58,12 +57,12 @@ export default function TournamentAdminPage() {
 
   const exportFile = async (mode: TournamentExportMode) => {
     setExportingMode(mode);
+    setExportedFile(null);
 
     try {
       await toast.promise(
         (async () => {
-          const url = await downloadTournamentPdf(tournamentId, mode);
-          window.open(url, "_blank");
+          setExportedFile(await downloadTournamentPdf(tournamentId, mode));
         })(),
         {
           loading: "Generating file, please wait...",
@@ -142,6 +141,7 @@ export default function TournamentAdminPage() {
             >
               {t("exportManual")}
             </Button>
+            {exportedFile && <ExportedFileActions file={exportedFile} />}
           </CardContent>
         </Card>
       </div>

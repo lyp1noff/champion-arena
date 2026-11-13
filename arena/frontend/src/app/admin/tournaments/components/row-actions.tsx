@@ -7,6 +7,7 @@ import { Row } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
+import { ExportedFileActions } from "@/components/exported-file-actions";
 import { TournamentForm } from "@/components/tournament-form";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -38,6 +39,7 @@ interface DataTableRowActionsProps {
 export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [exportedFile, setExportedFile] = useState<File | null>(null);
   const router = useRouter();
   const t = useTranslations("AdminTournaments");
   const tournament = row.original;
@@ -96,8 +98,7 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
   const exportFile = async (mode: TournamentExportMode) => {
     toast.promise(
       (async () => {
-        const url = await downloadTournamentPdf(row.original.id, mode);
-        window.open(url, "_blank");
+        setExportedFile(await downloadTournamentPdf(row.original.id, mode));
       })(),
       {
         loading: "Generating file, please wait...",
@@ -125,13 +126,17 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
           <DropdownMenuItem onClick={handleReports}>{t("reports")}</DropdownMenuItem>
           <DropdownMenuSeparator />
           {tournament.status === TOURNAMENT_STATUS.DRAFT && (
-            <DropdownMenuItem onClick={() => handleUpdateStatus(TOURNAMENT_STATUS.UPCOMING)}>Publish Tournament</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleUpdateStatus(TOURNAMENT_STATUS.UPCOMING)}>
+              Publish Tournament
+            </DropdownMenuItem>
           )}
           {tournament.status === TOURNAMENT_STATUS.UPCOMING && (
             <DropdownMenuItem onClick={handleStartTournament}>Start Tournament</DropdownMenuItem>
           )}
           {tournament.status === TOURNAMENT_STATUS.STARTED && (
-            <DropdownMenuItem onClick={() => handleUpdateStatus(TOURNAMENT_STATUS.FINISHED)}>Finish Tournament</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleUpdateStatus(TOURNAMENT_STATUS.FINISHED)}>
+              Finish Tournament
+            </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuSub>
@@ -156,6 +161,13 @@ export function DataTableRowActions({ row, onDataChanged }: DataTableRowActionsP
               onDataChanged?.();
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={exportedFile !== null} onOpenChange={(open) => !open && setExportedFile(null)}>
+        <DialogContent>
+          <DialogTitle>{t("exportToFile")}</DialogTitle>
+          {exportedFile && <ExportedFileActions file={exportedFile} />}
         </DialogContent>
       </Dialog>
 

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from pathlib import Path
 
 from champion_domain import ApplicationStatus, TOURNAMENT_STATUS_TRANSITIONS, TournamentStatus
 from fastapi import HTTPException
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import asc, delete, desc, distinct, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,8 +36,7 @@ from src.schemas import (
     TournamentUpdate,
 )
 from src.services.brackets import regenerate_tournament_brackets, reorder_seeds_and_get_next
-from src.services.export_file import ExportMode, generate_pdf
-from src.utils import sanitize_filename
+from src.services.export_file import ExportMode, export_filename, generate_pdf
 
 
 async def list_tournaments(
@@ -317,20 +316,17 @@ async def regenerate_tournament(db: AsyncSession, tournament_id: int) -> None:
 
 async def generate_brackets_export_file(
     db: AsyncSession, tournament_id: int, mode: ExportMode = "filled"
-) -> dict[str, str]:
+) -> tuple[bytes, str]:
     tournament = await db.get(Tournament, tournament_id)
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
-    tournament_title = tournament.name
-    final_filename = f"{sanitize_filename(tournament_title)}_{mode}.pdf"
-    final_path = Path("pdf_storage") / final_filename
-
     brackets = await get_matches_for_tournament_raw(db, tournament_id)
-    result = generate_pdf(brackets, tournament_title, start_date=tournament.start_date, mode=mode)
-    if isinstance(result, dict):
-        raise HTTPException(status_code=400, detail=result.get("detail", "Failed to generate"))
-    return {"filename": final_path.as_posix()}
+    # Rendering ~100 pages takes seconds of CPU: keep it off the event loop.
+    pdf = await run_in_threadpool(generate_pdf, brackets, tournament.name, start_date=tournament.start_date, mode=mode)
+    if pdf is None:
+        raise HTTPException(status_code=400, detail="Нет данных для генерации.")
+    return pdf, export_filename(tournament.name, mode)
 
 
 async def update_tournament_status(db: AsyncSession, tournament_id: int, status: str) -> Tournament:
