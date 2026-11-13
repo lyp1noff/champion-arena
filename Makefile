@@ -9,7 +9,7 @@ DB_USER ?= user
 BACKUP_DIR ?= backups
 BACKUP_FILE ?= $(BACKUP_DIR)/$(DB)-$(shell date +%Y%m%d-%H%M%S).sql.gz
 
-.PHONY: dev arena tatami db down logs backup restore prod-arena prod-arena-down prod-arena-logs prod-tatami prod-tatami-down prod-tatami-logs
+.PHONY: dev arena tatami db down logs backup restore prod-arena prod-arena-down prod-arena-logs prod-tatami prod-tatami-update prod-tatami-down prod-tatami-logs
 
 dev:
 	$(DEV_COMPOSE) up -d --build
@@ -56,8 +56,16 @@ prod-arena-down:
 prod-arena-logs:
 	$(ARENA_PROD_COMPOSE) logs --follow
 
+# Start with the images already on disk; works without internet.
 prod-tatami:
 	$(TATAMI_PROD_COMPOSE) up -d
+
+# Fetch the latest images (needs internet) and recreate the containers.
+prod-tatami-update:
+	$(TATAMI_PROD_COMPOSE) pull --policy always
+	$(TATAMI_PROD_COMPOSE) up -d
+	@docker inspect champion-tatami-backend champion-tatami-frontend \
+		--format '{{.Name}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
 
 prod-tatami-down:
 	$(TATAMI_PROD_COMPOSE) down
