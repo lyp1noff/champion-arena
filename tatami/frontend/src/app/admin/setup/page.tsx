@@ -26,12 +26,25 @@ import {
 import { OutboxStatus, Tournament } from "@/lib/interfaces";
 import { useI18n } from "@/lib/i18n";
 
+// Newest first: the tournament being run is almost always the latest one.
+function sortTournaments(tournaments: Tournament[]): Tournament[] {
+  return [...tournaments].sort(
+    (a, b) => (b.start_date ?? "").localeCompare(a.start_date ?? "") || b.id - a.id,
+  );
+}
+
+function formatTournamentDate(value?: string): string {
+  if (!value) return "";
+  const [year, month, day] = value.slice(0, 10).split("-");
+  return year && month && day ? `${day}.${month}.${year}` : value;
+}
+
 function mergeTournaments(local: Tournament[], external: Tournament[]): Tournament[] {
   const byId = new Map(local.map((tournament) => [tournament.id, tournament]));
   for (const tournament of external) {
     byId.set(tournament.id, tournament);
   }
-  return Array.from(byId.values());
+  return sortTournaments(Array.from(byId.values()));
 }
 
 export default function SetupPage() {
@@ -85,7 +98,7 @@ export default function SetupPage() {
           getLocalTournaments(),
           getCurrentTournament(),
         ]);
-        setTournaments(localTournaments);
+        setTournaments(sortTournaments(localTournaments));
         setSelectedTournament(currentTournament.current_tournament_id);
 
         if (currentTournament.current_tournament_id) {
@@ -221,7 +234,9 @@ export default function SetupPage() {
                 <SelectContent>
                   {tournaments.map((tournament) => (
                     <SelectItem key={tournament.id} value={tournament.id.toString()}>
-                      {tournament.name}
+                      {tournament.start_date
+                        ? `${formatTournamentDate(tournament.start_date)} · ${tournament.name}`
+                        : tournament.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
