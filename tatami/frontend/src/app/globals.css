@@ -152,8 +152,9 @@ input[type="number"], input[type="text"] { min-height: 36px; border: 1px solid #
 .sync-table th, .sync-table td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 .sync-table th { color: #4b5563; background: #f9fafb; font-weight: 600; white-space: nowrap; }
 .sync-state { display: inline-flex; padding: 3px 8px; border-radius: 9999px; background: #f3f4f6; white-space: nowrap; }
-.sync-state--success { color: #166534; background: #dcfce7; }.sync-state--dead_letter { color: #991b1b; background: #fee2e2; }
-.sync-state--retry_wait { color: #854d0e; background: #fef9c3; }.sync-state--processing { color: #1e40af; background: #dbeafe; }
+.sync-state--synced { color: #166534; background: #dcfce7; }
+.sync-state--attention { color: #991b1b; background: #fee2e2; }
+.sync-state--pending { color: #1e40af; background: #dbeafe; }
 .sync-empty { padding: 32px !important; color: #6b7280; text-align: center !important; }
 .sync-pagination { justify-content: flex-end; padding: 14px; }.sync-details { max-width: 760px; }
 .sync-payload { max-height: 360px; overflow: auto; padding: 12px; border-radius: 8px; background: #111827; color: #f9fafb; font-size: 12px; white-space: pre-wrap; word-break: break-word; }

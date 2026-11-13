@@ -16,14 +16,14 @@ import {
   getCurrentTournament,
   getExternalTournaments,
   getLocalTournaments,
-  getOutboxStatus,
+  getSyncStatus,
   getTatamis,
   rebootstrapTournament,
   refreshAthletes,
   setCurrentTournament,
   syncTournament,
 } from "@/lib/api";
-import { OutboxStatus, Tournament } from "@/lib/interfaces";
+import { SyncStatus, Tournament } from "@/lib/interfaces";
 import { useI18n } from "@/lib/i18n";
 
 // Newest first: the tournament being run is almost always the latest one.
@@ -58,17 +58,17 @@ export default function SetupPage() {
   const [selectedTournament, setSelectedTournament] = useState<number | null>(null);
   const [rebootstrapDialogOpen, setRebootstrapDialogOpen] = useState(false);
   const [rebootstrapStep, setRebootstrapStep] = useState<1 | 2>(1);
-  const [outboxStatus, setOutboxStatus] = useState<OutboxStatus | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
 
   const getOperationStatus = (status: string) =>
     ["success", "error", "ok"].includes(status) ? t(`setup.status.${status}`) : status;
 
-  const fetchOutboxStatus = async () => {
+  const fetchSyncStatus = async () => {
     try {
-      const data = await getOutboxStatus();
-      setOutboxStatus(data);
+      const data = await getSyncStatus();
+      setSyncStatus(data);
     } catch (error) {
-      console.error("Error fetching outbox status:", error);
+      console.error("Error fetching sync status:", error);
     }
   };
 
@@ -82,11 +82,11 @@ export default function SetupPage() {
   };
 
   useEffect(() => {
-    fetchOutboxStatus();
+    fetchSyncStatus();
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(fetchOutboxStatus, 10000);
+    const interval = setInterval(fetchSyncStatus, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -140,7 +140,7 @@ export default function SetupPage() {
     try {
       setSyncing(true);
       const result = await syncTournament(selectedTournament);
-      await Promise.all([fetchAvailableTatamis(selectedTournament), fetchOutboxStatus()]);
+      await Promise.all([fetchAvailableTatamis(selectedTournament), fetchSyncStatus()]);
       alert(t("setup.syncResult", { status: getOperationStatus(result.status) }));
     } catch (error) {
       console.error("Error syncing tournament:", error);
@@ -180,7 +180,7 @@ export default function SetupPage() {
     try {
       setRebootstrapping(true);
       const result = await rebootstrapTournament(selectedTournament);
-      await Promise.all([fetchAvailableTatamis(selectedTournament), fetchOutboxStatus()]);
+      await Promise.all([fetchAvailableTatamis(selectedTournament), fetchSyncStatus()]);
       handleRebootstrapOpenChange(false);
       alert(t("setup.rebootstrapResult", { status: getOperationStatus(result.status) }));
     } catch (error) {
@@ -198,24 +198,24 @@ export default function SetupPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-8">{t("setup.title")}</h1>
 
           <div className="space-y-6">
-            {outboxStatus && (
+            {syncStatus && (
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4">{t("setup.outbox")}</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">{t("setup.syncSummary")}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                   <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-gray-900">{outboxStatus.total}</p>
+                    <p className="text-2xl font-bold text-gray-900">{syncStatus.total}</p>
                     <p className="text-sm text-gray-600">{t("setup.total")}</p>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg">
-                    <p className="text-2xl font-bold text-green-800">{outboxStatus.succeeded}</p>
+                    <p className="text-2xl font-bold text-green-800">{syncStatus.synced}</p>
                     <p className="text-sm text-green-700">{t("setup.succeeded")}</p>
                   </div>
                   <div className="p-4 bg-yellow-50 rounded-lg">
-                    <p className="text-2xl font-bold text-yellow-800">{outboxStatus.outstanding}</p>
+                    <p className="text-2xl font-bold text-yellow-800">{syncStatus.pending}</p>
                     <p className="text-sm text-yellow-700">{t("setup.pending")}</p>
                   </div>
                   <div className="p-4 bg-red-50 rounded-lg">
-                    <p className="text-2xl font-bold text-red-800">{outboxStatus.dead_letter}</p>
+                    <p className="text-2xl font-bold text-red-800">{syncStatus.attention}</p>
                     <p className="text-sm text-red-700">{t("setup.failed")}</p>
                   </div>
                 </div>
@@ -266,7 +266,7 @@ export default function SetupPage() {
                 <a href="/admin/brackets">{t("setup.openBrackets")}</a>
               </Button>
               <Button asChild variant="outline" className="px-4">
-                <a href="/admin/outbox">{t("setup.openSync")}</a>
+                <a href="/admin/sync">{t("setup.openSync")}</a>
               </Button>
             </div>
 

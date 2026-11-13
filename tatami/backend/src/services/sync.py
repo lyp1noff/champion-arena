@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import EXTERNAL_API_TOKEN, EXTERNAL_API_URL
 from src.logger import logger
-from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, OutboxItem, TimetableEntry, Tournament
+from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, TimetableEntry, Tournament
 from src.utils import parse_datetime_utc
 
 # Snapshots now carry the full athlete roster; allow more than httpx's 5s default.
@@ -226,7 +226,6 @@ async def reset_local_tournament_copy(tournament_id: int, db: AsyncSession) -> b
 
     logger.warning("Deleting local tournament copy before rebootstrap: external_id=%s", tournament_id)
 
-    await db.execute(delete(OutboxItem).where(OutboxItem.tournament_id == tournament.id))
     await db.execute(delete(Match).where(~Match.bracket_matches.any()))
 
     await db.delete(tournament)
@@ -438,6 +437,7 @@ async def _import_bootstrap_snapshot(tournament_id: int, snapshot: dict[str, Any
                 group_id=b.get("group_id") or 1,
                 status=remote_status,
                 version=remote_version,
+                synced_version=remote_version,
                 display_name=b.get("display_name") or b["category"],
             )
             db.add(bracket_obj)
@@ -450,6 +450,11 @@ async def _import_bootstrap_snapshot(tournament_id: int, snapshot: dict[str, Any
             bracket_obj.group_id = b.get("group_id") or 1
             bracket_obj.status = remote_status
             bracket_obj.version = remote_version
+            # Freshly imported from Arena: nothing to send back.
+            bracket_obj.synced_version = remote_version
+            bracket_obj.sync_blocked_version = None
+            bracket_obj.sync_remote_version = None
+            bracket_obj.sync_error = None
             bracket_obj.display_name = b.get("display_name") or b["category"]
             updated_brackets += 1
 
@@ -524,7 +529,7 @@ async def _import_bootstrap_snapshot(tournament_id: int, snapshot: dict[str, Any
 
 
 async def rebootstrap_tournament(tournament_id: int, db: AsyncSession) -> dict[str, str]:
-    # Fetch first: if Arena is unreachable the local copy (and its unsent outbox)
+    # Fetch first: if Arena is unreachable the local copy (and its unsynced changes)
     # must stay untouched.
     try:
         snapshot = await fetch_bootstrap_snapshot(tournament_id)

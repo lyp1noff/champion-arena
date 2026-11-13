@@ -18,7 +18,7 @@ arena:
 	$(DEV_COMPOSE) up -d --build arena-nginx
 
 tatami:
-	$(DEV_COMPOSE) up -d --build tatami-nginx tatami-outbox
+	$(DEV_COMPOSE) up -d --build tatami-nginx tatami-sync
 
 db:
 	$(DEV_COMPOSE) up -d db
@@ -58,12 +58,12 @@ prod-arena-logs:
 
 # Start with the images already on disk; works without internet.
 prod-tatami:
-	$(TATAMI_PROD_COMPOSE) up -d
+	$(TATAMI_PROD_COMPOSE) up -d --remove-orphans
 
 # Fetch the latest images (needs internet) and recreate the containers.
 prod-tatami-update:
 	$(TATAMI_PROD_COMPOSE) pull --policy always
-	$(TATAMI_PROD_COMPOSE) up -d
+	$(TATAMI_PROD_COMPOSE) up -d --remove-orphans
 	@docker inspect champion-tatami-backend champion-tatami-frontend \
 		--format '{{.Name}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
 

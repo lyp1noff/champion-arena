@@ -8,8 +8,8 @@ import {
   BracketParticipant,
   Athlete,
   SyncTournamentResponse,
-  OutboxItem,
-  OutboxStatus,
+  BracketSyncItem,
+  SyncStatus,
 } from "./interfaces";
 
 export const BACKEND_URL = "/api";
@@ -201,46 +201,33 @@ export async function rebootstrapTournament(tournamentId: number): Promise<SyncT
   return response.json();
 }
 
-export async function getOutboxStatus(): Promise<OutboxStatus> {
-  const res = await fetch(`${BACKEND_URL}/outbox/status`, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error("Failed to fetch outbox status");
-  }
+export async function getSyncStatus(): Promise<SyncStatus> {
+  const res = await fetch(`${BACKEND_URL}/sync/status`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch sync status");
   return res.json();
 }
 
-export async function getOutboxItems(
+export async function getSyncBrackets(
   status: string,
   limit = 50,
   offset = 0,
-): Promise<{ total: number; items: OutboxItem[] }> {
+): Promise<{ total: number; items: BracketSyncItem[] }> {
   const params = new URLSearchParams({ status, limit: String(limit), offset: String(offset) });
-  const response = await fetch(`${BACKEND_URL}/outbox/items?${params}`, { cache: "no-store" });
-  if (!response.ok) throw new Error("Failed to fetch outbox items");
+  const response = await fetch(`${BACKEND_URL}/sync/brackets?${params}`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Failed to fetch sync brackets");
   return response.json();
 }
 
-export async function getOutboxItem(itemId: number): Promise<OutboxItem> {
-  const response = await fetch(`${BACKEND_URL}/outbox/${itemId}`, { cache: "no-store" });
-  if (!response.ok) throw new Error("Failed to fetch outbox item");
-  return response.json();
+export async function retrySyncNow(): Promise<void> {
+  const response = await fetch(`${BACKEND_URL}/sync/retry`, { method: "POST" });
+  if (!response.ok) throw new Error("Failed to request sync retry");
 }
 
-export async function retryOutboxItem(itemId: number): Promise<void> {
-  const response = await fetch(`${BACKEND_URL}/outbox/${itemId}/retry`, { method: "POST" });
-  if (!response.ok) throw new Error("Failed to retry outbox item");
-}
-
-export async function retryAllOutboxItems(): Promise<void> {
-  const response = await fetch(`${BACKEND_URL}/outbox/retry-all`, { method: "POST" });
-  if (!response.ok) throw new Error("Failed to retry outbox items");
-}
-
-export async function reconcileOutboxItem(itemId: number): Promise<void> {
-  const response = await fetch(`${BACKEND_URL}/outbox/${itemId}/reconcile`, { method: "POST" });
+export async function resendBracket(bracketId: number): Promise<void> {
+  const response = await fetch(`${BACKEND_URL}/sync/brackets/${bracketId}/resend`, { method: "POST" });
   if (!response.ok) {
     const data = await response.json().catch(() => null);
-    throw new Error(data?.detail ?? "Failed to reconcile outbox item");
+    throw new Error(data?.detail ?? "Failed to resend bracket");
   }
 }
 

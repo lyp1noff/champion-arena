@@ -4,7 +4,7 @@ import ReactDOM from "react-dom/client";
 import Home from "@/app/page";
 import SetupPage from "@/app/admin/setup/page";
 import BracketsAdminPage from "@/app/admin/brackets/page";
-import OutboxAdminPage from "@/app/admin/outbox/page";
+import SyncAdminPage from "@/app/admin/sync/page";
 import TatamiSetupPage from "@/app/admin/tatami/[id]/page";
 import ManageTatami from "@/app/admin/tatami/[id]/match/[match_id]/page";
 import ScreenTatami from "@/app/screen/page";
@@ -23,7 +23,7 @@ function Router() {
   if (path === "/") page = <Home />;
   else if (path === "/admin/setup") page = <SetupPage />;
   else if (path === "/admin/brackets") page = <BracketsAdminPage />;
-  else if (path === "/admin/outbox") page = <OutboxAdminPage />;
+  else if (path === "/admin/sync" || path === "/admin/outbox") page = <SyncAdminPage />;
   else if (/^\/admin\/tatami\/[^/]+\/match\/[^/]+$/.test(path)) page = <ManageTatami />;
   else if (/^\/admin\/tatami\/[^/]+$/.test(path)) page = <TatamiSetupPage />;
   else page = <NotFound />;

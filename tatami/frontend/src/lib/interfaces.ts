@@ -12,24 +12,18 @@ export type BracketStatus = (typeof BRACKET_STATUS)[keyof typeof BRACKET_STATUS]
 export const MATCH_STATUS = { NOT_STARTED: "not_started", STARTED: "started", FINISHED: "finished" } as const;
 export type MatchStatus = (typeof MATCH_STATUS)[keyof typeof MATCH_STATUS];
 
-export const OUTBOX_STATUS = {
-  PENDING: "pending",
-  PROCESSING: "processing",
-  RETRY_WAIT: "retry_wait",
-  SUCCESS: "success",
-  DEAD_LETTER: "dead_letter",
-} as const;
-export type OutboxItemStatus = (typeof OUTBOX_STATUS)[keyof typeof OUTBOX_STATUS];
-
-export const OUTBOX_WORKER_PHASE = {
+export const SYNC_WORKER_PHASE = {
   STARTING: "starting",
   IDLE: "idle",
-  WORKING: "working",
-  OFFLINE_WAIT: "offline_wait",
+  SENDING: "sending",
+  OFFLINE: "offline",
   STOPPED: "stopped",
   UNKNOWN: "unknown",
 } as const;
-export type OutboxWorkerPhase = (typeof OUTBOX_WORKER_PHASE)[keyof typeof OUTBOX_WORKER_PHASE];
+export type SyncWorkerPhase = (typeof SYNC_WORKER_PHASE)[keyof typeof SYNC_WORKER_PHASE];
+
+export const BRACKET_SYNC_STATE = { PENDING: "pending", ATTENTION: "attention", SYNCED: "synced" } as const;
+export type BracketSyncState = (typeof BRACKET_SYNC_STATE)[keyof typeof BRACKET_SYNC_STATE];
 
 export interface ExternalMatch {
   external_id: string;
@@ -163,50 +157,36 @@ export interface CurrentTournamentResponse {
   current_tournament_id: number | null;
 }
 
-export interface OutboxWorkerStatus {
+export interface SyncWorkerStatus {
   alive: boolean;
-  phase: OutboxWorkerPhase;
+  phase: SyncWorkerPhase;
   heartbeat_at?: string | null;
   last_success_at?: string | null;
   last_error?: string | null;
-  circuit_open_until?: string | null;
-}
-
-export interface OutboxStatus {
-  total: number;
-  pending: number;
-  succeeded: number;
-  processing: number;
-  retry_wait: number;
-  dead_letter: number;
-  outstanding: number;
-  oldest_pending_at?: string | null;
-  worker: OutboxWorkerStatus;
-}
-
-export interface OutboxItem {
-  id: number;
-  tournament_id?: number | null;
-  tournament_name?: string | null;
-  match_id?: number | null;
-  status: OutboxItemStatus;
-  retry_count: number;
-  failure_kind?: string | null;
-  error?: string | null;
-  created_at: string;
-  updated_at: string;
-  last_attempt_at?: string | null;
   next_attempt_at?: string | null;
-  lease_until?: string | null;
-  resolved_at?: string | null;
-  edge_id?: string | null;
-  external_tournament_id?: number | null;
-  event_id?: string | null;
-  seq?: number | null;
-  item_type?: string | null;
-  aggregate_id?: string | null;
-  aggregate_version?: number | null;
-  payload?: unknown;
+}
+
+export interface SyncStatus {
+  total: number;
+  synced: number;
+  pending: number;
+  attention: number;
+  oldest_pending_at?: string | null;
+  worker: SyncWorkerStatus;
+}
+
+export interface BracketSyncItem {
+  bracket_id: number;
+  name: string;
+  tournament_name: string;
+  status?: string | null;
+  state: BracketSyncState;
+  version: number;
+  synced_version?: number | null;
+  synced_at?: string | null;
+  updated_at?: string | null;
+  error?: string | null;
+  remote_version?: number | null;
 }
 
 export interface TatamisResponse {
@@ -217,7 +197,3 @@ export interface SyncTournamentResponse {
   status: string;
   message?: string;
 }
-
-// export interface OutboxStatusResponse {
-//   [key: string]: any;
-// }

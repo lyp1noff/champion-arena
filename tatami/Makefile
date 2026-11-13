@@ -30,9 +30,9 @@ front-build:
 front-dev:
 	cd frontend && npm install && npm run dev
 
-# Outbox
-outbox-dev:
-	cd backend && uv run python -m src.outbox_worker
+# Sync worker (pushes local changes to Arena)
+sync-dev:
+	cd backend && uv run python -m src.sync_worker
 
 docker-dev:
 	$(MAKE) -C .. tatami

@@ -171,9 +171,9 @@ services:
       timeout: 2s
       retries: 30
 
-  tatami-outbox:
+  tatami-sync:
     image: champion-tatami-backend:dev
-    command: ["uv", "run", "python", "-m", "src.outbox_worker"]
+    command: ["uv", "run", "python", "-m", "src.sync_worker"]
     env_file:
       - ./tatami/.env
     environment:

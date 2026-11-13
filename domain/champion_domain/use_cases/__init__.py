@@ -40,27 +40,12 @@ from .single_elimination import (
     plan_single_elimination_bracket,
     resolve_bye_advancements,
 )
-from .structure_rebuild import StructureMatch, StructureParticipant
-from .structure_snapshot import (
-    StructureMatchInput,
-    StructureParticipantInput,
-    build_structure_match,
-    build_structure_participant,
-    build_structure_participants,
-)
 
 __all__ = [
     "PlannedMatch",
     "MatchClassification",
     "classify_bracket_match",
     "compute_main_rounds",
-    "StructureMatch",
-    "StructureParticipant",
-    "StructureMatchInput",
-    "StructureParticipantInput",
-    "build_structure_match",
-    "build_structure_participant",
-    "build_structure_participants",
     "plan_single_elimination",
     "SeededParticipant",
     "PlannedRoundRobinMatch",

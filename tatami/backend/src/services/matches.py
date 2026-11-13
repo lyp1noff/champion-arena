@@ -21,12 +21,6 @@ from sqlalchemy.orm import selectinload
 from src.logger import logger
 from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match
 from src.schemas import CorrectMatchResultSchema, FinishMatchSchema, MatchWithBracketSchema, UpdateMatchScoresSchema
-from src.services.outbox import (
-    create_bracket_upsert_outbox,
-    create_match_finish_outbox,
-    create_match_scores_outbox,
-    create_match_start_outbox,
-)
 from src.transport.mappers import to_match_with_bracket_schema
 
 
@@ -233,9 +227,9 @@ async def _ensure_repechage_generated(bracket_id: int, db: AsyncSession) -> bool
     return True
 
 
-def _touch_bracket(bracket: Bracket) -> int:
+def _touch_bracket(bracket: Bracket) -> None:
+    """Every local change bumps the version; the sync worker sends brackets whose version is unsynced."""
     bracket.version = (bracket.version or 0) + 1
-    return bracket.version
 
 
 async def get_match(match_id: str, db: AsyncSession) -> MatchWithBracketSchema:
@@ -270,13 +264,11 @@ async def start_match(match_id: str, db: AsyncSession) -> dict[str, str]:
     match.started_at = datetime.now(timezone.utc)
 
     bracket = await _get_bracket_for_match(match.id, db)
-    aggregate_version = 1
     if bracket is not None:
         if bracket.status != BracketStatus.FINISHED.value:
             bracket.status = BracketStatus.STARTED.value
-        aggregate_version = _touch_bracket(bracket)
+        _touch_bracket(bracket)
 
-    await create_match_start_outbox(match, aggregate_version, db)
     await db.commit()
 
     return {"message": f"Match {match_id} started successfully"}
@@ -311,9 +303,6 @@ async def finish_match(match_id: str, finish_data: FinishMatchSchema, db: AsyncS
     bm = bm_result.scalar_one_or_none()
 
     bracket = await _get_bracket_for_match(match.id, db)
-    aggregate_version = 1
-    if bracket is not None:
-        aggregate_version = _touch_bracket(bracket)
 
     if bm:
         main_rounds = await _get_main_rounds_count(bm.bracket_id, db)
@@ -371,21 +360,8 @@ async def finish_match(match_id: str, finish_data: FinishMatchSchema, db: AsyncS
             if post.completion.should_finish_bracket:
                 bracket.status = BracketStatus.FINISHED.value
 
-    await create_match_finish_outbox(
-        match,
-        winner.external_id,
-        finish_data.score_athlete1,
-        finish_data.score_athlete2,
-        aggregate_version,
-        db,
-    )
-
     if bracket is not None:
-        # Finishing a match can update the next match participants even when bracket structure
-        # itself did not change. Always publish the full bracket snapshot after finish so arena
-        # sees progression immediately.
         _touch_bracket(bracket)
-        await create_bracket_upsert_outbox(bracket, db)
 
     await db.commit()
     return {"message": f"Match {match_id} finished successfully"}
@@ -494,17 +470,7 @@ async def correct_match_result(
         await db.flush()
         await _ensure_repechage_generated(bm.bracket_id, db)
 
-    aggregate_version = _touch_bracket(bracket)
-    await create_match_finish_outbox(
-        match,
-        winner.external_id,
-        correction.score_athlete1,
-        correction.score_athlete2,
-        aggregate_version,
-        db,
-    )
     _touch_bracket(bracket)
-    await create_bracket_upsert_outbox(bracket, db)
 
     await db.commit()
     return {"message": f"Match {match_id} result corrected successfully"}
@@ -523,10 +489,8 @@ async def update_match_scores(match_id: str, scores_data: UpdateMatchScoresSchem
         match.score_athlete2 = scores_data.score_athlete2
 
     bracket = await _get_bracket_for_match(match.id, db)
-    aggregate_version = 1
     if bracket is not None:
-        aggregate_version = _touch_bracket(bracket)
+        _touch_bracket(bracket)
 
-    await create_match_scores_outbox(match, aggregate_version, db)
     await db.commit()
     return {"message": f"Scores updated for match {match_id}"}

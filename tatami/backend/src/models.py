@@ -5,7 +5,7 @@ from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, Str
 from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column, relationship
 
 from champion_domain import MatchStatus
-from src.statuses import OutboxStatus, OutboxWorkerPhase
+from src.statuses import SyncWorkerPhase
 
 
 class Base(DeclarativeBase):
@@ -40,7 +40,6 @@ class Tournament(Base, TimestampMixin):
     timetable_entries: Mapped[List["TimetableEntry"]] = relationship(
         "TimetableEntry", back_populates="tournament", cascade="all, delete-orphan"
     )
-    outbox_items: Mapped[List["OutboxItem"]] = relationship("OutboxItem", back_populates="tournament")
 
 
 class Bracket(Base, TimestampMixin):
@@ -58,6 +57,15 @@ class Bracket(Base, TimestampMixin):
     status: Mapped[Optional[str]] = mapped_column(String)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     display_name: Mapped[Optional[str]] = mapped_column(String)
+
+    # Tatami -> Arena sync state. Dirty while version > synced_version.
+    synced_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    sync_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Version Arena rejected (or found stale); not retried until the bracket changes again.
+    sync_blocked_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Arena's version when it reported this bracket as stale.
+    sync_remote_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     tournament: Mapped["Tournament"] = relationship("Tournament", back_populates="brackets")
     matches: Mapped[List["BracketMatch"]] = relationship(
@@ -156,7 +164,6 @@ class Match(Base):
     bracket_matches: Mapped[List["BracketMatch"]] = relationship(
         "BracketMatch", back_populates="match", cascade="all, delete"
     )
-    outbox_items: Mapped[List["OutboxItem"]] = relationship("OutboxItem", back_populates="match")
 
 
 class BracketMatch(Base):
@@ -188,47 +195,23 @@ class BracketParticipant(Base):
     athlete: Mapped[Optional["Athlete"]] = relationship("Athlete", back_populates="bracket_participations")
 
 
-class OutboxItem(Base, TimestampMixin):
-    __tablename__ = "outbox_items"
+class SyncWorkerState(Base):
+    __tablename__ = "sync_worker_state"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending', 'processing', 'retry_wait', 'success', 'dead_letter')",
-            name="ck_outbox_items_status",
-        ),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    tournament_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("tournaments.id"), nullable=True)
-    match_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("matches.id"), nullable=True)
-    payload: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String, default=OutboxStatus.PENDING.value)
-    retry_count: Mapped[int] = mapped_column(Integer, default=0)
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    failure_kind: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    next_attempt_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_attempt_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-
-    tournament: Mapped[Optional["Tournament"]] = relationship("Tournament", back_populates="outbox_items")
-    match: Mapped[Optional["Match"]] = relationship("Match", back_populates="outbox_items")
-
-
-class OutboxWorkerState(Base):
-    __tablename__ = "outbox_worker_state"
-    __table_args__ = (
-        CheckConstraint(
-            "phase IN ('starting', 'idle', 'working', 'offline_wait', 'stopped')",
-            name="ck_outbox_worker_phase",
+            "phase IN ('starting', 'idle', 'sending', 'offline', 'stopped')",
+            name="ck_sync_worker_phase",
         ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     heartbeat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
-    phase: Mapped[str] = mapped_column(String(30), default=OutboxWorkerPhase.STARTING.value)
+    phase: Mapped[str] = mapped_column(String(30), default=SyncWorkerPhase.STARTING.value)
     last_success_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    circuit_open_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The worker waits until this moment after a failed delivery; the UI sets it to now to retry immediately.
+    next_attempt_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
 
 class GlobalSettings(Base):
     __tablename__ = "global_settings"

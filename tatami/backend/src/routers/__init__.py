@@ -1,4 +1,4 @@
-from . import athletes, brackets, external, matches, outbox, settings, tournaments
+from . import athletes, brackets, external, matches, settings, sync, tournaments
 
 routers = [
     external.router,
@@ -7,5 +7,5 @@ routers = [
     tournaments.router,
     brackets.router,
     matches.router,
-    outbox.router,
+    sync.router,
 ]

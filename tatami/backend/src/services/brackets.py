@@ -18,7 +18,6 @@ from sqlalchemy.orm import selectinload
 
 from src.config import EXTERNAL_API_TOKEN, EXTERNAL_API_URL
 from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, TimetableEntry, Tournament
-from src.services.outbox import create_bracket_upsert_outbox
 
 
 async def get_bracket_by_external_id(db: AsyncSession, bracket_external_id: int) -> Bracket:
@@ -144,11 +143,9 @@ async def regenerate_bracket(db: AsyncSession, bracket: Bracket) -> None:
     await db.flush()
 
 
-async def regenerate_brackets_and_enqueue_upserts(db: AsyncSession, brackets: Sequence[Bracket]) -> None:
+async def regenerate_brackets(db: AsyncSession, brackets: Sequence[Bracket]) -> None:
     for bracket in brackets:
         await regenerate_bracket(db, bracket)
-    for bracket in brackets:
-        await create_bracket_upsert_outbox(bracket, db)
 
 
 async def ensure_local_athlete(db: AsyncSession, athlete_external_id: int) -> Athlete:
@@ -220,7 +217,7 @@ async def add_participant_to_bracket(
 
     participant = await _insert_participant(db, bracket_id=bracket.id, athlete_id=athlete.id, target_seed=seed)
     participant_id = participant.id
-    await regenerate_brackets_and_enqueue_upserts(db, [bracket])
+    await regenerate_brackets(db, [bracket])
     await db.commit()
     result = await db.execute(
         select(BracketParticipant)
@@ -249,7 +246,7 @@ async def remove_participant_from_bracket(
     await db.delete(participant)
     await db.flush()
     await _reorder_seeds(db, bracket.id)
-    await regenerate_brackets_and_enqueue_upserts(db, [bracket])
+    await regenerate_brackets(db, [bracket])
     await db.commit()
 
 
@@ -290,7 +287,7 @@ async def move_participant_between_brackets(
     await _reorder_seeds(db, source_bracket.id)
     await _insert_participant(db, bracket_id=target_bracket.id, athlete_id=athlete_id, target_seed=target_seed)
 
-    await regenerate_brackets_and_enqueue_upserts(db, [source_bracket, target_bracket])
+    await regenerate_brackets(db, [source_bracket, target_bracket])
     await db.commit()
 
 
@@ -325,7 +322,7 @@ async def update_participant_seed(
         item.seed = index
 
     await db.flush()
-    await regenerate_brackets_and_enqueue_upserts(db, [bracket])
+    await regenerate_brackets(db, [bracket])
     await db.commit()
 
     reloaded = await db.execute(
