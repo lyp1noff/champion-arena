@@ -4,6 +4,8 @@ import createNextIntlPlugin from "next-intl/plugin";
 import { CDN_URL } from "@/lib/config";
 
 const nextConfig: NextConfig = {
+  // Dev server only: extra hosts allowed to load /_next dev resources (comma-separated).
+  allowedDevOrigins: process.env.NEXT_ALLOWED_DEV_ORIGINS?.split(",").filter(Boolean),
   async rewrites() {
     const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://backend:8000";
     return [
