@@ -55,7 +55,6 @@ services:
       - ./arena/backend/alembic.ini:/workspace/arena/backend/alembic.ini
       - ./arena/backend/assets:/workspace/arena/backend/assets
       - ./domain/champion_domain:/workspace/domain/champion_domain
-      - arena_pdf_storage:/workspace/arena/backend/pdf_storage
     depends_on:
       db:
         condition: service_healthy
@@ -205,7 +204,6 @@ services:
 
 volumes:
   postgres_data:
-  arena_pdf_storage:
   arena_frontend_node_modules:
   arena_frontend_next:
   tatami_frontend_node_modules:

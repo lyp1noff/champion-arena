@@ -29,8 +29,6 @@ COPY arena/backend /workspace/arena/backend
 RUN chmod +x /workspace/arena/backend/docker-entrypoint.sh
 
 RUN useradd -ms /bin/bash appuser
-RUN mkdir -p /workspace/arena/backend/pdf_storage \
-    && chown -R appuser:appuser /workspace/arena/backend/pdf_storage
 USER appuser
 
 ENTRYPOINT ["/workspace/arena/backend/docker-entrypoint.sh"]
