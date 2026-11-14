@@ -22,14 +22,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.logger import logger
 from src.models import Athlete, Bracket, BracketMatch, BracketParticipant, Match, Tournament
 from src.schemas import (
-    BracketsUpdated,
     SyncBracket,
     SyncBracketResult,
     SyncBracketsRequest,
     SyncBracketsResponse,
     SyncMatch,
 )
-from src.services.broadcast import broadcast
+from src.services.live import publish_bracket_changes
 
 MATCH_FIELDS = (
     "athlete1_id",
@@ -197,16 +196,6 @@ async def _refresh_tournament_status(db: AsyncSession, tournament_id: int) -> No
         tournament.status = TournamentStatus.STARTED.value
 
 
-async def _broadcast_brackets(tournament_id: int, bracket_ids: list[int]) -> None:
-    try:
-        await broadcast.publish(
-            channel=f"tournament:{tournament_id}",
-            message=BracketsUpdated(bracket_ids=bracket_ids).model_dump_json(),
-        )
-    except Exception as exc:
-        logger.error(f"Error broadcasting bracket updates: {exc}")
-
-
 async def apply_brackets(db: AsyncSession, payload: SyncBracketsRequest) -> SyncBracketsResponse:
     if await db.get(Tournament, payload.tournament_id) is None:
         return SyncBracketsResponse(
@@ -246,5 +235,5 @@ async def apply_brackets(db: AsyncSession, payload: SyncBracketsRequest) -> Sync
     if rejected:
         logger.warning("Sync from %s: %d/%d not applied: %s", payload.edge_id, len(rejected), len(results), rejected)
     if changed_ids:
-        await _broadcast_brackets(payload.tournament_id, changed_ids)
+        await publish_bracket_changes(db, payload.tournament_id, changed_ids)
     return SyncBracketsResponse(results=results)

@@ -208,9 +208,11 @@ async def get_all_brackets(db: AsyncSession) -> list[Bracket]:
     return list(result.scalars().all())
 
 
-async def get_bracket(db: AsyncSession, bracket_id: int) -> Bracket:
+async def get_bracket(db: AsyncSession, bracket_id: int, *, fresh: bool = False) -> Bracket:
+    """`fresh` re-reads rows already in the session (use after commit in the same session)."""
     result = await db.execute(
         select(Bracket)
+        .execution_options(populate_existing=fresh)
         .where(Bracket.id == bracket_id)
         .options(
             selectinload(Bracket.category),
@@ -234,9 +236,10 @@ async def get_bracket(db: AsyncSession, bracket_id: int) -> Bracket:
     return bracket
 
 
-async def get_bracket_matches(db: AsyncSession, bracket_id: int) -> list[BracketMatch]:
+async def get_bracket_matches(db: AsyncSession, bracket_id: int, *, fresh: bool = False) -> list[BracketMatch]:
     result = await db.execute(
         select(BracketMatch)
+        .execution_options(populate_existing=fresh)
         .filter_by(bracket_id=bracket_id)
         .options(
             selectinload(BracketMatch.match)

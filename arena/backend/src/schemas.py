@@ -430,8 +430,34 @@ class SyncBracketsResponse(BaseModel):
     results: list[SyncBracketResult]
 
 
+class BracketHeader(BaseModel):
+    id: int
+    status: BracketStatus
+    version: int
+
+
 class BracketsUpdated(BaseModel):
-    """WebSocket message: these brackets changed, refetch them if shown."""
+    """WebSocket message for viewers that do not have these brackets open.
+
+    `bracket_ids` stays for clients that only know "refetch these"; `brackets` lets a
+    client update list badges without any request.
+    """
 
     type: Literal["brackets_updated"] = "brackets_updated"
     bracket_ids: list[int]
+    brackets: list[BracketHeader] = Field(default_factory=list)
+
+
+class BracketState(BaseModel):
+    """WebSocket message for viewers subscribed to the bracket: its full current state."""
+
+    type: Literal["bracket_state"] = "bracket_state"
+    bracket: BracketResponse
+    matches: list[BracketMatchResponse]
+
+
+class WsSubscribe(BaseModel):
+    """Client -> server: replace the set of brackets this connection wants full state for."""
+
+    type: Literal["subscribe"]
+    bracket_ids: list[int] = Field(default_factory=list, max_length=200)

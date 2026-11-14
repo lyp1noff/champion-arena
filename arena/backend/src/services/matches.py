@@ -35,8 +35,8 @@ from src.models import (
     MatchStage,
     Tournament,
 )
-from src.schemas import BracketsUpdated, MatchFinishRequest, MatchScoreUpdate
-from src.services.broadcast import broadcast
+from src.schemas import MatchFinishRequest, MatchScoreUpdate
+from src.services.live import publish_bracket_changes
 
 MatchId = UUID
 
@@ -262,19 +262,18 @@ async def _ensure_repechage_generated(db: AsyncSession, bracket_id: int) -> bool
 
 async def broadcast_match_update(match: Match, db: AsyncSession) -> None:
     try:
-        bracket_match_stmt = (
-            select(BracketMatch).options(selectinload(BracketMatch.bracket)).where(BracketMatch.match_id == match.id)
-        )
-        bracket_match_result = await db.execute(bracket_match_stmt)
-        bracket_match = bracket_match_result.scalar_one_or_none()
-
-        if bracket_match and bracket_match.bracket:
-            await broadcast.publish(
-                channel=f"tournament:{bracket_match.bracket.tournament_id}",
-                message=BracketsUpdated(bracket_ids=[bracket_match.bracket.id]).model_dump_json(),
+        row = (
+            await db.execute(
+                select(Bracket.id, Bracket.tournament_id)
+                .join(BracketMatch, BracketMatch.bracket_id == Bracket.id)
+                .where(BracketMatch.match_id == match.id)
             )
+        ).first()
     except Exception as exc:
         logger.error(f"Error broadcasting match update: {exc}")
+        return
+    if row is not None:
+        await publish_bracket_changes(db, row.tournament_id, [row.id])
 
 
 async def get_match(db: AsyncSession, match_id: MatchId) -> Match:
