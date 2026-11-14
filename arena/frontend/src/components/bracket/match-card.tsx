@@ -1,7 +1,10 @@
+import { memo } from "react";
+
+import { ChangeFlash } from "@/components/bracket/change-flash";
 import { LiveBadge } from "@/components/bracket/live-badge";
 import { ParticipantNameWithMenu } from "@/components/bracket/participant-name-with-menu";
 
-import { MATCH_STATUS, BracketMatch, BracketMatchAthlete } from "@/lib/interfaces";
+import { BracketMatch, BracketMatchAthlete, MATCH_STATUS } from "@/lib/interfaces";
 
 interface MatchCardProps {
   bracketMatch: BracketMatch;
@@ -10,7 +13,18 @@ interface MatchCardProps {
   medalByAthleteId?: Record<number, "gold" | "silver" | "bronze">;
 }
 
-export default function MatchCard({ bracketMatch, width = 220, height = 80, medalByAthleteId }: MatchCardProps) {
+function matchSignature({ match }: BracketMatch) {
+  return [
+    match.status,
+    match.score_athlete1,
+    match.score_athlete2,
+    match.athlete1?.id,
+    match.athlete2?.id,
+    match.winner?.id,
+  ].join("|");
+}
+
+export default memo(function MatchCard({ bracketMatch, width = 220, height = 80, medalByAthleteId }: MatchCardProps) {
   const calculatedHeight = (height - 3) / 2;
   const calculatedFontSize = height / 5;
 
@@ -28,7 +42,8 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80, meda
         <LiveBadge variant="rounded-t" size="sm" className="absolute right-3 z-10" style={{ bottom: `${height}px` }} />
       )}
 
-      <div className="overflow-hidden rounded-md border" style={{ width, height }}>
+      <div className="relative overflow-hidden rounded-md border" style={{ width, height }}>
+        <ChangeFlash signature={matchSignature(bracketMatch)} className="rounded-md" />
         <PlayerSlot
           player={bracketMatch.match.athlete1}
           score={currentScore1}
@@ -51,7 +66,7 @@ export default function MatchCard({ bracketMatch, width = 220, height = 80, meda
       </div>
     </div>
   );
-}
+});
 
 interface PlayerSlotProps {
   player: BracketMatchAthlete | null | undefined;

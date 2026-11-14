@@ -1,8 +1,9 @@
+import { ChangeFlash } from "@/components/bracket/change-flash";
 import { LiveBadge } from "@/components/bracket/live-badge";
 import { ParticipantNameWithMenu } from "@/components/bracket/participant-name-with-menu";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
-import { MATCH_STATUS, BracketMatches } from "@/lib/interfaces";
+import { BracketMatches, MATCH_STATUS } from "@/lib/interfaces";
 import { getUniqueAthletes } from "@/lib/utils";
 
 const TR_HEIGHT = undefined;
@@ -37,7 +38,8 @@ function ScoreCell({ bm, rowId }: { bm: BracketMatches[number]; rowId: number })
   const scoreText = !notStarted ? `${left ?? 0} : ${right ?? 0}` : "";
 
   return (
-    <td className="border px-2 py-1 font-mono whitespace-nowrap">
+    <td className="relative border px-2 py-1 font-mono whitespace-nowrap">
+      <ChangeFlash signature={`${status}|${s1}|${s2}`} />
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-center gap-1">
         <div className="justify-self-center text-center">{scoreText}</div>
         {status === MATCH_STATUS.STARTED && <LiveBadge size="sm" className="justify-self-center sm:justify-self-end" />}

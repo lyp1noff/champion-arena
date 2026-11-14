@@ -1,5 +1,7 @@
 "use client";
 
+import { memo, useMemo } from "react";
+
 import BracketContent from "@/components/bracket/bracket-content";
 import RepechageBracketContent from "@/components/bracket/repechage-bracket-content";
 import RoundRobinContent from "@/components/bracket/round-robin-content";
@@ -14,8 +16,16 @@ interface BracketViewProps {
   placements?: Placement[];
 }
 
-export function BracketView({ matches, bracketType, matchCardHeight = 60, placements = [] }: BracketViewProps) {
+const NO_PLACEMENTS: Placement[] = [];
+
+export const BracketView = memo(function BracketView({
+  matches,
+  bracketType,
+  matchCardHeight = 60,
+  placements = NO_PLACEMENTS,
+}: BracketViewProps) {
   const isRoundRobin = bracketType === "round_robin";
+  const medalByAthleteId = useMemo(() => getMedalByAthleteId(placements), [placements]);
 
   if (isRoundRobin) {
     return <RoundRobinContent bracketMatches={matches} />;
@@ -25,55 +35,49 @@ export function BracketView({ matches, bracketType, matchCardHeight = 60, placem
   const repechageA = matches.filter((item) => item.match?.stage === "repechage" && item.match?.repechage_side === "A");
   const repechageB = matches.filter((item) => item.match?.stage === "repechage" && item.match?.repechage_side === "B");
   const hasRepechage = repechageA.length > 0 || repechageB.length > 0;
-  const medalByAthleteId = getMedalByAthleteId(placements);
 
-  if (!hasRepechage) {
-    return (
-      <div className="space-y-3">
-        <PlacementsRow placements={placements} />
-        <BracketContent
-          bracketMatches={mainMatches}
-          matchCardHeight={matchCardHeight}
-          medalByAthleteId={medalByAthleteId}
-        />
-      </div>
-    );
-  }
-
+  // One tree whether or not repechage exists: when it appears live, the main bracket must not
+  // remount (that would drop its cards' change highlight).
   return (
     <div className="space-y-3">
       <PlacementsRow placements={placements} />
-      <Tabs defaultValue="main" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="main">Main</TabsTrigger>
-          <TabsTrigger value="a">Repechage A</TabsTrigger>
-          <TabsTrigger value="b">Repechage B</TabsTrigger>
-        </TabsList>
-        <TabsContent value="main">
+      <Tabs defaultValue="main" className={hasRepechage ? "space-y-4" : undefined}>
+        {hasRepechage && (
+          <TabsList>
+            <TabsTrigger value="main">Main</TabsTrigger>
+            <TabsTrigger value="a">Repechage A</TabsTrigger>
+            <TabsTrigger value="b">Repechage B</TabsTrigger>
+          </TabsList>
+        )}
+        <TabsContent value="main" className={hasRepechage ? undefined : "mt-0"}>
           <BracketContent
             bracketMatches={mainMatches}
             matchCardHeight={matchCardHeight}
             medalByAthleteId={medalByAthleteId}
           />
         </TabsContent>
-        <TabsContent value="a">
-          <RepechageBracketContent
-            matches={repechageA}
-            matchCardHeight={matchCardHeight}
-            medalByAthleteId={medalByAthleteId}
-          />
-        </TabsContent>
-        <TabsContent value="b">
-          <RepechageBracketContent
-            matches={repechageB}
-            matchCardHeight={matchCardHeight}
-            medalByAthleteId={medalByAthleteId}
-          />
-        </TabsContent>
+        {hasRepechage && (
+          <>
+            <TabsContent value="a">
+              <RepechageBracketContent
+                matches={repechageA}
+                matchCardHeight={matchCardHeight}
+                medalByAthleteId={medalByAthleteId}
+              />
+            </TabsContent>
+            <TabsContent value="b">
+              <RepechageBracketContent
+                matches={repechageB}
+                matchCardHeight={matchCardHeight}
+                medalByAthleteId={medalByAthleteId}
+              />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );
-}
+});
 
 export type Placement = {
   place: 1 | 2 | 3;

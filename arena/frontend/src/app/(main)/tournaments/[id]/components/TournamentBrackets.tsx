@@ -1,23 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { BracketHeader } from "@/app/(main)/tournaments/[id]/components/BracketHeader";
+import { type BracketHeaderUpdate, type BracketStateUpdate, useWebSocket } from "@/hooks/use-websocket";
 import { X } from "lucide-react";
 import { useDebounce } from "use-debounce";
 
 import { BracketView, type Placement } from "@/components/bracket/bracket-view";
+import { ChangeFlash } from "@/components/bracket/change-flash";
 import { SkeletonBracketView } from "@/components/bracket/skeleton-bracket";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { WebSocketProvider } from "@/components/websocket-provider";
 
 import { getBracketMatchesById, getBracketsById } from "@/lib/api/brackets";
+import { getTournamentBracketsById } from "@/lib/api/tournaments";
 import { Bracket, BracketMatches, TimetableEntry, Tournament } from "@/lib/interfaces";
 import { getBracketDisplayName } from "@/lib/utils";
 
@@ -29,6 +31,47 @@ interface TournamentPageContentProps {
   timetableEntries: TimetableEntry[];
 }
 
+type BracketsById = Record<number, Bracket>;
+type MatchesById = Record<number, BracketMatches>;
+
+const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Keep previous objects for unchanged matches so memoized cards skip re-rendering. */
+function reconcileMatches(prev: BracketMatches | undefined, next: BracketMatches): BracketMatches {
+  if (!prev) return next;
+  const prevById = new Map(prev.map((bm) => [bm.id, bm]));
+  let unchanged = prev.length === next.length;
+  const merged = next.map((bm, index) => {
+    const old = prevById.get(bm.id);
+    if (old && sameJson(old, bm)) {
+      if (prev[index] !== old) unchanged = false;
+      return old;
+    }
+    unchanged = false;
+    return bm;
+  });
+  return unchanged ? prev : merged;
+}
+
+function isOlder(incoming: Bracket | BracketHeaderUpdate, current: Bracket | undefined) {
+  return current?.version != null && incoming.version != null && incoming.version < current.version;
+}
+
+function toById(list: Bracket[]): BracketsById {
+  return Object.fromEntries(list.map((b) => [b.id, b]));
+}
+
+function bracketPlacements(bracket: Bracket): Placement[] {
+  const placements: Placement[] = [];
+  if (bracket.place_1) placements.push({ place: 1 as const, athlete: bracket.place_1 });
+  if (bracket.place_2) placements.push({ place: 2 as const, athlete: bracket.place_2 });
+  if (bracket.place_3_a) placements.push({ place: 3 as const, athlete: bracket.place_3_a });
+  if (bracket.place_3_b) placements.push({ place: 3 as const, athlete: bracket.place_3_b });
+  return placements;
+}
+
+const groupKey = (day: string, tatami: string) => `${day}|${tatami}`;
+
 export default function TournamentBrackets({ tournament, brackets, timetableEntries }: TournamentPageContentProps) {
   const t = useTranslations("TournamentPage");
   const router = useRouter();
@@ -39,42 +82,62 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
   const urlDay = searchParams.get("day");
 
   const [tab, setTab] = useState("brackets");
-  const [bracketsState, setBracketsState] = useState<Bracket[]>(brackets);
-  const [loadedBracketMatches, setLoadedBracketMatches] = useState<Record<number, { matches: BracketMatches }>>({});
-  const loadedBracketIdsRef = useRef<number[]>([]);
-  const pendingBracketIdsRef = useRef<Set<number>>(new Set());
-  const [wsVersion, setWsVersion] = useState(0);
+  const [bracketsById, setBracketsById] = useState<BracketsById>(() => toById(brackets));
+  const [matchesById, setMatchesById] = useState<MatchesById>({});
+  const [openByGroup, setOpenByGroup] = useState<Record<string, string[]>>({});
   const [filteredEntries, setFilteredEntries] = useState<TimetableEntry[]>([]);
   const [selectedDay, setSelectedDay] = useState<string>("1");
 
+  const matchesRef = useRef(matchesById);
+  matchesRef.current = matchesById;
+  /** Loaded brackets that changed while not subscribed; refetched when shown again. */
+  const staleRef = useRef<Set<number>>(new Set());
+  /** Bumped on every pushed state, so an older in-flight HTTP response can be dropped. */
+  const pushSeqRef = useRef<Map<number, number>>(new Map());
+  const inflightRef = useRef<Set<number>>(new Set());
+
   useEffect(() => {
-    setBracketsState(brackets);
+    setBracketsById(toById(brackets));
   }, [brackets]);
 
-  const loadBracketData = async (bracketId: number, force?: boolean) => {
-    if (!force && loadedBracketMatches[bracketId]) return;
-    try {
-      const matches = await getBracketMatchesById(bracketId);
-      setLoadedBracketMatches((prev) => ({
-        ...prev,
-        [bracketId]: { matches },
-      }));
-    } catch (err) {
-      console.error("Error fetching tournament bracketMatches:", err);
-      setLoadedBracketMatches((prev) => ({
-        ...prev,
-        [bracketId]: { matches: [] },
-      }));
-    }
-  };
+  const applyBracket = useCallback((bracket: Bracket) => {
+    setBracketsById((prev) => {
+      const current = prev[bracket.id];
+      if (isOlder(bracket, current) || (current && sameJson(current, bracket))) return prev;
+      return { ...prev, [bracket.id]: bracket };
+    });
+  }, []);
 
-  const bracketMap = useMemo(() => {
-    const map = new Map<number, Bracket>();
-    for (const bracket of bracketsState) {
-      map.set(bracket.id, bracket);
-    }
-    return map;
-  }, [bracketsState]);
+  const applyMatches = useCallback((bracketId: number, matches: BracketMatches) => {
+    setMatchesById((prev) => {
+      const next = reconcileMatches(prev[bracketId], matches);
+      return next === prev[bracketId] ? prev : { ...prev, [bracketId]: next };
+    });
+  }, []);
+
+  const fetchBracket = useCallback(
+    async (bracketId: number) => {
+      if (inflightRef.current.has(bracketId)) return;
+      inflightRef.current.add(bracketId);
+      const seq = pushSeqRef.current.get(bracketId) ?? 0;
+      const [matchesResult, bracketResult] = await Promise.allSettled([
+        getBracketMatchesById(bracketId),
+        getBracketsById(bracketId),
+      ]);
+      inflightRef.current.delete(bracketId);
+      if ((pushSeqRef.current.get(bracketId) ?? 0) !== seq) return;
+
+      if (bracketResult.status === "fulfilled") applyBracket(bracketResult.value);
+      if (matchesResult.status === "fulfilled") {
+        staleRef.current.delete(bracketId);
+        applyMatches(bracketId, matchesResult.value);
+      } else {
+        console.error("Error fetching bracket matches:", matchesResult.reason);
+        if (!matchesRef.current[bracketId]) applyMatches(bracketId, []);
+      }
+    },
+    [applyBracket, applyMatches],
+  );
 
   useEffect(() => {
     if (!timetableEntries.length) return;
@@ -88,7 +151,7 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
         const title = entry.title?.toLowerCase() ?? "";
         return title.includes(searchLower);
       }
-      const bracket = entry.bracket_id ? bracketMap.get(entry.bracket_id) : undefined;
+      const bracket = entry.bracket_id ? bracketsById[entry.bracket_id] : undefined;
       if (!bracket) return false;
       const matchesBracketCategory = bracket.category?.toLowerCase().includes(searchLower);
       const matchesDisplayName = getBracketDisplayName(bracket.category, bracket.group_id)
@@ -110,7 +173,7 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
     if (days.length === 1) {
       setSelectedDay(days[0]);
     }
-  }, [debouncedSearch, timetableEntries, bracketMap]);
+  }, [debouncedSearch, timetableEntries, bracketsById]);
 
   const handleDayChange = (v: string) => {
     setSelectedDay(v);
@@ -119,75 +182,20 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
     router.replace(`?${params.toString()}`, { scroll: false });
   };
 
-  useEffect(() => {
-    loadedBracketIdsRef.current = Object.keys(loadedBracketMatches).map((id) => Number(id));
-  }, [loadedBracketMatches]);
-
-  const refreshBrackets = useCallback(async (ids: number[]) => {
-    if (!ids.length) return;
-
-    const [matchesResponses, bracketResponses] = await Promise.all([
-      Promise.allSettled(ids.map((id) => getBracketMatchesById(id))),
-      Promise.allSettled(ids.map((id) => getBracketsById(id))),
-    ]);
-
-    setLoadedBracketMatches((prev) => {
-      const next = { ...prev };
-      matchesResponses.forEach((result, index) => {
-        if (result.status === "fulfilled") {
-          next[ids[index]] = { matches: result.value };
-        }
-      });
-      return next;
-    });
-
-    setBracketsState((prev) => {
-      const byId = new Map(prev.map((b) => [b.id, b]));
-      bracketResponses.forEach((result, index) => {
-        if (result.status === "fulfilled") {
-          byId.set(ids[index], result.value);
-        }
-      });
-      return Array.from(byId.values());
-    });
-  }, []);
-
-  // Only brackets the viewer has open are refetched, and only when the server says they changed.
-  const handleBracketsUpdated = useCallback((bracketIds: number[]) => {
-    const loaded = new Set(loadedBracketIdsRef.current);
-    const relevant = bracketIds.filter((id) => loaded.has(id));
-    if (!relevant.length) return;
-    relevant.forEach((id) => pendingBracketIdsRef.current.add(id));
-    setWsVersion((prev) => prev + 1);
-  }, []);
-
-  useEffect(() => {
-    if (wsVersion === 0) return;
-    const timer = setTimeout(() => {
-      const ids = Array.from(pendingBracketIdsRef.current);
-      pendingBracketIdsRef.current.clear();
-      void refreshBrackets(ids);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [wsVersion, refreshBrackets]);
-
-  const bracketPlacements = (bracket: Bracket) => {
-    const placements: Placement[] = [];
-    if (bracket.place_1) placements.push({ place: 1 as const, athlete: bracket.place_1 });
-    if (bracket.place_2) placements.push({ place: 2 as const, athlete: bracket.place_2 });
-    if (bracket.place_3_a) placements.push({ place: 3 as const, athlete: bracket.place_3_a });
-    if (bracket.place_3_b) placements.push({ place: 3 as const, athlete: bracket.place_3_b });
-    return placements;
-  };
-
-  const entriesByDayTatami = filteredEntries.reduce<Record<string, Record<string, TimetableEntry[]>>>((acc, entry) => {
-    const dayKey = String(entry.day);
-    const tatamiKey = entry.tatami;
-    if (!acc[dayKey]) acc[dayKey] = {};
-    if (!acc[dayKey][tatamiKey]) acc[dayKey][tatamiKey] = [];
-    acc[dayKey][tatamiKey].push(entry);
-    return acc;
-  }, {});
+  const entriesByDayTatami = useMemo(() => {
+    const grouped = filteredEntries.reduce<Record<string, Record<string, TimetableEntry[]>>>((acc, entry) => {
+      const dayKey = String(entry.day);
+      const tatamiKey = entry.tatami;
+      if (!acc[dayKey]) acc[dayKey] = {};
+      if (!acc[dayKey][tatamiKey]) acc[dayKey][tatamiKey] = [];
+      acc[dayKey][tatamiKey].push(entry);
+      return acc;
+    }, {});
+    for (const tatamis of Object.values(grouped)) {
+      for (const list of Object.values(tatamis)) list.sort((a, b) => a.order_index - b.order_index);
+    }
+    return grouped;
+  }, [filteredEntries]);
 
   useEffect(() => {
     if (urlDay) {
@@ -216,6 +224,87 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
     }
   }, [urlDay, tournament, entriesByDayTatami]);
 
+  // Brackets expanded on the visible day: these get full live state, the rest only status badges.
+  const openBracketIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const [key, values] of Object.entries(openByGroup)) {
+      if (!key.startsWith(`${selectedDay}|`)) continue;
+      for (const value of values) {
+        const id = Number(value);
+        if (Number.isInteger(id)) ids.add(id);
+      }
+    }
+    return [...ids].sort((a, b) => a - b);
+  }, [openByGroup, selectedDay]);
+
+  const openBracketIdsRef = useRef(openBracketIds);
+  openBracketIdsRef.current = openBracketIds;
+  const openKey = openBracketIds.join(",");
+
+  useEffect(() => {
+    for (const id of openBracketIdsRef.current) {
+      if (!matchesRef.current[id] || staleRef.current.has(id)) void fetchBracket(id);
+    }
+  }, [openKey, fetchBracket]);
+
+  const handleBracketState = useCallback(
+    ({ bracket, matches }: BracketStateUpdate) => {
+      pushSeqRef.current.set(bracket.id, (pushSeqRef.current.get(bracket.id) ?? 0) + 1);
+      staleRef.current.delete(bracket.id);
+      applyBracket(bracket);
+      applyMatches(bracket.id, matches);
+    },
+    [applyBracket, applyMatches],
+  );
+
+  const handleBracketsUpdated = useCallback(
+    (bracketIds: number[], headers: BracketHeaderUpdate[]) => {
+      if (headers.length) {
+        setBracketsById((prev) => {
+          let next = prev;
+          for (const header of headers) {
+            const current = next[header.id];
+            if (!current || isOlder(header, current)) continue;
+            if (current.status === header.status && current.version === header.version) continue;
+            if (next === prev) next = { ...prev };
+            next[header.id] = { ...current, status: header.status, version: header.version };
+          }
+          return next;
+        });
+      }
+      const open = new Set(openBracketIdsRef.current);
+      for (const id of bracketIds) {
+        // Open but pushed as a header: the server had not seen our subscription yet.
+        if (open.has(id)) void fetchBracket(id);
+        else if (matchesRef.current[id]) staleRef.current.add(id);
+      }
+    },
+    [fetchBracket],
+  );
+
+  const handleReconnect = useCallback(() => {
+    // Updates may have been missed while offline.
+    for (const id of Object.keys(matchesRef.current)) staleRef.current.add(Number(id));
+    for (const id of openBracketIdsRef.current) void fetchBracket(id);
+    if (tournament?.id) {
+      getTournamentBracketsById(tournament.id)
+        .then((fresh) => fresh.forEach(applyBracket))
+        .catch((err) => console.error("Error refreshing brackets:", err));
+    }
+  }, [tournament?.id, fetchBracket, applyBracket]);
+
+  useWebSocket({
+    tournamentId: String(tournament?.id),
+    subscribedBracketIds: openBracketIds,
+    onBracketState: handleBracketState,
+    onBracketsUpdated: handleBracketsUpdated,
+    onReconnect: handleReconnect,
+  });
+
+  const setGroupOpen = useCallback((key: string, values: string[]) => {
+    setOpenByGroup((prev) => ({ ...prev, [key]: values }));
+  }, []);
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6 sm:mb-10">
@@ -239,22 +328,23 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
         </Tabs>
       </div>
 
-      <WebSocketProvider tournamentId={String(tournament?.id)} onBracketsUpdated={handleBracketsUpdated}>
-        <Tabs value={selectedDay} onValueChange={handleDayChange}>
-          {Object.keys(entriesByDayTatami).length > 1 && (
-            <TabsList>
-              {Object.keys(entriesByDayTatami)
-                .sort()
-                .map((day) => (
-                  <TabsTrigger key={day} value={day}>
-                    {t("day", { number: day })}
-                  </TabsTrigger>
-                ))}
-            </TabsList>
-          )}
-          {Object.entries(entriesByDayTatami).map(([day, tatamis]) => (
-            <TabsContent key={day} value={day}>
-              {Object.entries(tatamis).map(([tatami, tatamiEntries]) => (
+      <Tabs value={selectedDay} onValueChange={handleDayChange}>
+        {Object.keys(entriesByDayTatami).length > 1 && (
+          <TabsList>
+            {Object.keys(entriesByDayTatami)
+              .sort()
+              .map((day) => (
+                <TabsTrigger key={day} value={day}>
+                  {t("day", { number: day })}
+                </TabsTrigger>
+              ))}
+          </TabsList>
+        )}
+        {Object.entries(entriesByDayTatami).map(([day, tatamis]) => (
+          <TabsContent key={day} value={day}>
+            {Object.entries(tatamis).map(([tatami, tatamiEntries]) => {
+              const key = groupKey(day, tatami);
+              return (
                 <div key={tatami} className="mt-10">
                   <h2 className="text-2xl font-bold mb-2">
                     {t("tatami")} {tatami}
@@ -262,96 +352,96 @@ export default function TournamentBrackets({ tournament, brackets, timetableEntr
                   <Accordion
                     type="multiple"
                     className="w-full"
-                    // value={openBracketIds}
-                    // onValueChange={setOpenBracketIds}
+                    value={openByGroup[key] ?? []}
+                    onValueChange={(values) => setGroupOpen(key, values)}
                   >
-                    {tatamiEntries
-                      .sort((a, b) => a.order_index - b.order_index)
-                      .map((entry) => {
-                        if (entry.entry_type !== "bracket") {
-                          return (
-                            <AccordionItem key={`custom-${entry.id}`} value={`custom-${entry.id}`}>
-                              <AccordionTrigger className="group hover:no-underline">
-                                <div className="flex flex-col text-left">
-                                  <span className="font-semibold">{entry.title ?? t("customEntry")}</span>
-                                  <span className="text-sm text-muted-foreground">
-                                    {entry.start_time.slice(0, 5)} – {entry.end_time.slice(0, 5)}
-                                  </span>
-                                </div>
-                              </AccordionTrigger>
-                              <AccordionContent>
-                                <div className="text-sm text-muted-foreground">{entry.notes ?? "-"}</div>
-                              </AccordionContent>
-                            </AccordionItem>
-                          );
-                        }
-
-                        const bracket = entry.bracket_id ? bracketMap.get(entry.bracket_id) : undefined;
-                        if (!bracket) {
-                          return (
-                            <AccordionItem key={`missing-${entry.id}`} value={`missing-${entry.id}`}>
-                              <AccordionTrigger className="group hover:no-underline">
-                                {t("unknownBracket")}
-                              </AccordionTrigger>
-                              <AccordionContent>
-                                <div className="text-sm text-muted-foreground">{t("unknownBracket")}</div>
-                              </AccordionContent>
-                            </AccordionItem>
-                          );
-                        }
-
-                        return (
-                          <AccordionItem key={bracket.id} value={String(bracket.id)}>
-                            <AccordionTrigger
-                              className="group hover:no-underline"
-                              onClick={() => loadBracketData(bracket.id)}
-                            >
-                              <BracketHeader bracket={bracket} time={entry.start_time} />
-                            </AccordionTrigger>
-                            <AccordionContent>
-                              {tab !== "brackets" ? (
-                                <ParticipantsView bracket={bracket} />
-                              ) : (
-                                <>
-                                  {/*<div className="pb-4 flex justify-end">*/}
-                                  {/*  <button*/}
-                                  {/*    className="p-2 border rounded-full"*/}
-                                  {/*    onClick={async (e) => {*/}
-                                  {/*      e.preventDefault();*/}
-                                  {/*      e.stopPropagation();*/}
-                                  {/*      await loadBracketData(bracket.id, true);*/}
-                                  {/*    }}*/}
-                                  {/*    aria-label="Reload bracket"*/}
-                                  {/*    type="button"*/}
-                                  {/*  >*/}
-                                  {/*    <RefreshCcw className="w-5 h-5" />*/}
-                                  {/*  </button>*/}
-                                  {/*</div>*/}
-                                  {loadedBracketMatches[bracket.id] ? (
-                                    <BracketView
-                                      matches={loadedBracketMatches[bracket.id].matches}
-                                      bracketType={bracket.type}
-                                      placements={bracketPlacements(bracket)}
-                                    />
-                                  ) : (
-                                    <SkeletonBracketView
-                                      bracketType={bracket.type}
-                                      count={bracket.participants.length}
-                                    />
-                                  )}
-                                </>
-                              )}
-                            </AccordionContent>
-                          </AccordionItem>
-                        );
-                      })}
+                    {tatamiEntries.map((entry) => {
+                      if (entry.entry_type !== "bracket") {
+                        return <CustomEntryItem key={`custom-${entry.id}`} entry={entry} />;
+                      }
+                      const bracket = entry.bracket_id ? bracketsById[entry.bracket_id] : undefined;
+                      if (!bracket) {
+                        return <MissingBracketItem key={`missing-${entry.id}`} entryId={entry.id} />;
+                      }
+                      return (
+                        <BracketItem
+                          key={bracket.id}
+                          bracket={bracket}
+                          time={entry.start_time}
+                          matches={matchesById[bracket.id]}
+                          showParticipants={tab !== "brackets"}
+                        />
+                      );
+                    })}
                   </Accordion>
                 </div>
-              ))}
-            </TabsContent>
-          ))}
-        </Tabs>
-      </WebSocketProvider>
+              );
+            })}
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
+  );
+}
+
+const BracketItem = memo(function BracketItem({
+  bracket,
+  time,
+  matches,
+  showParticipants,
+}: {
+  bracket: Bracket;
+  time: string;
+  matches: BracketMatches | undefined;
+  showParticipants: boolean;
+}) {
+  const placements = useMemo(() => bracketPlacements(bracket), [bracket]);
+  return (
+    <AccordionItem value={String(bracket.id)}>
+      <AccordionTrigger className="group relative isolate hover:no-underline">
+        <ChangeFlash signature={bracket.status} variant="fill" className="-inset-x-2 rounded-md" />
+        <BracketHeader bracket={bracket} time={time} />
+      </AccordionTrigger>
+      <AccordionContent>
+        {showParticipants ? (
+          <ParticipantsView bracket={bracket} />
+        ) : matches ? (
+          <BracketView matches={matches} bracketType={bracket.type} placements={placements} />
+        ) : (
+          <SkeletonBracketView bracketType={bracket.type} count={bracket.participants.length} />
+        )}
+      </AccordionContent>
+    </AccordionItem>
+  );
+});
+
+const CustomEntryItem = memo(function CustomEntryItem({ entry }: { entry: TimetableEntry }) {
+  const t = useTranslations("TournamentPage");
+  return (
+    <AccordionItem value={`custom-${entry.id}`}>
+      <AccordionTrigger className="group hover:no-underline">
+        <div className="flex flex-col text-left">
+          <span className="font-semibold">{entry.title ?? t("customEntry")}</span>
+          <span className="text-sm text-muted-foreground">
+            {entry.start_time.slice(0, 5)} – {entry.end_time.slice(0, 5)}
+          </span>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="text-sm text-muted-foreground">{entry.notes ?? "-"}</div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+});
+
+function MissingBracketItem({ entryId }: { entryId: number }) {
+  const t = useTranslations("TournamentPage");
+  return (
+    <AccordionItem value={`missing-${entryId}`}>
+      <AccordionTrigger className="group hover:no-underline">{t("unknownBracket")}</AccordionTrigger>
+      <AccordionContent>
+        <div className="text-sm text-muted-foreground">{t("unknownBracket")}</div>
+      </AccordionContent>
+    </AccordionItem>
   );
 }

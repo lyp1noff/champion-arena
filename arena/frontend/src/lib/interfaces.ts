@@ -98,6 +98,7 @@ export type Bracket = {
   group_id?: number;
   display_name?: string;
   status: BRACKET_STATUS;
+  version?: number;
   participants: Participant[];
   place_1?: BracketMatchAthlete | null;
   place_2?: BracketMatchAthlete | null;
