@@ -31,6 +31,7 @@ from src.models import (
     AthleteCoachLink,
     Bracket,
     BracketMatch,
+    BracketType,
     Match,
     MatchStage,
     Tournament,
@@ -148,6 +149,10 @@ async def _recompute_bracket_placements(db: AsyncSession, bracket_id: int) -> No
 async def _ensure_repechage_generated(db: AsyncSession, bracket_id: int) -> bool:
     bracket = await db.get(Bracket, bracket_id)
     if bracket is None:
+        return False
+    # Only single elimination has a single final; looking one up in a round robin's last
+    # round (several bouts) would raise MultipleResultsFound.
+    if bracket.type != BracketType.SINGLE_ELIMINATION.value:
         return False
 
     has_repechage_matches = bool(
